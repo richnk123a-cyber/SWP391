@@ -19,4 +19,6 @@ public class CompanyResponse {
     private String logo;
     private String verificationStatus;
     private String rejectionReason;
+    private String taxId;
+    private String businessLicenseFile;
 }

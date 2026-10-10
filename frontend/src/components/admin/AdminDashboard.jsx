@@ -222,7 +222,7 @@ export function AdminDashboard() {
                       <p className="font-bold text-slate-900">{ver.companyName}</p>
                       <p className="text-xs text-slate-500 mt-0.5">{ver.industry} • {ver.location}</p>
                     </td>
-                    <td className="py-3.5 px-4 text-slate-700">{ver.representative || 'Chưa cập nhật'}</td>
+                    <td className="py-3.5 px-4 text-slate-700">{ver.representative || ver.recruiterName || 'Chưa cập nhật'}</td>
                     <td className="py-3.5 px-4 font-mono text-xs font-bold text-slate-800">{ver.taxId || '0388990011'}</td>
                     <td className="py-3.5 px-4 text-xs text-slate-500">{ver.submittedDate}</td>
                     <td className="py-3.5 px-4 text-right">

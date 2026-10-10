@@ -1,6 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { VerificationBadge } from '../common/Badge';
+import { JobApplicantsModal } from './JobApplicantsModal';
+import { Modal } from '../common/Modal';
 import {
   Briefcase,
   Users,
@@ -17,25 +19,58 @@ import {
   Check,
   Award,
   Video,
-  ExternalLink
+  ExternalLink,
+  FileText
 } from 'lucide-react';
 import { getCompanyLogoUrl, isImageLogo } from '../../utils/logoUtils';
 
 export function EmployerDashboard() {
-  const { currentUser, employerProfile, jobs, applications, setActivePage, setViewingCVModalCandidate } = useApp();
+  const {
+    currentUser,
+    employerProfile,
+    candidateProfile,
+    companies,
+    jobs,
+    applications,
+    setActivePage,
+    setSelectedJobId,
+    viewingCVModalCandidate,
+    setViewingCVModalCandidate
+  } = useApp();
+  const [viewingApplicantsJob, setViewingApplicantsJob] = useState(null);
 
   const isVerified = employerProfile.verificationStatus === 'Verified';
 
   // Employer's jobs list
   const employerJobs = useMemo(() => {
-    if (!employerProfile) return [];
+    if (!employerProfile && !currentUser) return [];
+    const validIds = new Set();
+    if (currentUser?.id) validIds.add(currentUser.id);
+    if (employerProfile?.ownerUserId) validIds.add(employerProfile.ownerUserId);
+    if (employerProfile?.id) validIds.add(employerProfile.id);
+
+    const validNames = new Set();
+    if (employerProfile?.companyName) validNames.add(employerProfile.companyName.toLowerCase().trim());
+    if (currentUser?.username) validNames.add(currentUser.username.toLowerCase().trim());
+    if (currentUser?.fullName) validNames.add(currentUser.fullName.toLowerCase().trim());
+
+    if (Array.isArray(companies)) {
+      companies.forEach(c => {
+        const matchesUser = (currentUser?.id && c.ownerUserId === currentUser.id) ||
+                            (currentUser?.email && c.email?.toLowerCase() === currentUser.email.toLowerCase());
+        if (matchesUser) {
+          if (c.id) validIds.add(c.id);
+          if (c.ownerUserId) validIds.add(c.ownerUserId);
+          if (c.companyName) validNames.add(c.companyName.toLowerCase().trim());
+        }
+      });
+    }
+
     return jobs.filter(j => 
-      (currentUser?.id && j.employerId === currentUser.id) ||
-      (employerProfile.ownerUserId && j.employerId === employerProfile.ownerUserId) ||
-      (employerProfile.id && j.employerId === employerProfile.id) || 
-      (employerProfile.companyName && j.company === employerProfile.companyName)
+      (j.employerId && validIds.has(j.employerId)) ||
+      (j.company && validNames.has(j.company.toLowerCase().trim()))
     );
-  }, [jobs, employerProfile, currentUser]);
+  }, [jobs, employerProfile, currentUser, companies]);
 
   // Employer's job IDs
   const employerJobIds = useMemo(() => employerJobs.map(j => j.id), [employerJobs]);
@@ -234,10 +269,59 @@ export function EmployerDashboard() {
   {activeJobs.map(job => {
     const appsCount = applications.filter(a => a.jobId === job.id).length;
     const isApproved = job.moderationStatus === 'APPROVED' || (!job.moderationStatus && job.verifiedStatus === 'Verified');
-    return <article key={job.id} className="employer-job-summary">
-      <div className="employer-job-summary-top"><span className="employer-job-icon"><Briefcase size={20} /></span><div><h3>{job.title}</h3><p>{job.category} <span>·</span> {job.jobType}</p></div><span className="employer-job-status">{isApproved ? 'Đã duyệt' : 'Chờ kiểm duyệt'}</span></div>
-      <div className="employer-job-summary-bottom"><strong>{job.salary}</strong><span className="employer-applicant-count"><Users size={15} />{appsCount} hồ sơ</span><button onClick={() => setActivePage('applicant-management')} className="btn btn-secondary btn-sm"><Users size={15} />Ứng viên<ChevronRight size={14} /></button></div>
-    </article>;
+    const isRejected = job.moderationStatus === 'REJECTED';
+    return (
+      <article key={job.id} className="employer-job-summary">
+        <div className="employer-job-summary-top">
+          <span className="employer-job-icon"><Briefcase size={20} /></span>
+          <div>
+            <h3>{job.title}</h3>
+            <p>{job.category} <span>·</span> {job.jobType}</p>
+          </div>
+          <div className="text-right">
+            <span
+              onClick={() => setActivePage('job-management')}
+              className={`employer-job-status text-[11px] font-bold px-2.5 py-1 rounded-md border inline-flex items-center gap-1 cursor-pointer ${
+                isApproved
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                  : isRejected
+                  ? 'bg-rose-50 text-rose-700 border-rose-300'
+                  : 'bg-amber-50 text-amber-700 border-amber-300'
+              }`}
+              title={isRejected && job.rejectionReason ? `Lý do: ${job.rejectionReason}` : ''}
+            >
+              {isApproved ? 'Đã duyệt' : isRejected ? 'Bị từ chối' : 'Chờ kiểm duyệt'}
+            </span>
+            {isRejected && job.rejectionReason && (
+              <div
+                onClick={() => setActivePage('job-management')}
+                className="text-[10px] text-rose-600 hover:text-rose-800 underline cursor-pointer mt-1 font-medium truncate max-w-[130px]"
+                title={`Lý do: ${job.rejectionReason}`}
+              >
+                Lý do: {job.rejectionReason}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="employer-job-summary-bottom">
+          <strong>{job.salary}</strong>
+          <span
+            onClick={() => setViewingApplicantsJob(job)}
+            className="employer-applicant-count cursor-pointer hover:text-blue-600 transition-colors"
+            title="Bấm để xem danh sách ứng viên của tin này"
+          >
+            <Users size={15} />{appsCount} hồ sơ
+          </span>
+          <button
+            onClick={() => setViewingApplicantsJob(job)}
+            className="btn btn-secondary btn-sm"
+            title="Xem danh sách ứng viên chỉ nộp vào tin này"
+          >
+            <Users size={15} />Ứng viên<ChevronRight size={14} />
+          </button>
+        </div>
+      </article>
+    );
   })}
 </div>
           )}
@@ -336,6 +420,53 @@ export function EmployerDashboard() {
           </div>
         </div>
       </div>
+
+      {/* MODAL XEM DANH SÁCH ỨNG VIÊN CỦA VỊ TRÍ ĐƯỢC CHỌN */}
+      {viewingApplicantsJob && (
+        <JobApplicantsModal
+          job={viewingApplicantsJob}
+          isOpen={!!viewingApplicantsJob}
+          onClose={() => setViewingApplicantsJob(null)}
+        />
+      )}
+
+      {/* VIEW CV MODAL CHO ỨNG VIÊN MỚI NHẤT */}
+      {viewingCVModalCandidate && (
+        <Modal
+          isOpen={!!viewingCVModalCandidate}
+          onClose={() => setViewingCVModalCandidate(null)}
+          title={`Chi tiết Hồ sơ & CV - ${viewingCVModalCandidate.candidateName}`}
+        >
+          <div className="space-y-4 text-xs">
+            <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl flex items-center gap-4">
+              <div className="w-14 h-14 rounded-full bg-blue-600 text-white font-black text-xl flex items-center justify-center border-2 border-white shadow-md shrink-0">
+                {viewingCVModalCandidate.candidateName.charAt(0).toUpperCase()}
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-bold text-slate-900 text-sm">{viewingCVModalCandidate.candidateName}</h4>
+                <p className="text-slate-600">Trường: {viewingCVModalCandidate.candidateUniversity || 'Đại học FPT'} • Email: {viewingCVModalCandidate.candidateEmail}</p>
+                <p className="text-slate-600">Kỹ năng: {(viewingCVModalCandidate.candidateSkills || candidateProfile?.skills || []).join(', ')}</p>
+              </div>
+            </div>
+
+            <div className="border-2 border-slate-200 rounded-xl p-6 text-center bg-white space-y-3">
+              <FileText size={44} className="mx-auto text-blue-600" />
+              <h4 className="font-bold text-slate-800 text-sm">{candidateProfile?.cvFileName || 'Nguyen_Van_A_CV_2026.pdf'}</h4>
+              <p className="text-slate-500 text-xs">Bản xem trước tài liệu PDF trực tuyến</p>
+              <div className="p-4 bg-slate-50 rounded-lg text-left font-mono text-[11px] text-slate-700 space-y-1 border border-slate-200">
+                <p className="font-bold text-blue-700">=== TÓM TẮT NỘI DUNG CV ===</p>
+                <p>- Họ tên: {viewingCVModalCandidate.candidateName}</p>
+                <p>- Trạng thái ứng tuyển: {viewingCVModalCandidate.status || 'Đã nộp'}</p>
+                <p>- Kỹ năng nổi bật: {(viewingCVModalCandidate.candidateSkills || candidateProfile?.skills || ['Java', 'SQL', 'Git']).join(', ')}</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setViewingCVModalCandidate(null)} className="btn btn-secondary text-xs">Đóng</button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

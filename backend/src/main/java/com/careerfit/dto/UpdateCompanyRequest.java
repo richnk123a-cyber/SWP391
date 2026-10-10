@@ -18,4 +18,5 @@ public class UpdateCompanyRequest {
     private String size;
     private String location;
     private String logo;
+    private String taxId;
 }

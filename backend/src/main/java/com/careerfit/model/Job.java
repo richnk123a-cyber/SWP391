@@ -23,6 +23,7 @@ public class Job {
     @Column(name = "posted_date") private LocalDateTime postedDate;
     @Builder.Default @Column(name = "is_visible") private Boolean isVisible = true;
     @Column(name = "verification_status", length = 20) private String verificationStatus;
+    @Column(name = "rejection_reason", columnDefinition = "NVARCHAR(MAX)") private String rejectionReason;
 
     // Tự động sinh bảng trung gian job_skill
     @ManyToMany

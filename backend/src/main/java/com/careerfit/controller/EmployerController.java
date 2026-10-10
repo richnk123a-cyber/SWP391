@@ -50,4 +50,24 @@ public class EmployerController {
         CompanyResponse updated = employerService.uploadLogo(userDetails.getUsername(), file);
         return ResponseEntity.ok(ApiResponse.success("Tải lên logo công ty thành công.", updated));
     }
+
+    // POST /api/employer/company/submit-verification
+    // Employer đã có tài khoản nộp hồ sơ xác minh doanh nghiệp (kèm file GPKD)
+    @PostMapping(value = "/company/submit-verification", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<CompanyResponse>> submitVerification(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam("recruiterName") String recruiterName,
+            @RequestParam("companyName") String companyName,
+            @RequestParam("phone") String phone,
+            @RequestParam(value = "taxId", required = false) String taxId,
+            @RequestParam(value = "location", required = false) String location,
+            @RequestParam(value = "industry", required = false) String industry,
+            @RequestParam(value = "website", required = false) String website,
+            @RequestParam(value = "companySize", required = false) String companySize,
+            @RequestParam(value = "licenseFile", required = false) MultipartFile licenseFile) {
+        CompanyResponse updated = employerService.submitVerification(
+                userDetails.getUsername(), recruiterName, companyName, phone,
+                taxId, location, industry, website, companySize, licenseFile);
+        return ResponseEntity.ok(ApiResponse.success("Hồ sơ xác minh đã được gửi tới Admin!", updated));
+    }
 }

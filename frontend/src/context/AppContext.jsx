@@ -11,7 +11,7 @@ import {
   INITIAL_SKILLS_CATALOG,
   INITIAL_NOTIFICATIONS
 } from '../data/mockData';
-import { authApi, candidateApi, employerApi, jobApi } from '../services/apiService';
+import { authApi, adminApi, candidateApi, employerApi, jobApi } from '../services/apiService';
 
 
 const AppContext = createContext();
@@ -850,10 +850,16 @@ export function AppProvider({ children }) {
               const list = Array.isArray(prev) ? [...prev] : [];
               bJobs.forEach(bj => {
                 const idx = list.findIndex(j => j.id === bj.id);
+                // Ánh xạ verificationStatus từ backend sang moderationStatus cho frontend
+                const getModerationStatus = (vs) => {
+                  if (vs === 'Verified') return 'APPROVED';
+                  if (vs === 'Rejected') return 'REJECTED';
+                  return 'PENDING';
+                };
                 const mapped = {
                   id: bj.id,
                   title: bj.title,
-                  company: bj.companyName || currentEmployerCompany?.companyName || 'VNK Technology Solutions',
+                  company: bj.companyName || currentEmployerCompany?.companyName || (currentUser?.fullName || currentUser?.username || 'Doanh nghiệp'),
                   employerId: bj.employerId || currentUser.id,
                   category: bj.category,
                   jobType: bj.jobType,
@@ -863,8 +869,10 @@ export function AppProvider({ children }) {
                   responsibilities: Array.isArray(bj.responsibilities) ? bj.responsibilities : [bj.responsibilities || ''],
                   requirements: Array.isArray(bj.requirements) ? bj.requirements : [bj.requirements || ''],
                   deadline: bj.deadline,
-                  verifiedStatus: bj.verificationStatus || 'Verified',
-                  moderationStatus: bj.verificationStatus === 'Verified' ? 'APPROVED' : 'PENDING',
+                  verificationStatus: bj.verificationStatus || 'Pending',
+                  verifiedStatus: bj.verificationStatus || 'Pending',
+                  moderationStatus: getModerationStatus(bj.verificationStatus),
+                  rejectionReason: bj.rejectionReason || '',
                   isVerified: bj.verificationStatus === 'Verified'
                 };
                 if (idx >= 0) list[idx] = { ...list[idx], ...mapped };
@@ -917,7 +925,120 @@ export function AppProvider({ children }) {
         });
       }
     }
+
+    // Tải tất cả tin tuyển dụng từ backend khi ADMIN đăng nhập (để hiển thị trang kiểm duyệt)
+    if (currentUser?.role === 'ADMIN') {
+      adminApi.getAllJobs()
+        .then(res => {
+          const bJobs = res?.data || res;
+          if (Array.isArray(bJobs) && bJobs.length > 0) {
+            setJobs(prev => {
+              const list = Array.isArray(prev) ? [...prev] : [];
+              bJobs.forEach(bj => {
+                const idx = list.findIndex(j => j.id === bj.id);
+                const getModerationStatus = (vs) => {
+                  if (vs === 'Verified') return 'APPROVED';
+                  if (vs === 'Rejected') return 'REJECTED';
+                  return 'PENDING';
+                };
+                const mapped = {
+                  id: bj.id,
+                  title: bj.title,
+                  company: bj.companyName || '',
+                  employerId: bj.employerId,
+                  category: bj.category,
+                  jobType: bj.jobType,
+                  location: bj.location,
+                  salary: bj.salary,
+                  description: bj.description,
+                  responsibilities: Array.isArray(bj.responsibilities) ? bj.responsibilities : [bj.responsibilities || ''],
+                  requirements: Array.isArray(bj.requirements) ? bj.requirements : [bj.requirements || ''],
+                  deadline: bj.deadline,
+                  verificationStatus: bj.verificationStatus || 'Pending',
+                  verifiedStatus: bj.verificationStatus || 'Pending',
+                  moderationStatus: getModerationStatus(bj.verificationStatus),
+                  rejectionReason: bj.rejectionReason || '',
+                  isVerified: bj.verificationStatus === 'Verified'
+                };
+                if (idx >= 0) list[idx] = { ...list[idx], ...mapped };
+                else list.unshift(mapped);
+              });
+              return list;
+            });
+          }
+        })
+        .catch(err => console.warn('Admin getAllJobs sync note:', err));
+    }
   }, [currentUser]);
+
+  // Sync employer verifications from backend (for Admin to see newly submitted verifications)
+  useEffect(() => {
+    if (currentUser?.role === 'ADMIN') {
+      adminApi.getAllVerifications()
+        .then(res => {
+          const backendVerifications = res?.data || res;
+          if (Array.isArray(backendVerifications) && backendVerifications.length > 0) {
+            setEmployerVerifications(prev => {
+              const localList = Array.isArray(prev) ? prev : [];
+              // Merge: add backend verifications not yet in local list
+              const merged = [...localList];
+              backendVerifications.forEach(bv => {
+                const exists = merged.some(lv =>
+                  lv.companyId === bv.id ||
+                  lv.id === bv.id ||
+                  (bv.email && lv.email && lv.email.toLowerCase() === bv.email.toLowerCase())
+                );
+                if (!exists) {
+                  merged.unshift({
+                    id: bv.id || `ver-${Date.now()}-${Math.random().toString(36).substr(2,4)}`,
+                    companyId: bv.id,
+                    companyName: bv.companyName || '',
+                    recruiterName: bv.recruiterName || '',
+                    email: bv.email || '',
+                    phone: bv.phone || '',
+                    taxId: bv.taxId || '',
+                    location: bv.location || '',
+                    industry: bv.industry || '',
+                    website: bv.website || '',
+                    submittedDate: new Date().toLocaleDateString('vi-VN'),
+                    status: bv.verificationStatus || 'Pending',
+                    documentName: bv.businessLicenseFile || '',
+                    rejectReason: bv.rejectionReason || ''
+                  });
+                } else {
+                  // Update status from backend (source of truth)
+                  const idx = merged.findIndex(lv =>
+                    lv.companyId === bv.id ||
+                    lv.id === bv.id ||
+                    (bv.email && lv.email && lv.email.toLowerCase() === bv.email.toLowerCase())
+                  );
+                  if (idx >= 0) {
+                    merged[idx] = {
+                      ...merged[idx],
+                      companyId: bv.id || merged[idx].companyId,
+                      companyName: bv.companyName || merged[idx].companyName,
+                      status: bv.verificationStatus || merged[idx].status,
+                      recruiterName: bv.recruiterName || merged[idx].recruiterName,
+                      email: bv.email || merged[idx].email,
+                      phone: bv.phone || merged[idx].phone,
+                      taxId: bv.taxId || merged[idx].taxId,
+                      location: bv.location || merged[idx].location,
+                      industry: bv.industry || merged[idx].industry,
+                      website: bv.website || merged[idx].website,
+                      documentName: bv.businessLicenseFile || merged[idx].documentName,
+                      rejectReason: bv.rejectionReason || merged[idx].rejectReason
+                    };
+                  }
+                }
+              });
+              return merged;
+            });
+          }
+        })
+        .catch(err => console.warn('Admin getPendingVerifications sync note:', err));
+    }
+  }, [currentUser]);
+
 
   const employerProfile = currentEmployerCompany;
 
@@ -945,12 +1066,32 @@ export function AppProvider({ children }) {
     showToast('Đã cập nhật danh sách kỹ năng cá nhân!', 'success');
   };
 
-  const uploadCandidateCV = (fileName) => {
-    const finalName = typeof fileName === 'string' && fileName ? fileName : 'CV_Ung_Vien.pdf';
+  const uploadCandidateCV = async (fileOrName) => {
+    let finalName = 'CV_Ung_Vien.pdf';
+    let extractedText = '';
+
+    if (fileOrName instanceof File) {
+      finalName = fileOrName.name;
+      try {
+        const formData = new FormData();
+        formData.append('file', fileOrName);
+        const res = await candidateApi.uploadCv(formData);
+        if (res && res.data) {
+          finalName = res.data.cvFileName || finalName;
+          extractedText = res.data.extractedCvText || '';
+        }
+      } catch (err) {
+        console.warn('Backend CV upload sync failed, fallback to local state:', err);
+      }
+    } else if (typeof fileOrName === 'string' && fileOrName) {
+      finalName = fileOrName;
+    }
+
     const updatedProf = {
       ...candidateProfile,
       hasCV: true,
       cvFileName: finalName,
+      extractedCvText: extractedText || candidateProfile?.extractedCvText || '',
       cvUploadDate: new Date().toLocaleDateString('vi-VN')
     };
     setCandidateProfile(updatedProf);
@@ -959,14 +1100,23 @@ export function AppProvider({ children }) {
       localStorage.setItem(userKey, JSON.stringify(updatedProf));
     }
     showToast(`Đã tải lên CV "${finalName}" thành công! Bây giờ bạn có thể ứng tuyển.`, 'success');
+    return updatedProf;
   };
 
-  const deleteCandidateCV = () => {
+  const deleteCandidateCV = async () => {
+    try {
+      await candidateApi.deleteCv();
+    } catch (err) {
+      console.warn('Backend CV delete failed, falling back to local state:', err);
+    }
+
     const updatedProf = {
       ...candidateProfile,
       hasCV: false,
       cvFileName: '',
-      cvUploadDate: ''
+      extractedCvText: '',
+      cvUploadDate: '',
+      cvFileSize: 0
     };
     setCandidateProfile(updatedProf);
     if (currentUser && currentUser.id) {
@@ -974,6 +1124,7 @@ export function AppProvider({ children }) {
       localStorage.setItem(userKey, JSON.stringify(updatedProf));
     }
     showToast('Đã xóa CV thành công!', 'info');
+    return updatedProf;
   };
 
   const toggleRoadmapTopic = (roadmapId, topicId) => {
@@ -1009,7 +1160,12 @@ export function AppProvider({ children }) {
       return false;
     }
 
-    const existing = applications.find(a => a.jobId === jobId && (a.candidateEmail === candidateProfile.email || a.candidateId === candidateProfile.id));
+    const existing = applications.find(a =>
+      a.jobId === jobId &&
+      (a.candidateEmail === candidateProfile.email ||
+       a.candidateId === candidateProfile.id ||
+       a.candidateId === currentUser.id)
+    );
     if (existing) {
       showToast('Bạn đã nộp đơn ứng tuyển cho công việc này rồi!', 'info');
       return false;
@@ -1029,7 +1185,26 @@ export function AppProvider({ children }) {
 
     setApplications(prev => [newApp, ...prev]);
 
-    // Send real in-app notification to target Employer
+    // Gọi API backend để lưu vào DB (fire-and-forget, không block UI)
+    const token = localStorage.getItem('careerfit_token');
+    if (token) {
+      jobApi.applyJob(jobId)
+        .then(res => {
+          // Nếu backend trả về ID thực, cập nhật lại ID trong state
+          const realApp = res?.data || res;
+          if (realApp && realApp.id && realApp.id !== newApp.id) {
+            setApplications(prev => prev.map(a =>
+              a.id === newApp.id ? { ...a, id: realApp.id, backendSynced: true } : a
+            ));
+          }
+        })
+        .catch(err => {
+          // Đã nộp rồi từ lần trước (backend báo duplicate) thì bỏ qua
+          console.warn('applyJob backend sync note:', err);
+        });
+    }
+
+    // Gửi thông báo cho nhà tuyển dụng
     const targetJob = jobs.find(j => j.id === jobId);
     if (targetJob) {
       const empEmail = targetJob.employerEmail || (targetJob.company === 'FPT Software' ? 'employer@gmail.com' : '');
@@ -1044,6 +1219,48 @@ export function AppProvider({ children }) {
     }
 
     showToast('Ứng tuyển thành công! Nhà tuyển dụng đã nhận hồ sơ của bạn.', 'success');
+    return true;
+  };
+
+  // Hủy đơn ứng tuyển (Candidate)
+  const cancelApplication = (jobId) => {
+    if (!currentUser || currentUser.role !== 'CANDIDATE') {
+      showToast('Không có quyền thực hiện thao tác này!', 'danger');
+      return false;
+    }
+
+    // Tìm đơn ứng tuyển cần hủy trong local state
+    const existingApp = applications.find(a =>
+      a.jobId === jobId &&
+      (a.candidateEmail === candidateProfile?.email ||
+       a.candidateId === candidateProfile?.id ||
+       a.candidateId === currentUser.id)
+    );
+
+    if (!existingApp) {
+      showToast('Không tìm thấy đơn ứng tuyển để hủy.', 'warning');
+      return false;
+    }
+
+    // Xóa khỏi local state ngay lập tức — NTD cũng không còn thấy ứng viên này
+    setApplications(prev => prev.filter(a => a.id !== existingApp.id));
+    showToast('Đã hủy đơn ứng tuyển thành công.', 'info');
+
+    // Gọi API backend để xóa khỏi DB (fire-and-forget)
+    const token = localStorage.getItem('careerfit_token');
+    if (token) {
+      jobApi.cancelApplication(jobId)
+        .catch(err => {
+          // Nếu backend báo "không tìm thấy" (đơn chỉ ở local state) thì bỏ qua, không rollback
+          // Nếu lỗi khác thì log ra console để debug
+          const status = err?.status || err?.response?.status;
+          const errMsg = err?.message || '';
+          if (status !== 400 && !errMsg.includes('chưa nộp')) {
+            console.warn('cancelApplication backend sync note:', err);
+          }
+        });
+    }
+
     return true;
   };
 
@@ -1138,6 +1355,66 @@ export function AppProvider({ children }) {
     return true;
   };
 
+  // Cập nhật / Chỉnh sửa tin tuyển dụng
+  const updateJob = async (jobId, updatedData) => {
+    // Điều kiện 1: Kiểm tra xem tin đã có người nộp hồ sơ ứng tuyển hay chưa
+    const jobApps = applications.filter(a => a.jobId === jobId);
+    if (jobApps.length > 0) {
+      showToast('Tin tuyển dụng này đã có người ứng tuyển nên không được phép chỉnh sửa!', 'warning');
+      return false;
+    }
+
+    // Lưu lại job cũ để rollback nếu gọi backend thất bại
+    const oldJob = jobs.find(j => j.id === jobId);
+
+    // Optimistic update: khi sửa tin thì LUÔN LUÔN gửi lại cho Admin để xác nhận (chuyển về PENDING)
+    setJobs(prev => prev.map(j => {
+      if (j.id === jobId) {
+        return {
+          ...j,
+          ...updatedData,
+          moderationStatus: 'PENDING',
+          verificationStatus: 'Pending',
+          verifiedStatus: 'Pending',
+          rejectionReason: '',
+          lastUpdate: new Date().toLocaleDateString('vi-VN')
+        };
+      }
+      return j;
+    }));
+
+    try {
+      const token = localStorage.getItem('careerfit_token');
+      if (token) {
+        await jobApi.updateJob(jobId, {
+          title: updatedData.title,
+          category: updatedData.category,
+          jobType: updatedData.jobType,
+          location: updatedData.location,
+          salary: updatedData.salary,
+          description: updatedData.description,
+          responsibilities: Array.isArray(updatedData.responsibilities) ? updatedData.responsibilities.join('\n') : (updatedData.responsibilities || ''),
+          requirements: Array.isArray(updatedData.requirements) ? updatedData.requirements.join('\n') : (updatedData.requirements || ''),
+          deadline: updatedData.deadline
+        });
+      }
+      showToast('Đã lưu chỉnh sửa! Tin đã được chuyển sang trạng thái "Chờ kiểm duyệt" để Admin phê duyệt lại.', 'success');
+      return true;
+    } catch (err) {
+      console.warn('Backend updateJob sync note:', err);
+      const errMsg = err?.message || err?.response?.data?.message;
+      if (errMsg && errMsg.includes('đã có người')) {
+        // Rollback lại state nếu Backend từ chối do có ứng viên
+        if (oldJob) setJobs(prev => prev.map(j => (j.id === jobId ? oldJob : j)));
+        showToast(errMsg, 'danger');
+        return false;
+      }
+      showToast('Đã lưu chỉnh sửa! Tin đã được gửi lại cho Admin để xác nhận.', 'success');
+      return true;
+    }
+  };
+
+
   const reportJob = (jobId, reason, description) => {
     const job = jobs.find(j => j.id === jobId);
     const newReport = {
@@ -1181,6 +1458,7 @@ export function AppProvider({ children }) {
 
   // JOB MODERATION
   const handleApproveJobModeration = (jobId) => {
+    // Cập nhật UI ngay lập tức (optimistic update)
     setJobs(prev =>
       prev.map(j =>
         j.id === jobId
@@ -1188,6 +1466,7 @@ export function AppProvider({ children }) {
               ...j,
               isVerified: true,
               verifiedStatus: 'Verified',
+              verificationStatus: 'Verified',
               moderationStatus: 'APPROVED',
               rejectionReason: '',
               moderatedAt: new Date().toLocaleDateString('vi-VN'),
@@ -1196,16 +1475,34 @@ export function AppProvider({ children }) {
           : j
       )
     );
-    showToast('Đã phê duyệt tin tuyển dụng thành công. Bài đăng đã hiển thị công khai!', 'success');
+    // Gọi API backend để lưu vào DB
+    adminApi.approveJob(jobId)
+      .then(() => {
+        showToast('Đã phê duyệt tin tuyển dụng thành công. Bài đăng đã hiển thị công khai!', 'success');
+      })
+      .catch(err => {
+        console.error('Lỗi khi phê duyệt tin tuyển dụng:', err);
+        // Rollback UI nếu API thất bại
+        setJobs(prev =>
+          prev.map(j =>
+            j.id === jobId
+              ? { ...j, isVerified: false, verifiedStatus: 'Pending', verificationStatus: 'Pending', moderationStatus: 'PENDING' }
+              : j
+          )
+        );
+        showToast('Phê duyệt tin thất bại. Vui lòng thử lại.', 'danger');
+      });
   };
 
   const handleRejectJobModeration = (jobId, reason) => {
+    // Cập nhật UI ngay lập tức (optimistic update)
     setJobs(prev =>
       prev.map(j =>
         j.id === jobId
           ? {
               ...j,
               moderationStatus: 'REJECTED',
+              verificationStatus: 'Rejected',
               rejectionReason: reason,
               moderatedAt: new Date().toLocaleDateString('vi-VN'),
               moderatedBy: currentUser ? currentUser.email : 'trongtien6571@gmail.com'
@@ -1213,13 +1510,79 @@ export function AppProvider({ children }) {
           : j
       )
     );
-    showToast('Đã từ chối tin tuyển dụng có lưu lý do.', 'info');
+    // Gọi API backend để lưu vào DB
+    adminApi.rejectJob(jobId, reason)
+      .then(() => {
+        showToast('Đã từ chối tin tuyển dụng có lưu lý do.', 'info');
+      })
+      .catch(err => {
+        console.error('Lỗi khi từ chối tin tuyển dụng:', err);
+        // Rollback UI nếu API thất bại
+        setJobs(prev =>
+          prev.map(j =>
+            j.id === jobId
+              ? { ...j, moderationStatus: 'PENDING', verificationStatus: 'Pending', rejectionReason: '' }
+              : j
+          )
+        );
+        showToast('Từ chối tin thất bại. Vui lòng thử lại.', 'danger');
+      });
+  };
+
+  // XÓA TIN TUYỂN DỤNG CỦA DOANH NGHIỆP (với điều kiện ứng viên)
+  const deleteEmployerJob = async (jobId) => {
+    // 1. Kiểm tra danh sách ứng viên của công việc
+    const jobApps = applications.filter(a => a.jobId === jobId);
+
+    // Kiểm tra xem có ứng viên nào đang ở trạng thái 'Đã xem' hoặc 'Phỏng vấn' hay không
+    const hasReviewedCandidate = jobApps.some(a => {
+      const st = (a.status || '').toLowerCase().trim();
+      return st.includes('đã xem') || st.includes('phỏng vấn') || st.includes('interview') || st.includes('viewed');
+    });
+
+    if (hasReviewedCandidate) {
+      showToast('Không thể xóa tin tuyển dụng này vì đang có ứng viên trong trạng thái "Đã xem" hoặc "Phỏng vấn"!', 'warning');
+      return false;
+    }
+
+    // Lưu lại job cũ để rollback nếu API lỗi
+    const oldJob = jobs.find(j => j.id === jobId);
+
+    // Optimistic update: xóa khỏi state
+    setJobs(prev => prev.filter(j => j.id !== jobId));
+    // Xóa các application liên quan đến job đó ở local
+    setApplications(prev => prev.filter(a => a.jobId !== jobId));
+
+    try {
+      const token = localStorage.getItem('careerfit_token');
+      if (token) {
+        if (currentUser?.role === 'ADMIN') {
+          await adminApi.removeJob(jobId);
+        } else {
+          await jobApi.deleteJob(jobId);
+        }
+      }
+      showToast('Đã xóa tin tuyển dụng thành công!', 'success');
+      return true;
+    } catch (err) {
+      console.warn('Lỗi khi gọi API xóa tin tuyển dụng:', err);
+      const errMsg = err?.message || err?.response?.data?.message;
+      if (errMsg && (errMsg.includes('Đã xem') || errMsg.includes('Phỏng vấn'))) {
+        // Rollback lại state nếu backend từ chối do vi phạm điều kiện
+        if (oldJob) setJobs(prev => [oldJob, ...prev]);
+        showToast(errMsg, 'danger');
+        return false;
+      }
+      // Nếu là lỗi khác (như job mock chỉ tồn tại local), giữ việc xóa trên giao diện thành công
+      showToast('Đã xóa tin tuyển dụng thành công!', 'success');
+      return true;
+    }
   };
 
   const handleRemoveApprovedJob = (jobId) => {
-    setJobs(prev => prev.filter(j => j.id !== jobId));
-    showToast('Đã gỡ bỏ tin tuyển dụng khỏi hệ thống!', 'danger');
+    deleteEmployerJob(jobId);
   };
+
 
   // EMPLOYER VERIFICATION
   const handleApproveVerification = (verifyId) => {
@@ -1235,6 +1598,22 @@ export function AppProvider({ children }) {
             : c
         )
       );
+      // Giữ đồng bộ tên công ty trên tất cả các tin tuyển dụng của công ty này
+      if (verify.companyName) {
+        setJobs(prev =>
+          prev.map(j =>
+            (j.employerId === verify.companyId || (verify.companyName && j.company === verify.companyName))
+              ? { ...j, company: verify.companyName }
+              : j
+          )
+        );
+      }
+      // Persist to backend DB
+      const backendId = verify.companyId || verify.id;
+      if (backendId) {
+        adminApi.approveVerification(backendId)
+          .catch(err => console.warn('Backend approveVerification note:', err));
+      }
     }
     showToast('Đã phê duyệt xác minh doanh nghiệp thành công!', 'success');
   };
@@ -1252,9 +1631,16 @@ export function AppProvider({ children }) {
             : c
         )
       );
+      // Persist to backend DB
+      const backendId = verify.companyId || verify.id;
+      if (backendId) {
+        adminApi.rejectVerification(backendId, reason)
+          .catch(err => console.warn('Backend rejectVerification note:', err));
+      }
     }
     showToast('Đã từ chối xác minh doanh nghiệp có lưu lý do bắt buộc.', 'info');
   };
+
 
   // SUSPICIOUS REPORT HANDLING
   const handleDismissReport = (reportId) => {
@@ -1498,6 +1884,7 @@ export function AppProvider({ children }) {
         employerProfile,
         setEmployerProfile,
         jobs,
+        setJobs,
         selectedJob,
         setSelectedJobId,
         savedJobIds,
@@ -1517,8 +1904,10 @@ export function AppProvider({ children }) {
         deleteCandidateCV,
         toggleRoadmapTopic,
         applyForJob,
+        cancelApplication,
         updateApplicationStatus,
         createJob,
+        updateJob,
         reportJob,
         toggleLockUser,
         handleApproveVerification,
@@ -1526,6 +1915,7 @@ export function AppProvider({ children }) {
         handleApproveJobModeration,
         handleRejectJobModeration,
         handleRemoveApprovedJob,
+        deleteEmployerJob,
         handleDismissReport,
         handleResolveReport,
         addSkillToCatalog,

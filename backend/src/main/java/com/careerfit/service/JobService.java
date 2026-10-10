@@ -12,7 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -92,15 +94,74 @@ public class JobService {
         return mapToJobResponse(newJob, null);
     }
 
+    // ===== Helper: Lấy tập hợp tất cả các identifier hợp lệ của Employer (ID hiện tại, các account cùng email, hoặc company owner) =====
+    private Set<String> getValidEmployerIds(User employer) {
+        Set<String> ids = new HashSet<>();
+        ids.add(employer.getId());
+        if (employer.getEmail() != null && !employer.getEmail().isBlank()) {
+            List<User> sameEmailUsers = userRepository.findAllByEmail(employer.getEmail().toLowerCase());
+            for (User u : sameEmailUsers) {
+                ids.add(u.getId());
+            }
+            List<Company> userCompanies = companyRepository.findAllByEmail(employer.getEmail().toLowerCase());
+            for (Company c : userCompanies) {
+                if (c.getOwnerUserId() != null) {
+                    ids.add(c.getOwnerUserId());
+                }
+            }
+        }
+        return ids;
+    }
+
     // ===== EMPLOYER: Lấy danh sách tin của mình =====
     public List<JobResponse> getMyJobs(String employerEmail) {
         User employer = userRepository.findById(employerEmail.toLowerCase())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản."));
 
-        return jobRepository.findByEmployerId(employer.getId())
+        Set<String> validIds = getValidEmployerIds(employer);
+        return jobRepository.findByEmployerIdIn(List.copyOf(validIds))
                 .stream()
                 .map(j -> mapToJobResponse(j, null))
                 .collect(Collectors.toList());
+    }
+
+    // ===== EMPLOYER: Cập nhật / Chỉnh sửa tin tuyển dụng =====
+    @Transactional
+    public JobResponse updateJob(String employerEmail, String jobId, PostJobRequest request) {
+        User employer = userRepository.findById(employerEmail.toLowerCase())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản."));
+
+        Job job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tin tuyển dụng."));
+
+        Set<String> validIds = getValidEmployerIds(employer);
+        if (!validIds.contains(job.getEmployerId())) {
+            throw new BadRequestException("Bạn không có quyền chỉnh sửa tin tuyển dụng này.");
+        }
+
+        // Điều kiện 1: Tin tuyển dụng đã có người ứng tuyển thì KHÔNG ĐƯỢỢC SỬA
+        List<Application> apps = applicationRepository.findByJobId(jobId);
+        if (apps != null && !apps.isEmpty()) {
+            throw new BadRequestException("Tin tuyển dụng đã có người nộp hồ sơ ứng tuyển nên không thể chỉnh sửa.");
+        }
+
+        job.setTitle(request.getTitle().trim());
+        job.setCategory(request.getCategory().trim());
+        job.setJobType(request.getJobType().trim());
+        job.setLocation(request.getLocation().trim());
+        job.setSalary(request.getSalary().trim());
+        job.setDescription(request.getDescription());
+        job.setResponsibilities(request.getResponsibilities());
+        job.setRequirements(request.getRequirements());
+        job.setDeadline(request.getDeadline());
+        
+        // Điều kiện 2: Khi sửa tin thì LUÔN LUÔN gửi lại cho Admin để xác nhận (chuyển về Pending)
+        job.setVerificationStatus("Pending");
+        job.setRejectionReason(null);
+
+        jobRepository.save(job);
+        log.info("Employer=[{}] updated job=[{}] and submitted for admin re-verification", employerEmail, jobId);
+        return mapToJobResponse(job, null);
     }
 
     // ===== CANDIDATE: Nộp đơn ứng tuyển =====
@@ -149,6 +210,25 @@ public class JobService {
                 .collect(Collectors.toList());
     }
 
+    // ===== CANDIDATE: Hủy đơn ứng tuyển =====
+    @Transactional
+    public void cancelApplication(String candidateEmail, String jobId) {
+        User candidate = userRepository.findById(candidateEmail.toLowerCase())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản."));
+
+        if (!jobRepository.existsById(jobId)) {
+            throw new ResourceNotFoundException("Không tìm thấy tin tuyển dụng.");
+        }
+
+        if (!applicationRepository.existsByJobIdAndCandidateId(jobId, candidate.getId())) {
+            throw new BadRequestException("Bạn chưa nộp đơn vào vị trí này.", "jobId");
+        }
+
+        applicationRepository.deleteByJobIdAndCandidateId(jobId, candidate.getId());
+        log.info("Candidate=[{}] cancelled application for job=[{}]", candidateEmail, jobId);
+    }
+
+
     // ===== CANDIDATE: Lưu / bỏ lưu job =====
     @Transactional
     public String toggleSaveJob(String candidateEmail, String jobId) {
@@ -181,8 +261,8 @@ public class JobService {
         Job job = jobRepository.findById(jobId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tin tuyển dụng."));
 
-        // Bảo mật: chỉ employer sở hữu job mới được xem
-        if (!employer.getId().equals(job.getEmployerId())) {
+        Set<String> validIds = getValidEmployerIds(employer);
+        if (!validIds.contains(job.getEmployerId())) {
             throw new BadRequestException("Bạn không có quyền xem thông tin này.");
         }
 
@@ -192,12 +272,51 @@ public class JobService {
                 .collect(Collectors.toList());
     }
 
+    // ===== EMPLOYER: Xóa tin tuyển dụng =====
+    @Transactional
+    public void deleteJob(String employerEmail, String jobId) {
+        User employer = userRepository.findById(employerEmail.toLowerCase())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản."));
+
+        Job job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tin tuyển dụng."));
+
+        // Bảo mật: chỉ employer sở hữu job mới được xóa
+        Set<String> validIds = getValidEmployerIds(employer);
+        if (!validIds.contains(job.getEmployerId())) {
+            throw new BadRequestException("Bạn không có quyền xóa tin tuyển dụng này.");
+        }
+
+        List<Application> apps = applicationRepository.findByJobId(jobId);
+        // Kiểm tra điều kiện: Nếu có ứng viên nằm trong trạng thái Đã xem hoặc Phỏng vấn thì không cho xóa
+        boolean hasActiveReviewedCandidate = apps.stream().anyMatch(a -> {
+            String st = a.getStatus();
+            if (st == null) return false;
+            String normalized = st.trim().toLowerCase();
+            return normalized.contains("đã xem") || normalized.contains("viewed") ||
+                   normalized.contains("phỏng vấn") || normalized.contains("interview");
+        });
+
+        if (hasActiveReviewedCandidate) {
+            throw new BadRequestException("Không thể xóa tin tuyển dụng vì đang có ứng viên trong trạng thái Đã xem hoặc Phỏng vấn.");
+        }
+
+        // Xóa các application liên quan và saved jobs trước khi xóa job
+        applicationRepository.deleteAll(apps);
+        savedJobRepository.deleteByCandidateUserIdAndJobId(employer.getId(), jobId); // clean up any self-saved
+        jobRepository.delete(job);
+        log.info("Employer=[{}] successfully deleted job=[{}]", employerEmail, jobId);
+    }
+
     // ===== Helper mappers =====
     private JobResponse mapToJobResponse(Job j, String currentUserId) {
         boolean isSaved = currentUserId != null &&
                 savedJobRepository.existsByCandidateUserIdAndJobId(currentUserId, j.getId());
         String compName = companyRepository.findByOwnerUserId(j.getEmployerId())
                 .map(Company::getCompanyName)
+                .or(() -> userRepository.findById(j.getEmployerId())
+                        .flatMap(u -> companyRepository.findFirstByEmail(u.getEmail().toLowerCase()))
+                        .map(Company::getCompanyName))
                 .orElse("");
         return JobResponse.builder()
                 .id(j.getId())
@@ -216,6 +335,7 @@ public class JobService {
                 // .preferredSkills(j.getPreferredSkills())
                 .deadline(j.getDeadline())
                 .verificationStatus(j.getVerificationStatus())
+                .rejectionReason(j.getRejectionReason())
                 .isSaved(isSaved)
                 .build();
     }

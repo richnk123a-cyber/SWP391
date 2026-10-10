@@ -11,6 +11,7 @@ import java.util.List;
 @Repository
 public interface JobRepository extends JpaRepository<Job, String> {
     List<Job> findByEmployerId(String employerId);
+    List<Job> findByEmployerIdIn(List<String> employerIds);
     List<Job> findByVerificationStatus(String status);
 
     @Query("""

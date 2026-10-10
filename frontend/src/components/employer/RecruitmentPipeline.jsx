@@ -14,6 +14,7 @@ export function RecruitmentPipeline() {
     candidateProfile,
     updateApplicationStatus,
     setViewingCVModalCandidate,
+    companies,
     showToast
   } = useApp();
 
@@ -23,14 +24,34 @@ export function RecruitmentPipeline() {
 
   // Filter jobs for current employer
   const employerJobs = useMemo(() => {
-    if (!employerProfile) return [];
-    return jobs.filter(
-      j => (currentUser?.id && j.employerId === currentUser.id) ||
-           (employerProfile.ownerUserId && j.employerId === employerProfile.ownerUserId) ||
-           (employerProfile.id && j.employerId === employerProfile.id) ||
-           (employerProfile.companyName && j.company === employerProfile.companyName)
+    if (!employerProfile && !currentUser) return [];
+    const validIds = new Set();
+    if (currentUser?.id) validIds.add(currentUser.id);
+    if (employerProfile?.ownerUserId) validIds.add(employerProfile.ownerUserId);
+    if (employerProfile?.id) validIds.add(employerProfile.id);
+
+    const validNames = new Set();
+    if (employerProfile?.companyName) validNames.add(employerProfile.companyName.toLowerCase().trim());
+    if (currentUser?.username) validNames.add(currentUser.username.toLowerCase().trim());
+    if (currentUser?.fullName) validNames.add(currentUser.fullName.toLowerCase().trim());
+
+    if (Array.isArray(companies)) {
+      companies.forEach(c => {
+        const matchesUser = (currentUser?.id && c.ownerUserId === currentUser.id) ||
+                            (currentUser?.email && c.email?.toLowerCase() === currentUser.email.toLowerCase());
+        if (matchesUser) {
+          if (c.id) validIds.add(c.id);
+          if (c.ownerUserId) validIds.add(c.ownerUserId);
+          if (c.companyName) validNames.add(c.companyName.toLowerCase().trim());
+        }
+      });
+    }
+
+    return jobs.filter(j => 
+      (j.employerId && validIds.has(j.employerId)) ||
+      (j.company && validNames.has(j.company.toLowerCase().trim()))
     );
-  }, [jobs, employerProfile, currentUser]);
+  }, [jobs, employerProfile, currentUser, companies]);
 
   const employerJobIds = useMemo(() => {
     return employerJobs.map(j => j.id);

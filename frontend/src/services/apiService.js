@@ -65,13 +65,16 @@ export const jobApi = {
 
   // Candidate
   applyJob: (jobId) => api.post(`/jobs/${jobId}/apply`),
+  cancelApplication: (jobId) => api.delete(`/jobs/${jobId}/apply`),
   toggleSaveJob: (jobId) => api.post(`/jobs/${jobId}/save`),
   getMyApplications: () => api.get('/jobs/applications/my'),
 
   // Employer
   postJob: (data) => api.post('/jobs', data),
+  updateJob: (jobId, data) => api.put(`/jobs/${jobId}`, data),
   getMyJobs: () => api.get('/jobs/my'),
   getApplicationsByJob: (jobId) => api.get(`/jobs/${jobId}/applications`),
+  deleteJob: (jobId) => api.delete(`/jobs/${jobId}`),
 };
 
 // ============================================================
@@ -80,6 +83,48 @@ export const jobApi = {
 export const candidateApi = {
   getMyProfile: () => api.get('/candidate/profile'),
   updateMyProfile: (data) => api.put('/candidate/profile', data),
+
+  // UC04 - Tải lên / Cập nhật CV (SCRUM-69, SCRUM-35)
+  uploadCv: (formData) => api.post('/candidate/cv', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+
+  // UC05 - Xóa CV (SCRUM-36)
+  deleteCv: () => api.delete('/candidate/cv'),
+
+  // Tải / Xem file CV trực tiếp từ máy chủ (kèm JWT Header)
+  downloadCv: async () => {
+    const token = localStorage.getItem('careerfit_token');
+    const response = await fetch(`${BASE_URL}/candidate/cv/download`, {
+      method: 'GET',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`Không thể tải tệp từ máy chủ (Mã lỗi ${response.status})`);
+    }
+    return await response.blob();
+  },
+  downloadCvUrl: `${BASE_URL}/candidate/cv/download`,
+};
+
+// ============================================================
+// ADMIN APIs
+// ============================================================
+export const adminApi = {
+  // Job Moderation
+  getAllJobs: () => api.get('/admin/jobs'),
+  getPendingJobs: () => api.get('/admin/jobs/pending'),
+  approveJob: (jobId) => api.put(`/admin/jobs/${jobId}/approve`),
+  rejectJob: (jobId, reason) => api.put(`/admin/jobs/${jobId}/reject`, { reason }),
+  removeJob: (jobId) => api.delete(`/admin/jobs/${jobId}`),
+
+  // Employer Verification Management
+  getPendingVerifications: () => api.get('/admin/verifications'),
+  getAllVerifications: () => api.get('/admin/verifications/all'),
+  approveVerification: (companyId) => api.put(`/admin/verifications/${companyId}/approve`),
+  rejectVerification: (companyId, reason) => api.put(`/admin/verifications/${companyId}/reject`, { reason }),
 };
 
 // ============================================================
@@ -95,4 +140,9 @@ export const employerApi = {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
+  // Endpoint dành cho employer đã có tài khoản (chuyển từ CANDIDATE → EMPLOYER trong DB)
+  // nộp hồ sơ xác minh doanh nghiệp mà không cần tạo user mới
+  submitVerification: (formData) => api.post('/employer/company/submit-verification', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
 };
