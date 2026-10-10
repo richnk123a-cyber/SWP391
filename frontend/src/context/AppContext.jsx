@@ -797,13 +797,31 @@ export function AppProvider({ children }) {
   // Helper to resolve currently logged in employer's company record
   const currentEmployerCompany = customEmployerProfile || (currentUser && currentUser.role === 'EMPLOYER'
     ? (companies.find(c => c.ownerUserId === currentUser.id) ||
-       companies.find(c => c.email.toLowerCase() === currentUser.email.toLowerCase()) ||
-       (currentUser.email.includes('pending') ? INITIAL_COMPANIES[1] : INITIAL_COMPANIES[0]))
+       companies.find(c => c.email && c.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+       (currentUser.email && currentUser.email.toLowerCase().includes('vonguyenkhanh') ? (companies.find(c => c.id === 'comp-55122454' || c.companyName === 'VNK Technology Solutions') || INITIAL_COMPANIES.find(c => c.id === 'comp-55122454')) : null) ||
+       (currentUser.email && currentUser.email.toLowerCase().includes('pending') ? INITIAL_COMPANIES[1] : null) ||
+       {
+         id: `comp-${currentUser.id || 'emp'}`,
+         ownerUserId: currentUser.id,
+         companyName: currentUser.fullName || currentUser.username || 'Doanh nghiệp mới',
+         recruiterName: currentUser.fullName || currentUser.username || '',
+         email: currentUser.email || '',
+         phone: currentUser.phone || '',
+         website: '',
+         industry: '',
+         size: '',
+         location: '',
+         taxId: '',
+         logo: '🏢',
+         verificationStatus: 'Pending',
+         description: ''
+       })
     : (companies[0] || INITIAL_COMPANIES[0]));
 
-  // Automatically sync employer company profile from backend SQL Server
+  // Automatically sync employer company profile from backend SQL Server & migrate local cache
   useEffect(() => {
     if (currentUser?.role === 'EMPLOYER') {
+      // 1. Fetch real company from backend
       employerApi.getMyCompany()
         .then(res => {
           const comp = res?.data || res;
@@ -811,9 +829,9 @@ export function AppProvider({ children }) {
             setCustomEmployerProfile(comp);
             setCompanies(cList => {
               const list = Array.isArray(cList) ? cList : [];
-              const exists = list.some(c => (comp.id && c.id === comp.id) || (comp.companyName && c.companyName === comp.companyName));
+              const exists = list.some(c => (comp.id && c.id === comp.id) || (comp.ownerUserId && c.ownerUserId === comp.ownerUserId) || (comp.companyName && c.companyName === comp.companyName));
               if (exists) {
-                return list.map(c => ((comp.id && c.id === comp.id) || (comp.companyName && c.companyName === comp.companyName)) ? { ...c, ...comp } : c);
+                return list.map(c => ((comp.id && c.id === comp.id) || (comp.ownerUserId && c.ownerUserId === comp.ownerUserId) || (comp.companyName && c.companyName === comp.companyName)) ? { ...c, ...comp } : c);
               }
               return [comp, ...list];
             });
@@ -822,6 +840,82 @@ export function AppProvider({ children }) {
         .catch(err => {
           console.warn('Backend getMyCompany not reachable or session not loaded:', err);
         });
+
+      // 2. Fetch real jobs from backend
+      jobApi.getMyJobs()
+        .then(res => {
+          const bJobs = res?.data || res;
+          if (Array.isArray(bJobs) && bJobs.length > 0) {
+            setJobs(prev => {
+              const list = Array.isArray(prev) ? [...prev] : [];
+              bJobs.forEach(bj => {
+                const idx = list.findIndex(j => j.id === bj.id);
+                const mapped = {
+                  id: bj.id,
+                  title: bj.title,
+                  company: bj.companyName || currentEmployerCompany?.companyName || 'VNK Technology Solutions',
+                  employerId: bj.employerId || currentUser.id,
+                  category: bj.category,
+                  jobType: bj.jobType,
+                  location: bj.location,
+                  salary: bj.salary,
+                  description: bj.description,
+                  responsibilities: Array.isArray(bj.responsibilities) ? bj.responsibilities : [bj.responsibilities || ''],
+                  requirements: Array.isArray(bj.requirements) ? bj.requirements : [bj.requirements || ''],
+                  deadline: bj.deadline,
+                  verifiedStatus: bj.verificationStatus || 'Verified',
+                  moderationStatus: bj.verificationStatus === 'Verified' ? 'APPROVED' : 'PENDING',
+                  isVerified: bj.verificationStatus === 'Verified'
+                };
+                if (idx >= 0) list[idx] = { ...list[idx], ...mapped };
+                else list.unshift(mapped);
+              });
+              return list;
+            });
+          }
+        })
+        .catch(err => console.warn('Backend getMyJobs sync note:', err));
+
+      // 3. One-time auto-migration for vonguyenkhanh2911@gmail.com / user-cand-55122454
+      if (currentUser.email === 'vonguyenkhanh2911@gmail.com' || currentUser.id === 'user-cand-55122454') {
+        const vnkComp = INITIAL_COMPANIES.find(c => c.id === 'comp-55122454');
+        if (vnkComp) {
+          setCompanies(prev => {
+            const list = Array.isArray(prev) ? [...prev] : [];
+            const idx = list.findIndex(c => c.id === 'comp-55122454' || c.ownerUserId === 'user-cand-55122454' || c.email === 'vonguyenkhanh2911@gmail.com');
+            if (idx >= 0) {
+              list[idx] = { ...list[idx], ...vnkComp, logo: list[idx].logo || vnkComp.logo };
+            } else {
+              list.unshift(vnkComp);
+            }
+            return list;
+          });
+        }
+
+        // Ensure VNK real jobs exist in state
+        setJobs(prev => {
+          const list = Array.isArray(prev) ? [...prev] : [];
+          const vnkJobs = INITIAL_JOBS.filter(j => j.id === 'job-vnk-1' || j.id === 'job-vnk-2' || j.employerId === 'user-cand-55122454');
+          vnkJobs.forEach(vj => {
+            if (!list.some(j => j.id === vj.id)) {
+              list.unshift(vj);
+            }
+          });
+          return list;
+        });
+
+        // Ensure VNK real applications exist in state
+        setApplications(prev => {
+          const list = Array.isArray(prev) ? [...prev] : [];
+          const vnkApps = INITIAL_APPLICATIONS.filter(a => a.id.startsWith('app-vnk-'));
+          vnkApps.forEach(va => {
+            if (!list.some(a => a.id === va.id)) {
+              list.unshift(va);
+            }
+          });
+          return list;
+        });
+      }
     }
   }, [currentUser]);
 
@@ -990,25 +1084,57 @@ export function AppProvider({ children }) {
     showToast(`Đã chuyển trạng thái ứng tuyển sang "${newStatus}"`, 'success');
   };
 
-  const createJob = (newJobData) => {
+  const createJob = async (newJobData) => {
     if (!currentEmployerCompany || currentEmployerCompany.verificationStatus !== 'Verified') {
       showToast('Tài khoản chưa được xác minh! Không thể đăng tin tuyển dụng.', 'danger');
       return false;
     }
 
+    const tempId = `job-${Date.now()}`;
+    const requestedModerationStatus = newJobData.moderationStatus || 'PENDING';
+    const isApprovedImmediately = requestedModerationStatus === 'APPROVED';
+
     const created = {
-      id: `job-${Date.now()}`,
+      id: tempId,
       ...newJobData,
       company: currentEmployerCompany.companyName,
-      employerId: currentUser.id,
-      isVerified: true,
-      verifiedStatus: 'Verified',
+      employerId: currentUser?.id || currentEmployerCompany?.ownerUserId,
+      isVerified: isApprovedImmediately,
+      verifiedStatus: isApprovedImmediately ? 'Verified' : 'Pending',
+      moderationStatus: requestedModerationStatus,
       logo: currentEmployerCompany.logo || '🏢',
       postedDate: 'Hôm nay'
     };
 
     setJobs(prev => [created, ...prev]);
-    showToast('Đăng tin tuyển dụng mới thành công!', 'success');
+
+    // Async sync to backend
+    try {
+      const res = await jobApi.postJob({
+        title: newJobData.title,
+        category: newJobData.category,
+        jobType: newJobData.jobType,
+        location: newJobData.location,
+        salary: newJobData.salary || `${newJobData.minSalary || 10}.000.000 - ${newJobData.maxSalary || 15}.000.000 VNĐ`,
+        description: newJobData.description,
+        responsibilities: Array.isArray(newJobData.responsibilities) ? newJobData.responsibilities.join('\n') : (newJobData.responsibilities || ''),
+        requirements: Array.isArray(newJobData.requirements) ? newJobData.requirements.join('\n') : (newJobData.requirements || ''),
+        deadline: newJobData.deadline
+      });
+
+      const backendJob = res?.data || res;
+      if (backendJob && backendJob.id) {
+        setJobs(prev => prev.map(j => (j.id === tempId ? { ...j, id: backendJob.id } : j)));
+      }
+    } catch (err) {
+      console.warn('Backend postJob sync note:', err);
+    }
+
+    if (requestedModerationStatus === 'PENDING') {
+      showToast('Đã gửi tin tuyển dụng! Tin đang chờ Admin kiểm duyệt trước khi hiển thị công khai.', 'success');
+    } else {
+      showToast('Đăng tin tuyển dụng mới thành công!', 'success');
+    }
     return true;
   };
 

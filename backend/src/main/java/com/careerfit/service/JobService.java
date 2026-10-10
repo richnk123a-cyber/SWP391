@@ -196,9 +196,12 @@ public class JobService {
     private JobResponse mapToJobResponse(Job j, String currentUserId) {
         boolean isSaved = currentUserId != null &&
                 savedJobRepository.existsByCandidateUserIdAndJobId(currentUserId, j.getId());
+        String compName = companyRepository.findByOwnerUserId(j.getEmployerId())
+                .map(Company::getCompanyName)
+                .orElse("");
         return JobResponse.builder()
                 .id(j.getId())
-                // .companyName(j.getCompanyName())
+                .companyName(compName)
                 .employerId(j.getEmployerId())
                 .title(j.getTitle())
                 .category(j.getCategory())

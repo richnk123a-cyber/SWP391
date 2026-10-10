@@ -26,21 +26,21 @@ import {
 } from 'lucide-react';
 
 export function CompanyProfilePage() {
-  const { employerProfile, setEmployerProfile, setCompanies, showToast, setActivePage } = useApp();
+  const { currentUser, employerProfile, setEmployerProfile, setCompanies, showToast, setActivePage } = useApp();
 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    companyName: employerProfile?.companyName || 'FPT Software',
-    recruiterName: employerProfile?.recruiterName || 'Trần Thị B',
-    email: employerProfile?.email || 'employer@gmail.com',
-    phone: employerProfile?.phone || '028 3730 8888',
-    website: employerProfile?.website || 'https://fpt-software.com',
-    industry: employerProfile?.industry || 'Phần mềm & IT Outsourcing',
-    size: employerProfile?.size || '1000+ nhân viên',
-    location: employerProfile?.location || 'Quận 9, TP.HCM',
-    taxId: employerProfile?.taxId || '0312345678',
+    companyName: employerProfile?.companyName || (currentUser?.fullName ? currentUser.fullName : (currentUser?.username || '')),
+    recruiterName: employerProfile?.recruiterName || currentUser?.fullName || currentUser?.username || '',
+    email: employerProfile?.email || currentUser?.email || '',
+    phone: employerProfile?.phone || currentUser?.phone || '',
+    website: employerProfile?.website || '',
+    industry: employerProfile?.industry || '',
+    size: employerProfile?.size || '',
+    location: employerProfile?.location || '',
+    taxId: employerProfile?.taxId || '',
     logo: employerProfile?.logo || '🏢',
-    description: employerProfile?.description || 'FPT Software là công ty xuất khẩu dịch vụ phần mềm hàng đầu Việt Nam với hơn 30.000 kỹ sư công nghệ tại 30 quốc gia trên thế giới.'
+    description: employerProfile?.description || ''
   });
 
   const [logoFile, setLogoFile] = useState(null);
@@ -90,7 +90,9 @@ export function CompanyProfilePage() {
               industry: comp.industry || prev.industry,
               size: comp.size || prev.size,
               location: comp.location || prev.location,
-              logo: comp.logo || prev.logo
+              taxId: comp.taxId || prev.taxId,
+              logo: comp.logo || prev.logo,
+              description: comp.description || prev.description
             }));
           }
         }
@@ -305,9 +307,9 @@ export function CompanyProfilePage() {
               <VerificationBadge status={employerProfile?.verificationStatus} />
             </div>
             <p className="text-xs text-slate-300 mt-1.5 flex items-center gap-2 flex-wrap">
-              <span>Mã số thuế: <strong className="font-mono text-white">{formData.taxId || employerProfile?.taxId || '0312345678'}</strong></span>
+              <span>Mã số thuế: <strong className="font-mono text-white">{formData.taxId || employerProfile?.taxId || <span className="text-slate-400 font-normal italic">Chưa cập nhật</span>}</strong></span>
               <span>•</span>
-              <span>Lĩnh vực: <strong className="text-white font-medium">{formData.industry || employerProfile?.industry}</strong></span>
+              <span>Lĩnh vực: <strong className="text-white font-medium">{formData.industry || employerProfile?.industry || <span className="text-slate-400 font-normal italic">Chưa cập nhật</span>}</strong></span>
               <span>•</span>
               <span className="text-blue-300 font-semibold cursor-pointer hover:underline" onClick={() => fileInputRef.current?.click()}>
                 📷 Thay logo
@@ -581,34 +583,59 @@ export function CompanyProfilePage() {
           <div className="md:col-span-8 bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-xs space-y-6 text-xs">
             <div>
               <h3 className="text-sm font-bold text-slate-900 mb-2">Mô tả doanh nghiệp</h3>
-              <p className="text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100">
-                {formData.description}
-              </p>
+              {formData.description ? (
+                <p className="text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100 whitespace-pre-line">
+                  {formData.description}
+                </p>
+              ) : (
+                <div className="text-slate-400 italic bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200 flex items-center justify-between">
+                  <span>Chưa cập nhật thông tin mô tả doanh nghiệp.</span>
+                  <button onClick={() => setIsEditing(true)} className="text-blue-600 font-semibold hover:underline text-xs not-italic">
+                    Cập nhật ngay
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               <div className="space-y-1">
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Website</span>
-                <a href={formData.website} target="_blank" rel="noreferrer" className="text-blue-600 font-semibold hover:underline flex items-center gap-1">
-                  <Globe size={13} /> {formData.website}
-                </a>
+                {formData.website ? (
+                  <a href={formData.website.startsWith('http') ? formData.website : `https://${formData.website}`} target="_blank" rel="noreferrer" className="text-blue-600 font-semibold hover:underline flex items-center gap-1">
+                    <Globe size={13} /> {formData.website}
+                  </a>
+                ) : (
+                  <span className="text-slate-400 italic">Chưa cập nhật</span>
+                )}
               </div>
 
               <div className="space-y-1">
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Mã số thuế</span>
-                <span className="font-mono font-bold text-slate-800">{formData.taxId}</span>
+                {formData.taxId ? (
+                  <span className="font-mono font-bold text-slate-800">{formData.taxId}</span>
+                ) : (
+                  <span className="text-slate-400 italic">Chưa cập nhật</span>
+                )}
               </div>
 
               <div className="space-y-1">
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Trụ sở văn phòng</span>
-                <span className="font-medium text-slate-700 flex items-center gap-1">
-                  <MapPin size={13} className="text-slate-400" /> {formData.location}
-                </span>
+                {formData.location ? (
+                  <span className="font-medium text-slate-700 flex items-center gap-1">
+                    <MapPin size={13} className="text-slate-400" /> {formData.location}
+                  </span>
+                ) : (
+                  <span className="text-slate-400 italic">Chưa cập nhật</span>
+                )}
               </div>
 
               <div className="space-y-1">
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Quy mô nhân sự</span>
-                <span className="font-medium text-slate-700">{formData.size}</span>
+                {formData.size ? (
+                  <span className="font-medium text-slate-700">{formData.size}</span>
+                ) : (
+                  <span className="text-slate-400 italic">Chưa cập nhật</span>
+                )}
               </div>
             </div>
           </div>
@@ -621,9 +648,9 @@ export function CompanyProfilePage() {
               </h4>
 
               <div className="space-y-2 text-slate-700">
-                <p>Họ tên HR: <strong>{formData.recruiterName}</strong></p>
-                <p>Email: <strong>{formData.email}</strong></p>
-                <p>Điện thoại: <strong>{formData.phone}</strong></p>
+                <p>Họ tên HR: <strong>{formData.recruiterName || <span className="text-slate-400 font-normal italic">Chưa cập nhật</span>}</strong></p>
+                <p>Email: <strong>{formData.email || <span className="text-slate-400 font-normal italic">Chưa cập nhật</span>}</strong></p>
+                <p>Điện thoại: <strong>{formData.phone || <span className="text-slate-400 font-normal italic">Chưa cập nhật</span>}</strong></p>
               </div>
             </div>
 

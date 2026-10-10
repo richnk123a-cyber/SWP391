@@ -22,7 +22,7 @@ import {
 import { getCompanyLogoUrl, isImageLogo } from '../../utils/logoUtils';
 
 export function EmployerDashboard() {
-  const { employerProfile, jobs, applications, setActivePage, setViewingCVModalCandidate } = useApp();
+  const { currentUser, employerProfile, jobs, applications, setActivePage, setViewingCVModalCandidate } = useApp();
 
   const isVerified = employerProfile.verificationStatus === 'Verified';
 
@@ -30,10 +30,12 @@ export function EmployerDashboard() {
   const employerJobs = useMemo(() => {
     if (!employerProfile) return [];
     return jobs.filter(j => 
+      (currentUser?.id && j.employerId === currentUser.id) ||
+      (employerProfile.ownerUserId && j.employerId === employerProfile.ownerUserId) ||
       (employerProfile.id && j.employerId === employerProfile.id) || 
       (employerProfile.companyName && j.company === employerProfile.companyName)
     );
-  }, [jobs, employerProfile]);
+  }, [jobs, employerProfile, currentUser]);
 
   // Employer's job IDs
   const employerJobIds = useMemo(() => employerJobs.map(j => j.id), [employerJobs]);
@@ -71,22 +73,18 @@ export function EmployerDashboard() {
   return (
     <div className="employer-workspace employer-employerdashboard space-y-6 mx-auto">
       {/* 1. TOP WELCOME & COMPANY SUMMARY CARD */}
-      <div className="employer-dashboard-welcome bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-center gap-4">
+      <div className="employer-dashboard-welcome bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex items-center gap-4 sm:gap-5 min-w-0 flex-1">
           <div
             onClick={() => setActivePage('company-profile')}
-            className={`shrink-0 relative group cursor-pointer transition-all ${isImageLogo(employerProfile?.logo)
-              ? 'h-14 sm:h-16 max-w-[200px] flex items-center justify-center hover:opacity-80'
-              : 'w-16 h-16 rounded-2xl bg-white border border-slate-200 text-blue-700 font-black text-xl flex items-center justify-center shadow-2xs hover:border-blue-400 overflow-hidden'
-            }`}
+            className="employer-dashboard-logo relative group cursor-pointer shrink-0 w-[76px] h-[76px] rounded-2xl bg-white p-2 flex items-center justify-center shadow-md border border-white/30 overflow-hidden transition-all hover:scale-105"
             title="Logo công ty - Nhấn để chuyển đến trang chỉnh sửa hồ sơ & cập nhật logo"
           >
             {isImageLogo(employerProfile?.logo) ? (
               <img
                 src={getCompanyLogoUrl(employerProfile.logo)}
                 alt={employerProfile?.companyName || 'Logo công ty'}
-                className="h-full w-auto max-w-[200px] object-contain"
-                style={{ background: 'transparent' }}
+                className="w-full h-full object-contain"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                   if (e.currentTarget.nextSibling) e.currentTarget.nextSibling.style.display = 'flex';
@@ -95,33 +93,39 @@ export function EmployerDashboard() {
             ) : null}
             <div
               style={{ display: isImageLogo(employerProfile?.logo) ? 'none' : 'flex' }}
-              className="w-full h-full items-center justify-center bg-blue-50 text-2xl font-black text-blue-700"
+              className="w-full h-full items-center justify-center bg-blue-50 text-2xl font-black text-blue-700 rounded-xl"
             >
               {employerProfile?.logo || '🏢'}
             </div>
-            <div className="absolute inset-0 bg-slate-900/65 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold gap-0.5">
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[1px] text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold gap-0.5 rounded-2xl">
               <Camera size={14} className="text-blue-300" />
               <span>Đổi logo</span>
             </div>
           </div>
-          <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <p className="employer-welcome-eyebrow">KHÔNG GIAN TUYỂN DỤNG</p><h1 className="text-2xl font-extrabold text-slate-900">{employerProfile.companyName}</h1>
-              <VerificationBadge status={employerProfile.verificationStatus} />
+          <div className="min-w-0 flex-1">
+            <p className="employer-welcome-eyebrow">KHÔNG GIAN TUYỂN DỤNG</p>
+            <div className="flex items-center gap-2.5 flex-wrap mt-0.5">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">
+                {employerProfile?.companyName || 'Doanh nghiệp'}
+              </h1>
+              <VerificationBadge status={employerProfile?.verificationStatus} />
             </div>
-            <p className="text-xs font-semibold text-slate-600 mt-1">
-              HR Recruiter: <strong>{employerProfile.recruiterName}</strong> ({employerProfile.email}) • {employerProfile.industry} • {employerProfile.location}
+            <p className="text-xs sm:text-sm font-semibold text-slate-600 mt-1 flex items-center flex-wrap gap-x-2 gap-y-1">
+              <span>HR Recruiter: <strong>{employerProfile?.recruiterName}</strong></span>
+              {employerProfile?.email && <span>({employerProfile.email})</span>}
+              {employerProfile?.industry && <><span>•</span><span>{employerProfile.industry}</span></>}
+              {employerProfile?.location && <><span>•</span><span>{employerProfile.location}</span></>}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={() => setActivePage('create-job')}
             disabled={!isVerified}
-            className="btn btn-primary shadow-xs text-xs font-bold py-2.5 px-4 flex items-center gap-2"
+            className="btn btn-primary shadow-xs text-xs font-bold py-2.5 px-4 flex items-center gap-2 whitespace-nowrap"
           >
-            <PlusCircle size={16} /> + Đăng tin tuyển dụng mới
+            <PlusCircle size={16} /> Đăng tin tuyển dụng mới
           </button>
         </div>
       </div>

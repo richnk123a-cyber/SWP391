@@ -31,6 +31,7 @@ import {
 
 export function ApplicantManagementPage() {
   const {
+    currentUser,
     applications,
     jobs,
     employerProfile,
@@ -44,9 +45,14 @@ export function ApplicantManagementPage() {
   const employerJobIds = useMemo(() => {
     if (!employerProfile) return [];
     return jobs
-      .filter(j => (employerProfile.id && j.employerId === employerProfile.id) || (employerProfile.companyName && j.company === employerProfile.companyName))
+      .filter(j => 
+        (currentUser?.id && j.employerId === currentUser.id) ||
+        (employerProfile.ownerUserId && j.employerId === employerProfile.ownerUserId) ||
+        (employerProfile.id && j.employerId === employerProfile.id) || 
+        (employerProfile.companyName && j.company === employerProfile.companyName)
+      )
       .map(j => j.id);
-  }, [jobs, employerProfile]);
+  }, [jobs, employerProfile, currentUser]);
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');

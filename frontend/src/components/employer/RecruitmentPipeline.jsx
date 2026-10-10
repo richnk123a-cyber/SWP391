@@ -7,6 +7,7 @@ import { Kanban, FileText, Video, Filter, Sparkles, UserCheck } from 'lucide-rea
 
 export function RecruitmentPipeline() {
   const {
+    currentUser,
     applications,
     jobs,
     employerProfile,
@@ -22,12 +23,14 @@ export function RecruitmentPipeline() {
 
   // Filter jobs for current employer
   const employerJobs = useMemo(() => {
-    if (!employerProfile) return jobs;
+    if (!employerProfile) return [];
     return jobs.filter(
-      j => (employerProfile.id && j.employerId === employerProfile.id) ||
+      j => (currentUser?.id && j.employerId === currentUser.id) ||
+           (employerProfile.ownerUserId && j.employerId === employerProfile.ownerUserId) ||
+           (employerProfile.id && j.employerId === employerProfile.id) ||
            (employerProfile.companyName && j.company === employerProfile.companyName)
     );
-  }, [jobs, employerProfile]);
+  }, [jobs, employerProfile, currentUser]);
 
   const employerJobIds = useMemo(() => {
     return employerJobs.map(j => j.id);
@@ -36,7 +39,7 @@ export function RecruitmentPipeline() {
   // Filter applications for current employer
   const employerApps = useMemo(() => {
     return applications.filter(app => {
-      const isMyJob = employerJobIds.length === 0 || employerJobIds.includes(app.jobId);
+      const isMyJob = employerJobIds.includes(app.jobId);
       const matchesJobFilter = selectedJobFilter === 'All' || app.jobId === selectedJobFilter;
       return isMyJob && matchesJobFilter;
     });

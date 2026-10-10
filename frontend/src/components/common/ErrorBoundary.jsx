@@ -17,9 +17,19 @@ export class ErrorBoundary extends React.Component {
 
   handleResetStorageAndReload = () => {
     try {
-      localStorage.clear();
+      // Clear view-related caches if corrupted, but preserve user session and auth token
+      const token = localStorage.getItem('careerfit_token');
+      const currentUser = localStorage.getItem('careerfit_current_user');
+      const companies = localStorage.getItem('careerfit_companies');
+      
+      localStorage.removeItem('careerfit_selected_job');
+      
+      // If token and user existed, preserve them so user is not logged out abruptly
+      if (token) localStorage.setItem('careerfit_token', token);
+      if (currentUser) localStorage.setItem('careerfit_current_user', currentUser);
+      if (companies) localStorage.setItem('careerfit_companies', companies);
     } catch (e) {
-      console.error("Could not clear localStorage:", e);
+      console.error("ErrorBoundary cleanup note:", e);
     }
     window.location.reload();
   };

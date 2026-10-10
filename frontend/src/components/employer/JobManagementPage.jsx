@@ -25,6 +25,7 @@ import {
 
 export function JobManagementPage() {
   const {
+    currentUser,
     jobs,
     applications,
     employerProfile,
@@ -50,10 +51,12 @@ export function JobManagementPage() {
   const employerJobs = useMemo(() => {
     if (!employerProfile) return [];
     return jobs.filter(j => 
+      (currentUser?.id && j.employerId === currentUser.id) ||
+      (employerProfile.ownerUserId && j.employerId === employerProfile.ownerUserId) ||
       (employerProfile.id && j.employerId === employerProfile.id) || 
       (employerProfile.companyName && j.company === employerProfile.companyName)
     );
-  }, [jobs, employerProfile]);
+  }, [jobs, employerProfile, currentUser]);
 
   const filteredJobs = useMemo(() => {
     return employerJobs.filter(job => {

@@ -44,13 +44,18 @@ export function JobDetailPage() {
 
   const isSaved = savedJobIds.includes(selectedJob.id);
   const candidateSkills = candidateProfile?.skills || [];
-  const match = calculateSkillMatch(candidateSkills, selectedJob.requiredSkills || []);
+  const safeRequiredSkills = Array.isArray(selectedJob.requiredSkills)
+    ? selectedJob.requiredSkills
+    : (typeof selectedJob.requiredSkills === 'string'
+        ? selectedJob.requiredSkills.split(/[,;\n]/).map(s => s.trim()).filter(Boolean)
+        : []);
+  const match = calculateSkillMatch(candidateSkills, safeRequiredSkills);
 
-  const matchedSkillsList = (selectedJob.requiredSkills || []).filter(sk =>
-    candidateSkills.map(s => s.toLowerCase()).includes(sk.toLowerCase())
+  const matchedSkillsList = safeRequiredSkills.filter(sk =>
+    candidateSkills.map(s => String(s || '').toLowerCase()).includes(String(sk || '').toLowerCase())
   );
-  const missingSkillsList = (selectedJob.requiredSkills || []).filter(sk =>
-    !candidateSkills.map(s => s.toLowerCase()).includes(sk.toLowerCase())
+  const missingSkillsList = safeRequiredSkills.filter(sk =>
+    !candidateSkills.map(s => String(s || '').toLowerCase()).includes(String(sk || '').toLowerCase())
   );
 
   const similarJobs = jobs
@@ -196,12 +201,18 @@ export function JobDetailPage() {
                 Trách nhiệm công việc
               </h3>
               <div className="space-y-2 text-xs sm:text-sm text-slate-600">
-                {(selectedJob.responsibilities || 'Lập trình các mô-đun chức năng Spring Boot RESTful Web Services; Viết Unit Test và tài liệu API Swagger; Phối hợp với nhóm Frontend và QA để hoàn thành các sprint Agile.')
-                  .split(';')
+                {(Array.isArray(selectedJob.responsibilities)
+                  ? selectedJob.responsibilities
+                  : (typeof selectedJob.responsibilities === 'string'
+                      ? selectedJob.responsibilities.split(selectedJob.responsibilities.includes(';') ? ';' : '\n')
+                      : ['Lập trình các mô-đun chức năng Spring Boot RESTful Web Services', 'Viết Unit Test và tài liệu API Swagger', 'Phối hợp với nhóm Frontend và QA để hoàn thành các sprint Agile'])
+                )
+                  .map(r => (typeof r === 'string' ? r.trim() : String(r || '')))
+                  .filter(Boolean)
                   .map((resp, idx) => (
                     <div key={idx} className="flex items-start gap-2.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-blue-600 mt-2 shrink-0" />
-                      <span>{resp.trim()}</span>
+                      <span>{resp}</span>
                     </div>
                   ))}
               </div>
@@ -213,12 +224,18 @@ export function JobDetailPage() {
                 Yêu cầu ứng viên
               </h3>
               <div className="space-y-2 text-xs sm:text-sm text-slate-600">
-                {(selectedJob.requirements || 'Nắm vững kiến thức Lập trình hướng đối tượng (OOP) và cấu trúc dữ liệu; Có kiến thức về Java Core, SQL Server / PostgreSQL; Tinh thần học hỏi cao, sẵn sàng tiếp thu công nghệ mới.')
-                  .split(';')
+                {(Array.isArray(selectedJob.requirements)
+                  ? selectedJob.requirements
+                  : (typeof selectedJob.requirements === 'string'
+                      ? selectedJob.requirements.split(selectedJob.requirements.includes(';') ? ';' : '\n')
+                      : ['Nắm vững kiến thức Lập trình hướng đối tượng (OOP) và cấu trúc dữ liệu', 'Có kiến thức về Java Core, SQL Server / PostgreSQL', 'Tinh thần học hỏi cao, sẵn sàng tiếp thu công nghệ mới'])
+                )
+                  .map(r => (typeof r === 'string' ? r.trim() : String(r || '')))
+                  .filter(Boolean)
                   .map((req, idx) => (
                     <div key={idx} className="flex items-start gap-2.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 mt-2 shrink-0" />
-                      <span>{req.trim()}</span>
+                      <span>{req}</span>
                     </div>
                   ))}
               </div>
@@ -230,8 +247,13 @@ export function JobDetailPage() {
                 Kỹ năng & Công nghệ yêu cầu
               </h3>
               <div className="flex flex-wrap gap-2 pt-1">
-                {(selectedJob.requiredSkills || []).map(sk => {
-                  const isMatch = candidateSkills.map(s => s.toLowerCase()).includes(sk.toLowerCase());
+                {(Array.isArray(selectedJob.requiredSkills)
+                  ? selectedJob.requiredSkills
+                  : (typeof selectedJob.requiredSkills === 'string'
+                      ? selectedJob.requiredSkills.split(/[,;\n]/).map(s => s.trim()).filter(Boolean)
+                      : ['Java', 'SQL'])
+                ).map(sk => {
+                  const isMatch = candidateSkills.map(s => String(s || '').toLowerCase()).includes(String(sk || '').toLowerCase());
                   return (
                     <span
                       key={sk}

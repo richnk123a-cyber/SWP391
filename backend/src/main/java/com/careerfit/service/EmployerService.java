@@ -39,17 +39,18 @@ public class EmployerService {
                 .orElseGet(() -> {
                     String compId = "comp-" + UUID.randomUUID().toString().substring(0, 8);
                     String compName = (user.getUsername() != null && !user.getUsername().isBlank())
-                            ? user.getUsername() : "FPT Software";
+                            ? user.getUsername()
+                            : (user.getEmail() != null ? user.getEmail().split("@")[0] : "Doanh nghiệp mới");
                     Company newComp = Company.builder()
                             .id(compId)
                             .ownerUserId(user.getId())
                             .companyName(compName)
-                            .recruiterName(user.getUsername() != null ? user.getUsername() : "HR Manager")
+                            .recruiterName(user.getUsername() != null ? user.getUsername() : "")
                             .email(user.getEmail())
                             .logo("🏢")
-                            .verificationStatus("Verified")
+                            .verificationStatus("Pending")
                             .build();
-                    log.info("Auto-created company=[{}] linked to employer user=[{}]", compId, user.getId());
+                    log.info("Auto-created company=[{}] linked to employer user=[{}] with status Pending", compId, user.getId());
                     return companyRepository.save(newComp);
                 });
 
@@ -73,10 +74,13 @@ public class EmployerService {
                 .or(() -> companyRepository.findFirstByEmail(user.getEmail().toLowerCase()))
                 .orElseGet(() -> {
                     String compId = "comp-" + UUID.randomUUID().toString().substring(0, 8);
+                    String fallbackName = (request.getCompanyName() != null && !request.getCompanyName().isBlank())
+                            ? request.getCompanyName().trim()
+                            : (user.getUsername() != null ? user.getUsername() : user.getEmail().split("@")[0]);
                     Company newComp = Company.builder()
                             .id(compId)
                             .ownerUserId(user.getId())
-                            .companyName(request.getCompanyName() != null ? request.getCompanyName().trim() : "FPT Software")
+                            .companyName(fallbackName)
                             .recruiterName(request.getRecruiterName() != null ? request.getRecruiterName().trim() : user.getUsername())
                             .email(user.getEmail())
                             .logo("🏢")

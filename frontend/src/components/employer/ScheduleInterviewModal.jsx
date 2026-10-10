@@ -4,15 +4,16 @@ import { Modal } from '../common/Modal';
 import { Calendar, Video, Send, Clock, MapPin, FileText, CheckCircle2 } from 'lucide-react';
 
 export function ScheduleInterviewModal({ appId, onClose }) {
-  const { applications, updateApplicationStatus, showToast } = useApp();
+  const { applications, employerProfile, updateApplicationStatus, showToast } = useApp();
 
   const app = applications.find(a => a.id === appId);
 
-  const [date, setDate] = useState('Thứ 5, 27/03/2026');
-  const [time, setTime] = useState('14:00 - 15:00 GMT+7');
+  const companySlug = (employerProfile?.companyName || 'hr').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const [date, setDate] = useState('Thứ Năm, 15/10/2026');
+  const [time, setTime] = useState('14:30 - 15:30 GMT+7');
   const [type, setType] = useState('Online (Google Meet)');
-  const [meetingLink, setMeetingLink] = useState('https://meet.google.com/fpt-hr-interview-2026');
-  const [note, setNote] = useState('Vui lòng chuẩn bị bài giới thiệu bản thân 5 phút và sẵn sàng chia sẻ màn hình làm đồ án tốt nghiệp.');
+  const [meetingLink, setMeetingLink] = useState(`https://meet.google.com/${companySlug || 'hr'}-interview`);
+  const [note, setNote] = useState('Vui lòng chuẩn bị bài giới thiệu bản thân 5 phút và sẵn sàng chia sẻ màn hình trao đổi về kinh nghiệm / đồ án.');
 
   const handleSubmit = (e) => {
     e.preventDefault();

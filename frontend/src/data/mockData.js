@@ -151,6 +151,24 @@ export const INITIAL_COMPANIES = [
     verificationStatus: 'Pending',
     businessLicenseDoc: 'GPKD_FintechAsia_2026.pdf',
     rejectionReason: ''
+  },
+  {
+    id: 'comp-55122454',
+    ownerUserId: 'user-cand-55122454',
+    companyName: 'VNK Technology Solutions',
+    recruiterName: 'Võ Nguyên Khánh (HR)',
+    representative: 'Võ Nguyên Khánh',
+    taxId: '0317892345',
+    email: 'vonguyenkhanh2911@gmail.com',
+    phone: '0976 543 345',
+    website: 'https://vnk-tech.com',
+    industry: 'Phát triển Phần mềm & Giải pháp IT',
+    size: '50-150 nhân viên',
+    location: 'Quận 1, TP. Hồ Chí Minh',
+    verificationStatus: 'Verified',
+    businessLicenseDoc: 'GPKD_VNK_Technology_2026.pdf',
+    rejectionReason: '',
+    description: 'VNK Technology Solutions là doanh nghiệp công nghệ chuyên cung cấp các giải pháp chuyển đổi số, phát triển phần mềm doanh nghiệp, ứng dụng Web và Mobile chất lượng cao cho thị trường trong nước và quốc tế.'
   }
 ];
 
@@ -368,6 +386,64 @@ export const INITIAL_JOBS = [
     requiredSkills: ['Python', 'SQL', 'REST API', 'Git'],
     preferredSkills: ['Spark', 'TensorFlow', 'Docker'],
     deadline: '28/05/2026'
+  },
+  {
+    id: 'job-vnk-1',
+    title: 'Fullstack Web Developer (React & Node.js)',
+    company: 'VNK Technology Solutions',
+    employerId: 'user-cand-55122454',
+    isVerified: true,
+    verifiedStatus: 'Verified',
+    moderationStatus: 'APPROVED',
+    rejectionReason: '',
+    location: 'Quận 1, TP.HCM',
+    jobType: 'Full-time',
+    category: 'Frontend Developer',
+    salary: '10.000.000 - 15.000.000 VNĐ',
+    postedDate: 'Hôm qua',
+    description: 'Phát triển các ứng dụng Web doanh nghiệp cho khách hàng VNK Technology Solutions.',
+    responsibilities: [
+      'Xây dựng UI responsive bằng ReactJS, tối ưu trải nghiệm người dùng.',
+      'Tích hợp RESTful API với backend Node.js / Spring Boot.',
+      'Viết test case và tham gia code review cùng nhóm.'
+    ],
+    requirements: [
+      'Thành thạo ReactJS, JavaScript/TypeScript, HTML5/CSS3, Git.',
+      'Có kiến thức về REST API, State Management.',
+      'Chủ động, ham học hỏi, tinh thần trách nhiệm cao.'
+    ],
+    requiredSkills: ['React', 'JavaScript', 'TypeScript', 'HTML/CSS', 'Git'],
+    preferredSkills: ['Node.js', 'TailwindCSS', 'Docker'],
+    deadline: '30/11/2026'
+  },
+  {
+    id: 'job-vnk-2',
+    title: 'Java Spring Boot Backend Engineer',
+    company: 'VNK Technology Solutions',
+    employerId: 'user-cand-55122454',
+    isVerified: true,
+    verifiedStatus: 'Verified',
+    moderationStatus: 'APPROVED',
+    rejectionReason: '',
+    location: 'Quận 1, TP.HCM',
+    jobType: 'Full-time',
+    category: 'Backend Developer',
+    salary: '11.000.000 - 16.000.000 VNĐ',
+    postedDate: 'Hôm nay',
+    description: 'Tham gia thiết kế và xây dựng các dịch vụ backend hiệu năng cao trên nền Spring Boot.',
+    responsibilities: [
+      'Thiết kế CSDL SQL Server / PostgreSQL, tối ưu hóa câu truy vấn.',
+      'Xây dựng RESTful API bảo mật và tài liệu Swagger/OpenAPI.',
+      'Bảo trì và mở rộng hệ thống microservices hiện có.'
+    ],
+    requirements: [
+      'Nắm vững Java Core, OOP, Spring Boot, Spring Data JPA/Hibernate.',
+      'Có kinh nghiệm làm việc với CSDL quan hệ (SQL Server, MySQL).',
+      'Hiểu biết về Git, Docker, RESTful architectural style.'
+    ],
+    requiredSkills: ['Java', 'Spring Boot', 'SQL', 'Git', 'OOP'],
+    preferredSkills: ['Docker', 'Microservices', 'PostgreSQL'],
+    deadline: '15/12/2026'
   }
 ];
 
@@ -443,6 +519,66 @@ export const INITIAL_APPLICATIONS = [
     appliedDate: '08/09/2026',
     lastUpdate: '11/09/2026',
     status: 'Offer'
+  },
+  {
+    id: 'app-vnk-1',
+    jobId: 'job-vnk-2',
+    candidateId: 'cand-1',
+    candidateName: 'Nguyễn Văn A',
+    candidateEmail: 'candidate@gmail.com',
+    candidateUniversity: 'Đại học FPT Đà Nẵng',
+    candidateSkills: ['Java', 'Spring Boot', 'SQL', 'Git', 'OOP'],
+    appliedDate: '08/10/2026',
+    lastUpdate: '09/10/2026',
+    status: 'Phỏng vấn',
+    interviewDetails: {
+      date: 'Thứ Năm, 15/10/2026',
+      time: '14:30 - 15:30',
+      meetingLink: 'https://meet.google.com/vnk-hr-interview',
+      type: 'Online (Google Meet)',
+      note: 'Phỏng vấn kỹ thuật trực tuyến: Java Core, Spring Boot và OOP kiến trúc dự án.'
+    }
+  },
+  {
+    id: 'app-vnk-2',
+    jobId: 'job-vnk-1',
+    candidateId: 'cand-2',
+    candidateName: 'Nguyễn Trọng Tiến',
+    candidateEmail: 'tien@gmail.com',
+    candidateUniversity: 'Đại học Bách Khoa TP.HCM',
+    candidateSkills: ['React', 'JavaScript', 'HTML/CSS', 'Git'],
+    appliedDate: '09/10/2026',
+    lastUpdate: '10/10/2026',
+    status: 'Đã xem'
+  },
+  {
+    id: 'app-vnk-3',
+    jobId: 'job-vnk-1',
+    candidateId: 'user-cand-35569be3',
+    candidateName: 'Lê Hoàng Long',
+    candidateEmail: 'vnkrk123a@gmail.com',
+    candidateUniversity: 'Đại học Khoa học Tự nhiên TP.HCM',
+    candidateSkills: ['React', 'TypeScript', 'TailwindCSS', 'Git'],
+    appliedDate: '10/10/2026',
+    lastUpdate: '10/10/2026',
+    status: 'Đã nộp'
+  },
+  {
+    id: 'app-vnk-4',
+    jobId: 'job-vnk-2',
+    candidateId: 'user-cand-35da1bdf',
+    candidateName: 'Trần Bảo Ngọc',
+    candidateEmail: 'tkaivnk@gmail.com',
+    candidateUniversity: 'ĐH Công nghệ Thông tin (UIT)',
+    candidateSkills: ['Java', 'Spring Boot', 'SQL', 'Docker'],
+    appliedDate: '05/10/2026',
+    lastUpdate: '10/10/2026',
+    status: 'Offer',
+    offerDetails: {
+      salary: '12.000.000 VNĐ/tháng',
+      startDate: '01/11/2026',
+      note: 'Thư mời nhận việc chính thức vị trí Java Spring Boot Backend Engineer tại VNK Technology Solutions.'
+    }
   }
 ];
 

@@ -39,7 +39,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.companies WHERE id = 'company-2')
 
 IF NOT EXISTS (SELECT 1 FROM dbo.companies WHERE owner_user_id = 'user-cand-55122454')
     INSERT INTO dbo.companies (id, owner_user_id, company_name, recruiter_name, email, phone, website, industry, size, location, logo, verification_status)
-    VALUES ('comp-55122454', 'user-cand-55122454', 'FPT Software', N'Võ Nguyên Khánh (HR)', 'vonguyenkhanh2911@gmail.com', '028 3730 8888', 'https://fpt-software.com', N'Phần mềm & IT Outsourcing', N'1000+ nhân viên', N'Quận 9, TP.HCM', N'🏢', 'Verified');
+    VALUES ('comp-55122454', 'user-cand-55122454', N'VNK Technology Solutions', N'Võ Nguyên Khánh (HR)', 'vonguyenkhanh2911@gmail.com', '0976 543 345', 'https://vnk-tech.com', N'Phát triển Phần mềm & Giải pháp IT', N'50-150 nhân viên', N'Quận 1, TP. Hồ Chí Minh', N'🏢', 'Verified');
 
 -- 4. Seed Skills
 IF NOT EXISTS (SELECT 1 FROM dbo.skills WHERE id = 'sk-1')
@@ -83,6 +83,31 @@ IF NOT EXISTS (SELECT 1 FROM dbo.jobs WHERE id = 'job-1')
 IF NOT EXISTS (SELECT 1 FROM dbo.jobs WHERE id = 'job-2')
     INSERT INTO dbo.jobs (id, employer_id, title, category, job_type, location, salary, posted_date, deadline, description, responsibilities, requirements, benefits, is_visible, verification_status)
     VALUES ('job-2', 'user-emp-1', 'Frontend React Developer (Fresher)', 'Frontend Developer', 'Full-time', N'Quận 7, TP.HCM', '9.000.000 - 13.000.000 VNĐ', GETDATE(), '05/05/2026', N'Phát triển giao diện web với ReactJS.', N'Cắt ghép giao diện theo Figma, gọi REST API.', N'Thành thạo JavaScript, React, HTML/CSS.', N'Lương tháng 13, bảo hiểm đầy đủ.', 1, 'Verified');
+
+IF NOT EXISTS (SELECT 1 FROM dbo.jobs WHERE id = 'job-vnk-1')
+    INSERT INTO dbo.jobs (id, employer_id, title, category, job_type, location, salary, posted_date, deadline, description, responsibilities, requirements, benefits, is_visible, verification_status)
+    VALUES ('job-vnk-1', 'user-cand-55122454', N'Fullstack Web Developer (React & Node.js)', N'Frontend Developer', N'Full-time', N'Quận 1, TP.HCM', '10.000.000 - 15.000.000 VNĐ', GETDATE(), '30/11/2026', N'Phát triển các ứng dụng Web doanh nghiệp cho khách hàng VNK Technology Solutions.', N'Xây dựng UI responsive bằng ReactJS, tích hợp REST API, tối ưu hiệu năng trang web.', N'Có nền tảng vững vàng về React, JavaScript/TypeScript, HTML5/CSS3, Git.', N'Lương tháng 13, BHXH đầy đủ, thưởng dự án, lộ trình thăng tiến rõ ràng.', 1, 'Verified');
+
+IF NOT EXISTS (SELECT 1 FROM dbo.jobs WHERE id = 'job-vnk-2')
+    INSERT INTO dbo.jobs (id, employer_id, title, category, job_type, location, salary, posted_date, deadline, description, responsibilities, requirements, benefits, is_visible, verification_status)
+    VALUES ('job-vnk-2', 'user-cand-55122454', N'Java Spring Boot Backend Engineer', N'Backend Developer', N'Full-time', N'Quận 1, TP.HCM', '11.000.000 - 16.000.000 VNĐ', GETDATE(), '15/12/2026', N'Tham gia thiết kế và xây dựng các dịch vụ backend hiệu năng cao trên nền Spring Boot.', N'Thiết kế CSDL SQL Server/PostgreSQL, viết API bảo mật, unit test, tối ưu truy vấn.', N'Nắm vững Java Core, Spring Boot, JPA/Hibernate, SQL, RESTful API design.', N'Phụ cấp ăn trưa, bảo hiểm sức khỏe cao cấp, máy tính làm việc cấu hình mạnh.', 1, 'Verified');
+
+-- Seed Applications
+IF NOT EXISTS (SELECT 1 FROM dbo.applications WHERE id = 'app-vnk-1')
+    INSERT INTO dbo.applications (id, job_id, candidate_id, status, applied_date, last_update, interview_time, meeting_link, interview_note)
+    VALUES ('app-vnk-1', 'job-vnk-2', 'user-cand-1', N'Phỏng vấn', GETDATE(), GETDATE(), N'14:30 - 15:30, Thứ 5 15/10/2026', 'https://meet.google.com/vnk-hr-interview', N'Phỏng vấn kỹ thuật trực tuyến: Java Core, Spring Boot và OOP kiến trúc dự án.');
+
+IF NOT EXISTS (SELECT 1 FROM dbo.applications WHERE id = 'app-vnk-2')
+    INSERT INTO dbo.applications (id, job_id, candidate_id, status, applied_date, last_update)
+    VALUES ('app-vnk-2', 'job-vnk-1', 'user-cand-2', N'Đã xem', GETDATE(), GETDATE());
+
+IF NOT EXISTS (SELECT 1 FROM dbo.applications WHERE id = 'app-vnk-3')
+    INSERT INTO dbo.applications (id, job_id, candidate_id, status, applied_date, last_update)
+    VALUES ('app-vnk-3', 'job-vnk-1', 'user-cand-35569be3', N'Đã nộp', GETDATE(), GETDATE());
+
+IF NOT EXISTS (SELECT 1 FROM dbo.applications WHERE id = 'app-vnk-4')
+    INSERT INTO dbo.applications (id, job_id, candidate_id, status, applied_date, last_update)
+    VALUES ('app-vnk-4', 'job-vnk-2', 'user-cand-35da1bdf', N'Offer', GETDATE(), GETDATE());
 
 -- 7. Seed Job Skills
 IF NOT EXISTS (SELECT 1 FROM dbo.job_skill WHERE job_id = 'job-1' AND skill_id = 'sk-1')
