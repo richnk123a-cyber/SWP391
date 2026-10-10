@@ -48,10 +48,10 @@ CREATE TABLE dbo.users (
     password_hash NVARCHAR(255) NOT NULL,
     role NVARCHAR(20) NOT NULL, -- 'CANDIDATE', 'EMPLOYER', 'ADMIN'
     status NVARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
-    auth_provider NVARCHAR(50) NOT NULL DEFAULT 'LOCAL',
+    auth_provider NVARCHAR(50) NOT NULL DEFAULT 'GOOGLE',
     provider_id NVARCHAR(100),
     avatar_url NVARCHAR(MAX),
-    has_custom_password BIT NOT NULL DEFAULT 1,
+    has_custom_password BIT NOT NULL DEFAULT 0,
     created_at DATETIME DEFAULT GETDATE(),
     CONSTRAINT UQ_users_email_provider UNIQUE (email, auth_provider)
 );
@@ -213,13 +213,13 @@ GO
 -- DỮ LIỆU MẪU (SEED DATA)
 -- ============================================================================
 
--- Seed Users
-INSERT INTO dbo.users (id, email, username, password_hash, role, status, has_custom_password) VALUES
-('user-admin-1', 'trongtien6571@gmail.com', 'trongtien_admin', '123456', 'ADMIN', 'ACTIVE', 1),
-('user-emp-1', 'employer@gmail.com', 'employer', '123456', 'EMPLOYER', 'ACTIVE', 1),
-('user-emp-2', 'employer.pending@gmail.com', 'employer_pending', '123456', 'EMPLOYER', 'ACTIVE', 1),
-('user-cand-1', 'candidate@gmail.com', 'candidate', '123456', 'CANDIDATE', 'ACTIVE', 1),
-('user-cand-2', 'tien@gmail.com', 'tien', '123456', 'CANDIDATE', 'ACTIVE', 1);
+-- Seed Users (Hỗ trợ đăng nhập Google & Microsoft OAuth)
+INSERT INTO dbo.users (id, email, username, password_hash, role, status, auth_provider, has_custom_password) VALUES
+('user-admin-1', 'trongtien6571@gmail.com', 'trongtien_admin', 'OAUTH_USER', 'ADMIN', 'ACTIVE', 'GOOGLE', 0),
+('user-emp-1', 'employer@gmail.com', 'employer', 'OAUTH_USER', 'EMPLOYER', 'ACTIVE', 'GOOGLE', 0),
+('user-emp-2', 'employer.pending@gmail.com', 'employer_pending', 'OAUTH_USER', 'EMPLOYER', 'PENDING', 'GOOGLE', 0),
+('user-cand-1', 'candidate@gmail.com', 'candidate', 'OAUTH_USER', 'CANDIDATE', 'ACTIVE', 'GOOGLE', 0),
+('user-cand-2', 'tien@gmail.com', 'tien', 'OAUTH_USER', 'CANDIDATE', 'ACTIVE', 'GOOGLE', 0);
 
 -- Seed Candidate Profile
 INSERT INTO dbo.candidate_profiles (id, user_id, full_name, phone, location, university, major, graduation_year, desired_role, expected_salary, cv_file_name, extracted_cv_text) VALUES

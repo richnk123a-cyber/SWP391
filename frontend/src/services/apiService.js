@@ -80,6 +80,30 @@ export const jobApi = {
 export const candidateApi = {
   getMyProfile: () => api.get('/candidate/profile'),
   updateMyProfile: (data) => api.put('/candidate/profile', data),
+
+  // UC04 - Tải lên / Cập nhật CV (SCRUM-69, SCRUM-35)
+  uploadCv: (formData) => api.post('/candidate/cv', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+
+  // UC05 - Xóa CV (SCRUM-36)
+  deleteCv: () => api.delete('/candidate/cv'),
+
+  // Tải / Xem file CV trực tiếp từ máy chủ (kèm JWT Header)
+  downloadCv: async () => {
+    const token = localStorage.getItem('careerfit_token');
+    const response = await fetch(`${BASE_URL}/candidate/cv/download`, {
+      method: 'GET',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`Không thể tải tệp từ máy chủ (Mã lỗi ${response.status})`);
+    }
+    return await response.blob();
+  },
+  downloadCvUrl: `${BASE_URL}/candidate/cv/download`,
 };
 
 // ============================================================

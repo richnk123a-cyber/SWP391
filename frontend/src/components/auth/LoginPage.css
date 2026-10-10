@@ -157,11 +157,19 @@
   font-size: calc(14 * var(--auth-unit));
   color: #4d6085;
 }
-.login-secondary button { display: inline-flex; align-items: center; justify-content: center; gap: calc(6 * var(--auth-unit)); min-height: calc(44 * var(--auth-unit)); }
+.login-secondary button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(6 * var(--auth-unit));
+  min-height: calc(44 * var(--auth-unit));
+  cursor: pointer;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
 .login-secondary svg { width: calc(15 * var(--auth-unit)); height: calc(15 * var(--auth-unit)); flex-shrink: 0; }
-.login-link-dot { color: #c4cde8; }
 .login-legal { max-width: calc(420 * var(--auth-unit)); margin: calc(12 * var(--auth-unit)) auto 0; color: #687b99; font-size: calc(12 * var(--auth-unit)); line-height: 1.7; }
-.login-legal button { text-decoration: underline; text-underline-offset: 2px; }
+.login-legal button { text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .login-footer { margin-top: calc(72 * var(--auth-unit)); font-size: calc(12 * var(--auth-unit)); text-align: center; color: #4d6085; line-height: 1.7; }
 .login-error { display: flex; align-items: flex-start; gap: 10px; padding: 14px; margin-bottom: 18px; border-radius: 10px; background: #fff1f2; color: #9f1239; text-align: left; }
 .login-error svg { flex-shrink: 0; }

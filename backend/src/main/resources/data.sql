@@ -2,26 +2,26 @@
 -- CAREERFIT SEED DATA (AN TOÀN - TỰ ĐỘNG BỎ QUA NẾU ĐÃ TỒN TẠI BẢN GHI)
 -- ============================================================================
 
--- 1. Seed Users
+-- 1. Seed Users (Hỗ trợ đăng nhập Google & Microsoft OAuth)
 IF NOT EXISTS (SELECT 1 FROM dbo.users WHERE id = 'user-admin-1')
-    INSERT INTO dbo.users (id, email, username, password_hash, role, status, has_custom_password)
-    VALUES ('user-admin-1', 'trongtien6571@gmail.com', 'trongtien_admin', '123456', 'ADMIN', 'ACTIVE', 1);
+    INSERT INTO dbo.users (id, email, username, password_hash, role, status, auth_provider, has_custom_password)
+    VALUES ('user-admin-1', 'trongtien6571@gmail.com', 'trongtien_admin', 'OAUTH_USER', 'ADMIN', 'ACTIVE', 'GOOGLE', 0);
 
 IF NOT EXISTS (SELECT 1 FROM dbo.users WHERE id = 'user-emp-1')
-    INSERT INTO dbo.users (id, email, username, password_hash, role, status, has_custom_password)
-    VALUES ('user-emp-1', 'employer@gmail.com', 'employer', '123456', 'EMPLOYER', 'ACTIVE', 1);
+    INSERT INTO dbo.users (id, email, username, password_hash, role, status, auth_provider, has_custom_password)
+    VALUES ('user-emp-1', 'employer@gmail.com', 'employer', 'OAUTH_USER', 'EMPLOYER', 'ACTIVE', 'GOOGLE', 0);
 
 IF NOT EXISTS (SELECT 1 FROM dbo.users WHERE id = 'user-emp-2')
-    INSERT INTO dbo.users (id, email, username, password_hash, role, status, has_custom_password)
-    VALUES ('user-emp-2', 'employer.pending@gmail.com', 'employer_pending', '123456', 'EMPLOYER', 'ACTIVE', 1);
+    INSERT INTO dbo.users (id, email, username, password_hash, role, status, auth_provider, has_custom_password)
+    VALUES ('user-emp-2', 'employer.pending@gmail.com', 'employer_pending', 'OAUTH_USER', 'EMPLOYER', 'PENDING', 'GOOGLE', 0);
 
 IF NOT EXISTS (SELECT 1 FROM dbo.users WHERE id = 'user-cand-1')
-    INSERT INTO dbo.users (id, email, username, password_hash, role, status, has_custom_password)
-    VALUES ('user-cand-1', 'candidate@gmail.com', 'candidate', '123456', 'CANDIDATE', 'ACTIVE', 1);
+    INSERT INTO dbo.users (id, email, username, password_hash, role, status, auth_provider, has_custom_password)
+    VALUES ('user-cand-1', 'candidate@gmail.com', 'candidate', 'OAUTH_USER', 'CANDIDATE', 'ACTIVE', 'GOOGLE', 0);
 
 IF NOT EXISTS (SELECT 1 FROM dbo.users WHERE id = 'user-cand-2')
-    INSERT INTO dbo.users (id, email, username, password_hash, role, status, has_custom_password)
-    VALUES ('user-cand-2', 'tien@gmail.com', 'tien', '123456', 'CANDIDATE', 'ACTIVE', 1);
+    INSERT INTO dbo.users (id, email, username, password_hash, role, status, auth_provider, has_custom_password)
+    VALUES ('user-cand-2', 'tien@gmail.com', 'tien', 'OAUTH_USER', 'CANDIDATE', 'ACTIVE', 'GOOGLE', 0);
 
 -- 2. Seed Candidate Profile
 IF NOT EXISTS (SELECT 1 FROM dbo.candidate_profiles WHERE id = 'cand-1')

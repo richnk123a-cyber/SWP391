@@ -19,6 +19,7 @@ public class CandidateProfileResponse {
     private Boolean hasCv;
     private String cvFileName;
     private String cvUploadDate;
+    private String extractedCvText;
     private String desiredRole;
     private String expectedSalary;
 }
