@@ -37,6 +37,10 @@ IF NOT EXISTS (SELECT 1 FROM dbo.companies WHERE id = 'company-2')
     INSERT INTO dbo.companies (id, owner_user_id, company_name, recruiter_name, email, phone, website, industry, size, location, logo, verification_status, business_license_file)
     VALUES ('company-2', 'user-emp-2', 'Fintech StartUp Asia (Pending)', N'Hoàng Đức D (HR)', 'employer.pending@gmail.com', '0909888999', 'https://fintechasia.io', N'Công nghệ Tài chính', N'50-100 nhân viên', N'Quận 1, TP.HCM', N'💼', 'Pending', 'GPKD_FintechAsia.pdf');
 
+IF NOT EXISTS (SELECT 1 FROM dbo.companies WHERE owner_user_id = 'user-cand-55122454')
+    INSERT INTO dbo.companies (id, owner_user_id, company_name, recruiter_name, email, phone, website, industry, size, location, logo, verification_status)
+    VALUES ('comp-55122454', 'user-cand-55122454', 'FPT Software', N'Võ Nguyên Khánh (HR)', 'vonguyenkhanh2911@gmail.com', '028 3730 8888', 'https://fpt-software.com', N'Phần mềm & IT Outsourcing', N'1000+ nhân viên', N'Quận 9, TP.HCM', N'🏢', 'Verified');
+
 -- 4. Seed Skills
 IF NOT EXISTS (SELECT 1 FROM dbo.skills WHERE id = 'sk-1')
     INSERT INTO dbo.skills (id, name, category, is_active) VALUES ('sk-1', 'Java', 'Backend', 1);

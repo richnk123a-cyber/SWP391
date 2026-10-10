@@ -1,65 +1,349 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { VerificationBadge } from '../common/Badge';
-import { Building2, Globe, Mail, Phone, MapPin, ShieldCheck, Edit3, Save, CheckCircle2, FileText, User } from 'lucide-react';
+import { LogoCropperModal } from '../common/LogoCropperModal';
+import { employerApi } from '../../services/apiService';
+import { getCompanyLogoUrl, isImageLogo } from '../../utils/logoUtils';
+import {
+  Building2,
+  Globe,
+  Mail,
+  Phone,
+  MapPin,
+  ShieldCheck,
+  Edit3,
+  Save,
+  CheckCircle2,
+  FileText,
+  User,
+  Camera,
+  Upload,
+  Trash2,
+  Image as ImageIcon,
+  ExternalLink,
+  Sparkles,
+  Loader2
+} from 'lucide-react';
 
 export function CompanyProfilePage() {
-  const { employerProfile, setCompanies, showToast, setActivePage } = useApp();
+  const { employerProfile, setEmployerProfile, setCompanies, showToast, setActivePage } = useApp();
 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    companyName: employerProfile.companyName || 'FPT Software',
-    recruiterName: employerProfile.recruiterName || 'Trần Thị B',
-    email: employerProfile.email || 'employer@gmail.com',
-    phone: employerProfile.phone || '028 3730 8888',
-    website: employerProfile.website || 'https://fpt-software.com',
-    industry: employerProfile.industry || 'Phần mềm & IT Outsourcing',
-    size: employerProfile.size || '1000+ nhân viên',
-    location: employerProfile.location || 'Quận 9, TP.HCM',
-    taxId: employerProfile.taxId || 'Chưa cập nhật',
-    description: employerProfile.description || 'FPT Software là công ty xuất khẩu dịch vụ phần mềm hàng đầu Việt Nam với hơn 30.000 kỹ sư công nghệ tại 30 quốc gia trên thế giới.'
+    companyName: employerProfile?.companyName || 'FPT Software',
+    recruiterName: employerProfile?.recruiterName || 'Trần Thị B',
+    email: employerProfile?.email || 'employer@gmail.com',
+    phone: employerProfile?.phone || '028 3730 8888',
+    website: employerProfile?.website || 'https://fpt-software.com',
+    industry: employerProfile?.industry || 'Phần mềm & IT Outsourcing',
+    size: employerProfile?.size || '1000+ nhân viên',
+    location: employerProfile?.location || 'Quận 9, TP.HCM',
+    taxId: employerProfile?.taxId || '0312345678',
+    logo: employerProfile?.logo || '🏢',
+    description: employerProfile?.description || 'FPT Software là công ty xuất khẩu dịch vụ phần mềm hàng đầu Việt Nam với hơn 30.000 kỹ sư công nghệ tại 30 quốc gia trên thế giới.'
   });
 
-  const handleSaveSubmit = (e) => {
-    e.preventDefault();
-    setCompanies(prev =>
-      prev.map(c => (c.id === employerProfile.id || c.companyName === employerProfile.companyName ? { ...c, ...formData } : c))
-    );
-    setIsEditing(false);
-    showToast('Đã cập nhật thông tin Hồ sơ Doanh nghiệp thành công!', 'success');
+  const [logoFile, setLogoFile] = useState(null);
+  const [selectedLogoName, setSelectedLogoName] = useState('');
+  const [cropperFile, setCropperFile] = useState(null); // file pending crop
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const fileInputRef = useRef(null);
+
+  // Sync state if employerProfile updates from external sources
+  useEffect(() => {
+    if (!isEditing && employerProfile) {
+      setFormData(prev => ({
+        ...prev,
+        companyName: employerProfile.companyName || prev.companyName,
+        recruiterName: employerProfile.recruiterName || prev.recruiterName,
+        email: employerProfile.email || prev.email,
+        phone: employerProfile.phone || prev.phone,
+        website: employerProfile.website || prev.website,
+        industry: employerProfile.industry || prev.industry,
+        size: employerProfile.size || prev.size,
+        location: employerProfile.location || prev.location,
+        taxId: employerProfile.taxId || prev.taxId,
+        logo: employerProfile.logo || prev.logo,
+        description: employerProfile.description || prev.description
+      }));
+    }
+  }, [employerProfile, isEditing]);
+
+  // Fetch fresh company profile directly from backend SQL Server
+  useEffect(() => {
+    employerApi.getMyCompany()
+      .then(res => {
+        const comp = res?.data || res;
+        if (comp && (comp.companyName || comp.id)) {
+          if (typeof setEmployerProfile === 'function') {
+            setEmployerProfile(comp);
+          }
+          if (!isEditing) {
+            setFormData(prev => ({
+              ...prev,
+              companyName: comp.companyName || prev.companyName,
+              recruiterName: comp.recruiterName || prev.recruiterName,
+              email: comp.email || prev.email,
+              phone: comp.phone || prev.phone,
+              website: comp.website || prev.website,
+              industry: comp.industry || prev.industry,
+              size: comp.size || prev.size,
+              location: comp.location || prev.location,
+              logo: comp.logo || prev.logo
+            }));
+          }
+        }
+      })
+      .catch(err => {
+        console.warn('Could not fetch company profile on mount:', err);
+      });
+  }, []);
+
+  // Handle selecting a logo image file (from banner quick button or edit section)
+  // Open cropper when file selected
+  const handleLogoFileSelect = (file) => {
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml', 'image/gif'];
+    if (!validTypes.includes(file.type)) {
+      showToast('Định dạng ảnh không hợp lệ. Vui lòng chọn ảnh PNG, JPG, WEBP hoặc SVG.', 'danger');
+      return;
+    }
+
+    // Validate size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Kích thước ảnh vượt quá giới hạn 5 MB. Vui lòng chọn ảnh nhẹ hơn.', 'danger');
+      return;
+    }
+
+    setSelectedLogoName(file.name);
+    // Open cropper modal – don't process yet
+    setCropperFile(file);
   };
 
+  // Called when user confirms crop in modal
+  const handleCropApply = async (croppedDataUrl) => {
+    setCropperFile(null);
+    setLogoFile(true); // mark as pending file
+
+    // Update form state immediately for preview
+    setFormData(prev => ({ ...prev, logo: croppedDataUrl }));
+
+    // If in view mode → auto-save immediately to database
+    if (!isEditing) {
+      setIsUploadingLogo(true);
+      const finalLogo = croppedDataUrl;
+
+      // Save directly into backend database
+      try {
+        await employerApi.updateMyCompany({
+          companyName: formData.companyName || employerProfile?.companyName,
+          recruiterName: formData.recruiterName || employerProfile?.recruiterName,
+          phone: formData.phone || employerProfile?.phone,
+          website: formData.website || employerProfile?.website,
+          industry: formData.industry || employerProfile?.industry,
+          size: formData.size || employerProfile?.size,
+          location: formData.location || employerProfile?.location,
+          logo: finalLogo
+        });
+      } catch (err) {
+        console.warn('Backend updateMyCompany error:', err);
+      } finally {
+        setIsUploadingLogo(false);
+      }
+
+      const updated = { ...employerProfile, logo: finalLogo };
+      if (typeof setEmployerProfile === 'function') {
+        setEmployerProfile(updated);
+      }
+      if (typeof setCompanies === 'function') {
+        setCompanies(prev => Array.isArray(prev) ? prev.map(c =>
+          (c.id === employerProfile?.id || c.companyName === employerProfile?.companyName)
+            ? { ...c, logo: finalLogo } : c
+        ) : prev);
+      }
+
+      setFormData(prev => ({ ...prev, logo: finalLogo }));
+      showToast('Logo đã được cập nhật trực tiếp vào cơ sở dữ liệu!', 'success');
+    } else {
+      showToast('Logo đã được cắt. Nhấn "Lưu thay đổi" để áp dụng.', 'info');
+    }
+  };
+
+  // Reset logo to default
+  const handleResetLogo = () => {
+    setLogoFile(null);
+    setSelectedLogoName('');
+    setFormData(prev => ({ ...prev, logo: '🏢' }));
+    showToast('Đã đặt lại logo về biểu tượng mặc định.', 'info');
+  };
+
+  // Submit edit form
+  const handleSaveSubmit = async (e) => {
+    e.preventDefault();
+    setIsSaving(true);
+
+    try {
+      const finalLogo = formData.logo;
+
+      const payload = {
+        ...formData,
+        logo: finalLogo
+      };
+
+      // Update frontend state & persistence safely
+      if (typeof setEmployerProfile === 'function') {
+        setEmployerProfile(prev => ({ ...prev, ...payload }));
+      }
+      if (typeof setCompanies === 'function') {
+        setCompanies(prev =>
+          Array.isArray(prev)
+            ? prev.map(c => (c.id === employerProfile?.id || c.companyName === employerProfile?.companyName ? { ...c, ...payload } : c))
+            : prev
+        );
+      }
+
+      // Call backend PUT /api/employer/company
+      try {
+        await employerApi.updateMyCompany({
+          companyName: payload.companyName,
+          recruiterName: payload.recruiterName,
+          phone: payload.phone,
+          website: payload.website,
+          industry: payload.industry,
+          size: payload.size,
+          location: payload.location,
+          // Only send logo if it is an uploaded url or normal string, or fallback if base64 too long
+          logo: payload.logo
+        });
+      } catch (err) {
+        console.warn('Could not sync company update to backend:', err);
+      }
+
+      setLogoFile(null);
+      setSelectedLogoName('');
+      setIsEditing(false);
+      showToast('Đã cập nhật thông tin và logo Hồ sơ Doanh nghiệp thành công!', 'success');
+    } catch (err) {
+      console.error('Error during handleSaveSubmit:', err);
+      showToast('Lỗi khi lưu thông tin: ' + (err.message || 'Vui lòng thử lại.'), 'danger');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const currentLogo = isEditing ? formData.logo : employerProfile?.logo || formData.logo;
+  const isImage = isImageLogo(currentLogo);
+  const logoUrl = isImage ? getCompanyLogoUrl(currentLogo) : null;
+
   return (
-    <div className="employer-workspace employer-companyprofilepage space-y-6 mx-auto">
-      {/* HEADER BANNER */}
-      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 rounded-2xl p-6 text-white shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 text-white font-black text-2xl flex items-center justify-center shrink-0">
-            🏢
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-extrabold">{employerProfile.companyName}</h1>
-              <VerificationBadge status={employerProfile.verificationStatus} />
+    <div className="employer-workspace employer-companyprofilepage space-y-6 max-w-5xl mx-auto pb-12">
+      {/* Logo Cropper Modal */}
+      {cropperFile && (
+        <LogoCropperModal
+          file={cropperFile}
+          onApply={handleCropApply}
+          onCancel={() => { setCropperFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+        />
+      )}
+      {/* 1. HEADER BANNER */}
+      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 rounded-2xl p-6 text-white shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-5 relative overflow-hidden">
+        {/* Background glow effect */}
+        <div className="absolute top-0 right-1/4 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="flex items-center gap-5 relative z-10">
+          {/* Logo container with quick upload hover */}
+          <div className="relative group shrink-0">
+            <div className={`transition-all duration-200 ${isImage
+              ? 'h-20 max-w-[240px] flex items-center justify-center group-hover:opacity-90'
+              : 'w-20 h-20 rounded-2xl bg-white/10 border-2 border-white/20 text-white font-black text-2xl flex items-center justify-center overflow-hidden shadow-md backdrop-blur-xs group-hover:border-blue-400 group-hover:shadow-blue-500/20'
+            }`}>
+              {isImage ? (
+                <img
+                  src={logoUrl}
+                  alt={formData.companyName || 'Logo công ty'}
+                  className="h-full w-auto max-w-[240px] object-contain transition-transform duration-200 group-hover:scale-105"
+                  style={{ background: 'transparent' }}
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    if (e.currentTarget.nextSibling) e.currentTarget.nextSibling.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div
+                style={{ display: isImage ? 'none' : 'flex' }}
+                className="w-full h-full items-center justify-center font-black text-3xl"
+              >
+                {currentLogo || '🏢'}
+              </div>
             </div>
-            <p className="text-xs text-slate-300 mt-1">
-              Mã số thuế: <strong className="font-mono text-white">{employerProfile.taxId || 'Chưa cập nhật'}</strong> • Lĩnh vực: {employerProfile.industry}
+
+            {/* Quick change camera button overlay */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploadingLogo}
+              className="absolute inset-0 bg-slate-950/75 text-white opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex flex-col items-center justify-center gap-1 cursor-pointer text-[11px] font-bold shadow-md"
+              title="Nhấn để tải lên logo công ty mới"
+            >
+              {isUploadingLogo ? (
+                <Loader2 size={18} className="animate-spin text-blue-400" />
+              ) : (
+                <>
+                  <Camera size={18} className="text-blue-300" />
+                  <span>Đổi logo</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-2xl font-black tracking-tight">{formData.companyName || employerProfile?.companyName}</h1>
+              <VerificationBadge status={employerProfile?.verificationStatus} />
+            </div>
+            <p className="text-xs text-slate-300 mt-1.5 flex items-center gap-2 flex-wrap">
+              <span>Mã số thuế: <strong className="font-mono text-white">{formData.taxId || employerProfile?.taxId || '0312345678'}</strong></span>
+              <span>•</span>
+              <span>Lĩnh vực: <strong className="text-white font-medium">{formData.industry || employerProfile?.industry}</strong></span>
+              <span>•</span>
+              <span className="text-blue-300 font-semibold cursor-pointer hover:underline" onClick={() => fileInputRef.current?.click()}>
+                📷 Thay logo
+              </span>
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Hidden File Input for Banner / Quick Upload */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+          hidden
+          onChange={(e) => {
+            if (e.target.files?.[0]) handleLogoFileSelect(e.target.files[0]);
+            e.target.value = '';
+          }}
+        />
+
+        <div className="flex items-center gap-2 relative z-10 shrink-0">
           {!isEditing ? (
             <button
               onClick={() => setIsEditing(true)}
-              className="btn btn-primary text-xs font-bold shadow-md flex items-center gap-1.5"
+              className="btn btn-primary text-xs font-bold shadow-md flex items-center gap-2 py-2.5 px-4"
             >
               <Edit3 size={15} /> Chỉnh sửa hồ sơ
             </button>
           ) : (
             <button
-              onClick={() => setIsEditing(false)}
-              className="btn btn-secondary text-xs font-bold text-white bg-white/10 hover:bg-white/20 border-white/20"
+              onClick={() => {
+                setIsEditing(false);
+                setLogoFile(null);
+                setFormData(prev => ({ ...prev, logo: employerProfile?.logo || '🏢' }));
+              }}
+              className="btn btn-secondary text-xs font-bold text-white bg-white/10 hover:bg-white/20 border-white/20 py-2.5 px-4"
             >
               Hủy chỉnh sửa
             </button>
@@ -67,12 +351,100 @@ export function CompanyProfilePage() {
         </div>
       </div>
 
-      {/* EDIT FORM / VIEW DETAILS */}
+      {/* 2. EDIT FORM / VIEW DETAILS */}
       {isEditing ? (
-        <form onSubmit={handleSaveSubmit} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-5 text-xs">
-          <h3 className="text-base font-bold text-slate-900 pb-3 border-b border-slate-100 flex items-center gap-2">
-            <Edit3 size={16} className="text-blue-600" /> Cập nhật thông tin Doanh nghiệp
-          </h3>
+        <form onSubmit={handleSaveSubmit} className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-xs space-y-6 text-xs">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Edit3 size={18} className="text-blue-600" /> Cập nhật thông tin & Logo Doanh nghiệp
+            </h3>
+            <span className="text-[11px] text-slate-500 font-medium">* Các trường bắt buộc</span>
+          </div>
+
+          {/* DEDICATED LOGO UPLOAD & MANAGEMENT SECTION */}
+          <div className="bg-slate-50/80 border border-slate-200/90 rounded-2xl p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                <ImageIcon size={16} className="text-blue-600" /> Logo Công ty / Doanh nghiệp
+              </label>
+              {isImage && (
+                <button
+                  type="button"
+                  onClick={handleResetLogo}
+                  className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1"
+                >
+                  <Trash2 size={12} /> Đặt lại logo mặc định
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
+              {/* Logo Preview Container */}
+              <div className={`shrink-0 relative group ${isImage
+                ? 'h-20 sm:h-24 max-w-[260px] flex items-center justify-center p-1'
+                : 'w-24 h-24 rounded-2xl bg-white border-2 border-blue-200 text-blue-700 font-black text-3xl flex items-center justify-center shadow-xs'
+              }`}>
+                {isImage ? (
+                  <img
+                    src={logoUrl}
+                    alt="Xem trước logo"
+                    className="h-full w-auto max-w-full object-contain"
+                    style={{ background: 'transparent' }}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      if (e.currentTarget.nextSibling) e.currentTarget.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div
+                  style={{ display: isImage ? 'none' : 'flex' }}
+                  className="w-full h-full items-center justify-center font-black text-3xl"
+                >
+                  {currentLogo || '🏢'}
+                </div>
+              </div>
+
+              {/* Upload Controls & Guidelines */}
+              <div className="space-y-3 flex-1 w-full text-left">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="btn btn-primary text-xs font-bold py-2 px-3.5 flex items-center gap-2 shadow-xs"
+                  >
+                    <Upload size={14} /> Tải ảnh logo từ thiết bị
+                  </button>
+                  <span className="text-[11px] text-slate-500">
+                    {selectedLogoName ? `Đã chọn: ${selectedLogoName}` : 'Hỗ trợ PNG, JPG, WEBP, SVG'}
+                  </span>
+                </div>
+
+                <div className="form-group pt-1">
+                  <label className="text-[11px] font-semibold text-slate-600 block mb-1">
+                    Hoặc dán trực tiếp đường dẫn ảnh (Logo Image URL):
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://example.com/logo.png"
+                    className="form-control text-xs bg-white"
+                    value={formData.logo.startsWith('data:') ? '' : formData.logo === '🏢' ? '' : formData.logo}
+                    onChange={(e) => {
+                      setLogoFile(null);
+                      setFormData(prev => ({ ...prev, logo: e.target.value.trim() || '🏢' }));
+                    }}
+                  />
+                </div>
+
+                <div className="bg-blue-50/70 border border-blue-100 rounded-xl p-2.5 text-[11px] text-slate-600 space-y-0.5">
+                  <p className="font-semibold text-blue-900 flex items-center gap-1.5">
+                    <Sparkles size={12} className="text-blue-600" /> Khuyến nghị chất lượng hiển thị:
+                  </p>
+                  <p>• Tỉ lệ hình vuông <strong>1:1</strong> (tối thiểu 200 × 200 px), định dạng <strong>PNG nền trong suốt</strong> hoặc JPG/WEBP.</p>
+                  <p>• Dung lượng tối đa: <strong>5 MB</strong>. Logo sẽ tự động đồng bộ trên toàn bộ bảng tin tuyển dụng của công ty.</p>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="form-group">
@@ -180,17 +552,33 @@ export function CompanyProfilePage() {
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-            <button type="button" onClick={() => setIsEditing(false)} className="btn btn-secondary text-xs">Hủy</button>
-            <button type="submit" className="btn btn-primary text-xs font-bold">
-              <Save size={15} /> Lưu thay đổi
+          <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              disabled={isSaving}
+              onClick={() => {
+                setIsEditing(false);
+                setLogoFile(null);
+                setFormData(prev => ({ ...prev, logo: employerProfile?.logo || '🏢' }));
+              }}
+              className="btn btn-secondary text-xs"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="btn btn-primary text-xs font-bold flex items-center gap-1.5"
+            >
+              {isSaving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+              {isSaving ? 'Đang lưu…' : 'Lưu thay đổi'}
             </button>
           </div>
         </form>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
           {/* Main Info Card */}
-          <div className="md:col-span-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6 text-xs">
+          <div className="md:col-span-8 bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-xs space-y-6 text-xs">
             <div>
               <h3 className="text-sm font-bold text-slate-900 mb-2">Mô tả doanh nghiệp</h3>
               <p className="text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100">
@@ -198,7 +586,7 @@ export function CompanyProfilePage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               <div className="space-y-1">
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Website</span>
                 <a href={formData.website} target="_blank" rel="noreferrer" className="text-blue-600 font-semibold hover:underline flex items-center gap-1">
@@ -244,18 +632,18 @@ export function CompanyProfilePage() {
                 <h4 className="font-bold text-blue-900 flex items-center gap-1.5">
                   <ShieldCheck size={16} className="text-blue-600" /> Xác minh Doanh nghiệp
                 </h4>
-                <VerificationBadge status={employerProfile.verificationStatus} />
+                <VerificationBadge status={employerProfile?.verificationStatus} />
               </div>
 
               <p className="text-slate-600 text-[11px] leading-relaxed">
-                {employerProfile.verificationStatus === 'Verified'
+                {employerProfile?.verificationStatus === 'Verified'
                   ? 'Tài khoản đã được Admin kiểm duyệt Giấy phép kinh doanh hợp lệ.'
                   : 'Tài khoản đang chờ Ban Quản trị xác minh Giấy phép kinh doanh.'}
               </p>
 
               <button
                 onClick={() => setActivePage('employer-register')}
-                className="btn btn-secondary w-full text-xs font-semibold bg-white"
+                className="btn btn-secondary w-full text-xs font-semibold bg-white hover:bg-slate-50 transition-colors"
               >
                 Trang quản lý Xác minh
               </button>
@@ -266,5 +654,3 @@ export function CompanyProfilePage() {
     </div>
   );
 }
-
-

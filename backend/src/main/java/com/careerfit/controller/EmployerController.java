@@ -6,11 +6,13 @@ import com.careerfit.exception.ApiResponse;
 import com.careerfit.service.EmployerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/employer")
@@ -37,5 +39,15 @@ public class EmployerController {
             @Valid @RequestBody UpdateCompanyRequest request) {
         CompanyResponse updated = employerService.updateMyCompany(userDetails.getUsername(), request);
         return ResponseEntity.ok(ApiResponse.success("Cập nhật thông tin công ty thành công.", updated));
+    }
+
+    // POST /api/employer/company/logo
+    // Employer tải lên logo công ty
+    @PostMapping(value = "/company/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<CompanyResponse>> uploadCompanyLogo(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam("file") MultipartFile file) {
+        CompanyResponse updated = employerService.uploadLogo(userDetails.getUsername(), file);
+        return ResponseEntity.ok(ApiResponse.success("Tải lên logo công ty thành công.", updated));
     }
 }

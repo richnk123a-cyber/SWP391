@@ -88,4 +88,11 @@ export const candidateApi = {
 export const employerApi = {
   getMyCompany: () => api.get('/employer/company'),
   updateMyCompany: (data) => api.put('/employer/company', data),
+  uploadLogo: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/employer/company/logo', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
 };

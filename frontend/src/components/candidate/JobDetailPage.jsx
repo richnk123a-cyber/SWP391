@@ -2,6 +2,7 @@ import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { MatchBadge, VerificationBadge } from '../common/Badge';
 import { calculateSkillMatch } from '../../utils/matching';
+import { getCompanyLogoUrl, isImageLogo } from '../../utils/logoUtils';
 import {
   MapPin,
   Briefcase,
@@ -22,6 +23,7 @@ export function JobDetailPage() {
     setIsAIModalOpen,
     setIsReportModalOpen,
     setSelectedJobId,
+    companies = [],
     setActivePage,
     showToast
   } = useApp();
@@ -85,9 +87,35 @@ export function JobDetailPage() {
         <div className="p-6 sm:p-8 space-y-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="flex items-start gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center font-black text-2xl shadow-md border border-white/20 shrink-0 mt-1">
-                {selectedJob.company ? selectedJob.company.charAt(0) : '🏢'}
-              </div>
+              {(() => {
+                const companyLogo = selectedJob.logo || companies.find(c => (c.id && c.id === selectedJob.employerId) || (c.companyName && c.companyName === selectedJob.company))?.logo;
+                const hasImgLogo = isImageLogo(companyLogo);
+                return (
+                  <div className={`shrink-0 mt-1 ${hasImgLogo
+                    ? 'w-16 h-16 flex items-center justify-center'
+                    : 'w-16 h-16 rounded-2xl bg-white text-blue-700 flex items-center justify-center font-black text-2xl shadow-md border border-slate-200 overflow-hidden'
+                  }`}>
+                    {hasImgLogo ? (
+                      <img
+                        src={getCompanyLogoUrl(companyLogo)}
+                        alt={selectedJob.company}
+                        className="w-full h-full object-contain"
+                        style={{ background: 'transparent' }}
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          if (e.currentTarget.nextSibling) e.currentTarget.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div
+                      style={{ display: hasImgLogo ? 'none' : 'flex' }}
+                      className="w-full h-full bg-gradient-to-br from-blue-600 to-indigo-700 text-white items-center justify-center font-black text-2xl"
+                    >
+                      {selectedJob.company ? selectedJob.company.charAt(0) : '🏢'}
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="space-y-2 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap text-xs">

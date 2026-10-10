@@ -1,11 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User, FileText, Settings, LogOut, ShieldCheck, MapPin, Building2, Map, LayoutDashboard, ChevronDown } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { getCompanyLogoUrl, isImageLogo } from '../../utils/logoUtils';
 
 export function ProfileDropdown() {
-  const { currentUser, logout, setActivePage, candidateProfile, currentEmployerCompany } = useApp();
+  const { currentUser, logout, setActivePage, candidateProfile, currentEmployerCompany, employerProfile } = useApp();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  const activeEmployerLogo = employerProfile?.logo || currentEmployerCompany?.logo;
+  const isEmployerImage = currentUser?.role === 'EMPLOYER' && isImageLogo(activeEmployerLogo);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -39,7 +43,22 @@ export function ProfileDropdown() {
       }
       return name ? name.charAt(0).toUpperCase() : 'C';
     }
-    if (currentUser.role === 'EMPLOYER') return 'HR';
+    if (currentUser.role === 'EMPLOYER') {
+      if (isEmployerImage) {
+        return (
+          <img
+            src={getCompanyLogoUrl(activeEmployerLogo)}
+            alt="Logo"
+            className="w-full h-full object-cover"
+            style={{ background: 'transparent' }}
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+        );
+      }
+      return activeEmployerLogo || '🏢';
+    }
     return name ? name.charAt(0).toUpperCase() : 'A';
   };
 
@@ -54,7 +73,9 @@ export function ProfileDropdown() {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-slate-100 transition-colors focus:outline-none"
       >
-        <div className="w-9 h-9 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs border border-blue-200 shadow-xs overflow-hidden shrink-0">
+        <div className={`w-9 h-9 rounded-full text-white font-bold flex items-center justify-center text-xs border border-blue-200 shadow-xs overflow-hidden shrink-0 ${
+          isEmployerImage ? 'bg-transparent' : 'bg-blue-600'
+        }`}>
           {getAvatarContent()}
         </div>
         <div className="text-left hidden lg:block">
@@ -72,7 +93,9 @@ export function ProfileDropdown() {
         <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
           {/* Header Card */}
           <div className="p-3.5 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-200 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm border-2 border-white shadow-sm overflow-hidden shrink-0">
+            <div className={`w-10 h-10 rounded-full text-white font-bold flex items-center justify-center text-sm border-2 border-white shadow-sm overflow-hidden shrink-0 ${
+              isEmployerImage ? 'bg-transparent' : 'bg-blue-600'
+            }`}>
               {getAvatarContent()}
             </div>
             <div className="min-w-0 flex-1">

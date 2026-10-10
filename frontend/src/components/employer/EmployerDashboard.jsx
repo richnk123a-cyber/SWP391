@@ -9,6 +9,7 @@ import {
   PlusCircle,
   AlertTriangle,
   Building2,
+  Camera,
   CheckCircle2,
   ChevronRight,
   Eye,
@@ -18,6 +19,7 @@ import {
   Video,
   ExternalLink
 } from 'lucide-react';
+import { getCompanyLogoUrl, isImageLogo } from '../../utils/logoUtils';
 
 export function EmployerDashboard() {
   const { employerProfile, jobs, applications, setActivePage, setViewingCVModalCandidate } = useApp();
@@ -71,8 +73,36 @@ export function EmployerDashboard() {
       {/* 1. TOP WELCOME & COMPANY SUMMARY CARD */}
       <div className="employer-dashboard-welcome bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-200 text-blue-700 font-black text-xl flex items-center justify-center shrink-0">
-            <Building2 size={28} strokeWidth={1.6} />
+          <div
+            onClick={() => setActivePage('company-profile')}
+            className={`shrink-0 relative group cursor-pointer transition-all ${isImageLogo(employerProfile?.logo)
+              ? 'h-14 sm:h-16 max-w-[200px] flex items-center justify-center hover:opacity-80'
+              : 'w-16 h-16 rounded-2xl bg-white border border-slate-200 text-blue-700 font-black text-xl flex items-center justify-center shadow-2xs hover:border-blue-400 overflow-hidden'
+            }`}
+            title="Logo công ty - Nhấn để chuyển đến trang chỉnh sửa hồ sơ & cập nhật logo"
+          >
+            {isImageLogo(employerProfile?.logo) ? (
+              <img
+                src={getCompanyLogoUrl(employerProfile.logo)}
+                alt={employerProfile?.companyName || 'Logo công ty'}
+                className="h-full w-auto max-w-[200px] object-contain"
+                style={{ background: 'transparent' }}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  if (e.currentTarget.nextSibling) e.currentTarget.nextSibling.style.display = 'flex';
+                }}
+              />
+            ) : null}
+            <div
+              style={{ display: isImageLogo(employerProfile?.logo) ? 'none' : 'flex' }}
+              className="w-full h-full items-center justify-center bg-blue-50 text-2xl font-black text-blue-700"
+            >
+              {employerProfile?.logo || '🏢'}
+            </div>
+            <div className="absolute inset-0 bg-slate-900/65 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold gap-0.5">
+              <Camera size={14} className="text-blue-300" />
+              <span>Đổi logo</span>
+            </div>
           </div>
           <div>
             <div className="flex items-center gap-2.5 flex-wrap">

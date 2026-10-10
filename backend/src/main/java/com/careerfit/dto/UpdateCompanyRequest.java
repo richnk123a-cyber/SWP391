@@ -12,8 +12,10 @@ public class UpdateCompanyRequest {
     @Size(min = 2, max = 100, message = "Tên người đại diện phải từ 2 đến 100 ký tự.")
     private String recruiterName;
 
+    private String phone;
     private String website;
     private String industry;
     private String size;
     private String location;
+    private String logo;
 }

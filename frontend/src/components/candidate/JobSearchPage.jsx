@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { calculateSkillMatch } from '../../utils/matching';
+import { getCompanyLogoUrl, isImageLogo } from '../../utils/logoUtils';
 import './JobSearchPage.css';
 import {
   Search,
@@ -68,6 +69,7 @@ export function extractMaxSalary(salaryStr) {
 export function JobSearchPage() {
   const {
     jobs = [],
+    companies = [],
     candidateProfile,
     setSelectedJobId,
     setActivePage,
@@ -280,7 +282,36 @@ export function JobSearchPage() {
             const saved = savedJobIds.includes(job.id);
             const expanded = expandedWhyMatchJobId === job.id;
             return <article key={job.id} className="discovery-job-card">
-              <div className="discovery-job-top"><span className={`discovery-company-mark mark-${index % 4}`} aria-hidden="true">{(job.company || 'IT').charAt(0).toUpperCase()}</span><div className="discovery-job-info"><button className="discovery-job-title" onClick={() => openJob(job.id)}>{job.title}</button><p className="discovery-company-name">{job.company}{isVerifiedJob(job) && <ShieldCheck size={13} aria-label="Doanh nghiệp đã xác minh" />}</p></div><button className={`discovery-bookmark ${saved ? 'saved' : ''}`} aria-pressed={saved} aria-label={saved ? `Bỏ lưu ${job.title}` : `Lưu ${job.title}`} onClick={() => toggleSaveJob(job.id)}><Bookmark size={18} strokeWidth={1.6} fill={saved ? 'currentColor' : 'none'} /></button></div>
+              {(() => {
+                const jobLogo = job.logo || companies.find(c => (c.id && c.id === job.employerId) || (c.companyName && c.companyName === job.company))?.logo;
+                const hasImg = isImageLogo(jobLogo);
+                return (
+                  <div className="discovery-job-top">
+                    {hasImg ? (
+                      <span className="discovery-company-logo" aria-hidden="true">
+                        <img
+                          src={getCompanyLogoUrl(jobLogo)}
+                          alt=""
+                          className="w-full h-full object-contain"
+                          style={{ background: 'transparent' }}
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                      </span>
+                    ) : (
+                      <span className={`discovery-company-mark mark-${index % 4}`} aria-hidden="true">
+                        {(job.company || 'IT').charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                    <div className="discovery-job-info">
+                      <button className="discovery-job-title" onClick={() => openJob(job.id)}>{job.title}</button>
+                      <p className="discovery-company-name">{job.company}{isVerifiedJob(job) && <ShieldCheck size={13} aria-label="Doanh nghiệp đã xác minh" />}</p>
+                    </div>
+                    <button className={`discovery-bookmark ${saved ? 'saved' : ''}`} aria-pressed={saved} aria-label={saved ? `Bỏ lưu ${job.title}` : `Lưu ${job.title}`} onClick={() => toggleSaveJob(job.id)}>
+                      <Bookmark size={18} strokeWidth={1.6} fill={saved ? 'currentColor' : 'none'} />
+                    </button>
+                  </div>
+                );
+              })()}
               <div className="discovery-job-facts"><span><MapPin size={13} />{job.location || 'Chưa cập nhật địa điểm'}</span>{job.jobType && <span><BriefcaseBusiness size={13} />{job.jobType}</span>}<strong>{job.salary || 'Lương thỏa thuận'}</strong></div>
               <div className="discovery-job-skills">{(job.requiredSkills || []).map(skill => <span key={skill} className={candidateSkills.some(item => item.toLowerCase() === skill.toLowerCase()) ? 'matched' : ''}>{candidateSkills.some(item => item.toLowerCase() === skill.toLowerCase()) && <Check size={10} />}{skill}</span>)}</div>
               <div className="discovery-job-footer"><button className={`discovery-match-toggle ${candidateSkills.length ? 'has-profile' : ''}`} aria-expanded={expanded} aria-controls={`discovery-match-${job.id}`} onClick={() => setExpandedWhyMatchJobId(expanded ? null : job.id)}>{candidateSkills.length ? <><span className="discovery-match-dot" /><strong>{job.match.percentage}%</strong> khớp kỹ năng</> : <><CircleHelp size={13} />Đối chiếu kỹ năng</>}<ChevronDown size={13} className={expanded ? 'is-expanded' : ''} /></button><div className="discovery-job-actions">{job.postedDate && <span>{job.postedDate}</span>}<button onClick={() => openJob(job.id)}>Xem chi tiết <ArrowUpRight size={14} /></button></div></div>

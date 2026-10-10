@@ -15,7 +15,7 @@ public class Company {
     @Column(length = 100) private String industry;
     @Column(length = 50) private String size;
     @Column(length = 100) private String location;
-    @Column(length = 50) private String logo;
+    @Column(name = "logo", columnDefinition = "NVARCHAR(MAX)") private String logo;
     @Column(name = "verification_status", length = 20) private String verificationStatus;
     @Column(name = "business_license_file", length = 255) private String businessLicenseFile;
     @Column(name = "rejection_reason", columnDefinition = "NVARCHAR(MAX)") private String rejectionReason;

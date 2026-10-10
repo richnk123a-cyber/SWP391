@@ -801,6 +801,30 @@ export function AppProvider({ children }) {
        (currentUser.email.includes('pending') ? INITIAL_COMPANIES[1] : INITIAL_COMPANIES[0]))
     : (companies[0] || INITIAL_COMPANIES[0]));
 
+  // Automatically sync employer company profile from backend SQL Server
+  useEffect(() => {
+    if (currentUser?.role === 'EMPLOYER') {
+      employerApi.getMyCompany()
+        .then(res => {
+          const comp = res?.data || res;
+          if (comp && (comp.companyName || comp.id)) {
+            setCustomEmployerProfile(comp);
+            setCompanies(cList => {
+              const list = Array.isArray(cList) ? cList : [];
+              const exists = list.some(c => (comp.id && c.id === comp.id) || (comp.companyName && c.companyName === comp.companyName));
+              if (exists) {
+                return list.map(c => ((comp.id && c.id === comp.id) || (comp.companyName && c.companyName === comp.companyName)) ? { ...c, ...comp } : c);
+              }
+              return [comp, ...list];
+            });
+          }
+        })
+        .catch(err => {
+          console.warn('Backend getMyCompany not reachable or session not loaded:', err);
+        });
+    }
+  }, [currentUser]);
+
   const employerProfile = currentEmployerCompany;
 
   const setEmployerProfile = (profileOrFn) => {
@@ -1343,6 +1367,7 @@ export function AppProvider({ children }) {
         currentRole,
         setCurrentRole,
         companies,
+        setCompanies,
         currentEmployerCompany,
         employerProfile,
         setEmployerProfile,
