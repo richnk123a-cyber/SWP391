@@ -46,7 +46,7 @@ sqlcmd -b -E -S %SQL_SERVER_INSTANCE% -d careerfit_db -Q "IF OBJECT_ID('dbo.user
 if errorlevel 1 (
     echo  ^=^> Phat hien Database trong [chua co cac bang table].
     echo  ^=^> Dang tu dong tao bang va nap du lieu goc tu database\careerfit_db.sql tren %SQL_SERVER_INSTANCE%...
-    sqlcmd -E -S %SQL_SERVER_INSTANCE% -i "%ROOT_DIR%\database\careerfit_db.sql" >nul 2>&1
+    sqlcmd -f 65001 -E -S %SQL_SERVER_INSTANCE% -i "%ROOT_DIR%\database\careerfit_db.sql" >nul 2>&1
     if errorlevel 1 (
         echo  ^=^> [CANH BAO] Khong the chay tu dong qua sqlcmd tren may nay.
         echo  ^=^> Backend Spring Boot se tu dong khoi tao bang qua Hibernate khi bat len!
@@ -77,6 +77,11 @@ start "CareerFit Backend (Port 8080)" cmd /k "cd /d "%ROOT_DIR%\backend" && titl
 
 echo.
 echo [3/4] Khoi dong Frontend React Web (Port 5173)...
+if not exist "%ROOT_DIR%\frontend\node_modules" (
+    echo  ^=^> Phat hien chua cai thu vien Frontend [chua co node_modules].
+    echo  ^=^> Dang tu dong chay npm install...
+    cd /d "%ROOT_DIR%\frontend" && call npm install && cd /d "%ROOT_DIR%"
+)
 start "CareerFit Frontend (Port 5173)" cmd /k "cd /d "%ROOT_DIR%\frontend" && title CareerFit Frontend [Port 5173] && npm run dev"
 
 echo.

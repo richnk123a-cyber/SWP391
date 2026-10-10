@@ -1099,7 +1099,7 @@ export function AppProvider({ children }) {
       const userKey = `careerfit_cand_profile_${currentUser.id}`;
       localStorage.setItem(userKey, JSON.stringify(updatedProf));
     }
-    showToast(`Đã tải lên CV "${finalName}" thành công! Bây giờ bạn có thể ứng tuyển.`, 'success');
+    showToast(`Đã tải lên và cập nhật CV "${finalName}" thành công! Bây giờ bạn có thể ứng tuyển.`, 'success');
     return updatedProf;
   };
 
