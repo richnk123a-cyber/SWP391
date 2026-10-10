@@ -1,0 +1,100 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { useApp } from '../../context/AppContext';
+import { candidateApi } from '../../services/apiService';
+import { ArrowRight, BriefcaseBusiness, Camera, Check, FileText, GraduationCap, MapPin, Plus, Save, Search, Sparkles, Trash2, Upload, UserRound, X } from 'lucide-react';
+import './CandidateProfilePage.css';
+
+const CATEGORIZED_SKILLS = {
+  Backend: ['Java', 'Spring Boot', 'C#', '.NET', 'Python', 'Node.js', 'REST API', 'Microservices'],
+  Frontend: ['React', 'JavaScript', 'TypeScript', 'HTML/CSS', 'TailwindCSS', 'Vue.js'],
+  Database: ['SQL', 'SQL Server', 'PostgreSQL', 'MySQL', 'MongoDB', 'Redis'],
+  'DevOps & Tools': ['Git', 'Docker', 'Linux', 'CI/CD', 'AWS', 'Kubernetes'],
+  'Testing & Core': ['OOP', 'Selenium', 'Unit Testing', 'Data Structures', 'Algorithms', 'Jira']
+};
+function profileForm(profile, user) {
+  return { name: profile?.name || user?.fullName || user?.username || '', email: profile?.email || user?.email || '', phone: profile?.phone || user?.phone || '', location: profile?.location || '', university: profile?.university || '', major: profile?.major || '', graduationYear: profile?.graduationYear || '', desiredRole: profile?.preferences?.desiredRole || '', expectedSalary: profile?.preferences?.expectedSalary || '', githubUrl: profile?.githubUrl || '', portfolioUrl: profile?.portfolioUrl || '', bio: profile?.bio || '' };
+}
+export function CandidateProfilePage() {
+  const { currentUser, candidateProfile, setCandidateProfile, uploadCandidateCV, deleteCandidateCV, setIsAIModalOpen, showToast } = useApp();
+  const [form, setForm] = useState(() => profileForm(candidateProfile, currentUser));
+  const [skills, setSkills] = useState(() => candidateProfile?.skills || []);
+  const [avatar, setAvatar] = useState(candidateProfile?.avatarUrl || '');
+  const [dirty, setDirty] = useState(false);
+  const dirtyRef = useRef(false);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
+  const [search, setSearch] = useState('');
+  const [category, setCategory] = useState('all');
+  const [dragOver, setDragOver] = useState(false);
+  const [cvPreview, setCvPreview] = useState('');
+  const fileRef = useRef(null);
+  const avatarRef = useRef(null);
+  const formRef = useRef(null);
+  useEffect(() => {
+    if (dirtyRef.current) return;
+    setForm(profileForm(candidateProfile, currentUser));
+    setSkills(candidateProfile?.skills || []);
+    setAvatar(candidateProfile?.avatarUrl || '');
+  }, [candidateProfile, currentUser]);
+  useEffect(() => () => { if (cvPreview) URL.revokeObjectURL(cvPreview); }, [cvPreview]);
+  const markDirty = () => { dirtyRef.current = true; setDirty(true); setSaveMessage(''); };
+  const updateField = (key, value) => { markDirty(); setForm(prev => ({ ...prev, [key]: value })); };
+  const changeSkill = (skill, remove = false) => {
+    markDirty();
+    setSkills(prev => remove ? prev.filter(item => item.toLowerCase() !== skill.toLowerCase()) : prev.some(item => item.toLowerCase() === skill.toLowerCase()) ? prev : [...prev, skill]);
+  };
+  const uploadCV = file => {
+    if (!file) return;
+    if (!/\.pdf$/i.test(file.name) || (file.type && file.type !== 'application/pdf')) { showToast('Vui lòng chọn tệp PDF.', 'danger'); return; }
+    if (!file.size || file.size > 5 * 1024 * 1024) { showToast('Tệp PDF phải có dung lượng lớn hơn 0 và không quá 5 MB.', 'danger'); return; }
+    uploadCandidateCV(file.name);
+    setCandidateProfile(prev => ({ ...prev, cvFileSize: file.size }));
+    setCvPreview(URL.createObjectURL(file));
+  };
+  const changeAvatar = event => {
+    const file = event.target.files?.[0]; event.target.value = '';
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) { showToast('Chọn ảnh JPG, PNG hoặc WebP không quá 2 MB.', 'danger'); return; }
+    const reader = new FileReader(); reader.onload = () => { markDirty(); setAvatar(reader.result); }; reader.readAsDataURL(file);
+  };
+  const save = async event => {
+    event.preventDefault(); if (saving) return;
+    if (![form.name, form.email, form.phone, form.desiredRole].every(value => value.trim())) { showToast('Vui lòng điền đầy đủ thông tin bắt buộc.', 'warning'); return; }
+    setSaving(true);
+    const updated = { ...candidateProfile, ...form, name: form.name.trim(), email: form.email.trim(), avatarUrl: avatar, skills, preferences: { ...candidateProfile?.preferences, desiredRole: form.desiredRole.trim(), expectedSalary: form.expectedSalary }, userId: currentUser?.id };
+    let message;
+    try {
+      localStorage.setItem(`careerfit_cand_profile_${currentUser.id}`, JSON.stringify(updated));
+      setCandidateProfile(updated);
+      dirtyRef.current = false; setDirty(false);
+      try {
+        await candidateApi.updateMyProfile({ fullName: updated.name, phone: form.phone, location: form.location, university: form.university, major: form.major, graduationYear: form.graduationYear, desiredRole: updated.preferences.desiredRole, expectedSalary: form.expectedSalary });
+        message = 'Đã lưu hồ sơ trên thiết bị và đồng bộ thông tin cá nhân.';
+      } catch { message = 'Đã lưu trên thiết bị. Chưa đồng bộ được với máy chủ.'; }
+      setSaveMessage(message); showToast(message, 'info');
+    } catch { showToast('Chưa lưu được hồ sơ. Vui lòng thử lại.', 'danger'); }
+    finally { setSaving(false); }
+  };
+  const checklist = [
+    { label: 'Thông tin liên hệ', done: !!(form.name.trim() && form.email.trim() && form.phone.trim()) },
+    { label: 'Học vấn', done: !!(form.university.trim() && form.major.trim()) },
+    { label: 'Mục tiêu nghề nghiệp', done: !!form.desiredRole.trim() },
+    { label: 'Giới thiệu bản thân', done: !!form.bio.trim() },
+    { label: 'Kỹ năng chuyên môn', done: skills.length > 0 },
+    { label: 'CV đính kèm', done: !!candidateProfile?.hasCV }
+  ];
+  const completion = Math.round(checklist.filter(item => item.done).length / checklist.length * 100);
+  const categories = Object.entries(CATEGORIZED_SKILLS).filter(([name]) => category === 'all' || category === name).map(([name, items]) => [name, items.filter(skill => skill.toLowerCase().includes(search.trim().toLowerCase()))]).filter(([, items]) => items.length);
+  const field = (key, label, options = {}) => <label className={`profile-field ${options.wide ? 'is-wide' : ''}`}><span>{label}{options.required && <em> *</em>}</span>{options.textarea ? <textarea rows={4} value={form[key]} onChange={event => updateField(key, event.target.value)} placeholder={options.placeholder} /> : <input type={options.type || 'text'} value={form[key]} onChange={event => updateField(key, event.target.value)} required={options.required} placeholder={options.placeholder} autoComplete={options.autoComplete} />}</label>;
+  return <div className="profile-page">
+    <header className="profile-hero"><div className="profile-hero-person"><div className="profile-avatar">{avatar ? <img src={avatar} alt="Ảnh đại diện" /> : <span>{form.name.trim().charAt(0).toUpperCase() || <UserRound size={32}/>}</span>}<button aria-label="Thay ảnh đại diện" onClick={() => avatarRef.current.click()}><Camera size={15}/></button><input ref={avatarRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={changeAvatar}/></div><div className="profile-hero-copy"><span className="profile-eyebrow">HỒ SƠ NGHỀ NGHIỆP</span><h1>{form.name || 'Hồ sơ của bạn'}</h1><p>{form.desiredRole || 'Thêm vị trí mục tiêu'}<span>·</span>{form.email || 'Thêm email liên hệ'}</p><div>{form.university && <span><GraduationCap size={14}/>{form.university}</span>}{form.location && <span><MapPin size={14}/>{form.location}</span>}</div></div></div><div className="profile-hero-summary"><span>HỒ SƠ HOÀN THIỆN <strong>{completion}%</strong></span><div className="profile-progress" role="progressbar" aria-label="Mức hoàn thiện hồ sơ" aria-valuemin={0} aria-valuemax={100} aria-valuenow={completion}><i style={{width:`${completion}%`}}/></div><small>{skills.length} kỹ năng · {candidateProfile?.hasCV ? 'Đã có CV' : 'Chưa đính kèm CV'}</small><button type="submit" form="candidate-profile-form" disabled={saving} className="profile-primary"><Save size={15}/>{saving ? 'Đang lưu…' : 'Lưu hồ sơ'}</button></div></header>
+    <form id="candidate-profile-form" ref={formRef} onSubmit={save} className="profile-form"><div className="profile-layout"><div className="profile-main">
+    <section className="profile-card"><div className="profile-section-heading"><span className="profile-section-icon"><UserRound size={18}/></span><div><h2>Thông tin cá nhân</h2><p>Thông tin để nhà tuyển dụng liên hệ với bạn.</p></div><span className="profile-section-number">01</span></div><div className="profile-fields">{field('name','Họ và tên',{required:true,autoComplete:'name'})}{field('email','Email liên hệ',{required:true,type:'email',autoComplete:'email'})}{field('phone','Số điện thoại',{required:true,type:'tel',autoComplete:'tel'})}{field('location','Khu vực sinh sống',{placeholder:'Ví dụ: Đà Nẵng'})}{field('bio','Giới thiệu bản thân',{textarea:true,wide:true,placeholder:'Giới thiệu ngắn về kinh nghiệm, thế mạnh và mục tiêu của bạn.'})}</div></section>
+    <section className="profile-card"><div className="profile-section-heading"><span className="profile-section-icon is-violet"><GraduationCap size={19}/></span><div><h2>Học vấn & định hướng</h2><p>Cho nhà tuyển dụng thấy nền tảng và mục tiêu của bạn.</p></div><span className="profile-section-number">02</span></div><div className="profile-fields">{field('university','Trường Đại học / Cao đẳng')}{field('major','Chuyên ngành')}{field('graduationYear','Năm tốt nghiệp dự kiến',{placeholder:'Ví dụ: 2026'})}{field('desiredRole','Vị trí mục tiêu',{required:true,placeholder:'Ví dụ: Backend Developer'})}{field('expectedSalary','Mức lương kỳ vọng',{placeholder:'Ví dụ: 8 – 12 triệu VNĐ'})}{field('githubUrl','GitHub',{type:'url',placeholder:'https://github.com/username'})}{field('portfolioUrl','Website / Portfolio',{type:'url',placeholder:'https://your-portfolio.com',wide:true})}</div></section>
+    <section className="profile-card profile-skills"><div className="profile-section-heading"><span className="profile-section-icon is-green"><BriefcaseBusiness size={18}/></span><div><h2>Kỹ năng chuyên môn <b>{skills.length}</b></h2><p>Chọn những kỹ năng bạn có thể sử dụng và trình bày khi phỏng vấn.</p></div><span className="profile-section-number">03</span></div><div className="profile-selected-skills"><span>KỸ NĂNG CỦA BẠN</span><div>{skills.map(skill => <span key={skill}><Check size={12}/>{skill}<button type="button" aria-label={`Xóa kỹ năng ${skill}`} onClick={() => changeSkill(skill,true)}><X size={12}/></button></span>)}{!skills.length && <p>Chưa có kỹ năng. Chọn từ danh mục bên dưới để bắt đầu.</p>}</div></div><div className="profile-skills-tools"><label><Search size={15}/><input aria-label="Tìm kỹ năng" value={search} onChange={event => setSearch(event.target.value)} placeholder="Tìm kỹ năng…"/></label><select aria-label="Nhóm kỹ năng" value={category} onChange={event => setCategory(event.target.value)}><option value="all">Tất cả nhóm kỹ năng</option>{Object.keys(CATEGORIZED_SKILLS).map(name => <option key={name}>{name}</option>)}</select></div><div className="profile-skill-categories">{categories.map(([name,items]) => <div key={name}><h3>{name}</h3><div>{items.map(skill => { const added = skills.some(item => item.toLowerCase() === skill.toLowerCase()); return <button type="button" key={skill} disabled={added} onClick={() => changeSkill(skill)}>{added ? <Check size={12}/> : <Plus size={12}/>}{skill}</button>; })}</div></div>)}{!categories.length && <p className="profile-skill-empty">Không có kỹ năng phù hợp. Thử từ khóa hoặc nhóm khác.</p>}</div></section>
+    </div><aside className="profile-aside"><section className="profile-cv-card"><div className="profile-aside-heading"><FileText size={18}/><h2>CV của bạn</h2>{candidateProfile?.hasCV && <span><Check size={12}/>Đã có CV</span>}</div>{candidateProfile?.hasCV ? <div className="profile-cv-file"><span className="profile-pdf-icon">PDF</span><h3>{candidateProfile.cvFileName || 'CV đính kèm'}</h3><p>{candidateProfile.cvUploadDate || 'Chưa có ngày cập nhật'}{candidateProfile.cvFileSize ? ` · ${(candidateProfile.cvFileSize/1024/1024).toFixed(2)} MB` : ''}</p><div><button type="button" onClick={() => fileRef.current.click()}>Đổi tệp</button><button type="button" aria-label="Xóa CV" onClick={() => { deleteCandidateCV(); setCandidateProfile(prev => ({...prev,cvFileSize:0})); setCvPreview(''); }}><Trash2 size={14}/></button></div>{cvPreview && <a href={cvPreview} target="_blank" rel="noopener noreferrer">Xem tệp vừa chọn <ArrowRight size={13}/></a>}</div> : <button type="button" className={`profile-dropzone ${dragOver ? 'is-dragging' : ''}`} onClick={() => fileRef.current.click()} onDragOver={event => {event.preventDefault();setDragOver(true);}} onDragLeave={() => setDragOver(false)} onDrop={event => {event.preventDefault();setDragOver(false);uploadCV(event.dataTransfer.files?.[0]);}}><span><Upload size={23}/></span><strong>Thêm CV để sẵn sàng ứng tuyển</strong><p>Kéo thả tệp vào đây hoặc chọn từ thiết bị</p><small>PDF · tối đa 5 MB</small></button>}<input ref={fileRef} type="file" accept="application/pdf,.pdf" hidden onChange={event => { uploadCV(event.target.files?.[0]); event.target.value=''; }}/><p className="profile-cv-note">Chọn bản CV mới nhất, có thông tin liên hệ và các dự án tiêu biểu.</p></section>
+    <section className="profile-checklist"><span className="profile-kicker">TỪNG CHÚT MỘT</span><h2>Hoàn thiện hồ sơ</h2><p>Thông tin đầy đủ giúp nhà tuyển dụng hiểu rõ hơn về bạn.</p><div>{checklist.map(item => <div key={item.label}><span>{item.label}</span>{item.done ? <Check size={15}/> : <small>Bổ sung</small>}</div>)}</div></section>
+    <section className="profile-ai-card"><Sparkles size={21}/><span className="profile-kicker">CAREERFIT AI</span><h2>Một góc nhìn khác<br/>cho CV của bạn.</h2><p>Xem phân tích và gợi ý để điều chỉnh CV theo mục tiêu nghề nghiệp.</p><button type="button" onClick={() => setIsAIModalOpen(true)}>Phân tích CV <ArrowRight size={15}/></button></section></aside></div>
+    <div className="profile-savebar"><div><span className={`profile-save-dot ${dirty ? 'is-dirty' : ''}`}/><p role="status">{saveMessage || (dirty ? 'Bạn có thay đổi chưa lưu.' : 'Thông tin hồ sơ của bạn.')}<small>Kỹ năng và ảnh đại diện được lưu cùng hồ sơ.</small></p></div><button className="profile-primary" type="submit" disabled={saving}><Save size={15}/>{saving ? 'Đang lưu…' : 'Lưu thay đổi'}</button></div></form>
+  </div>;
+}

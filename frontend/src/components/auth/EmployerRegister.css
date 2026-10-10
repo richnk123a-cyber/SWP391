@@ -1,0 +1,15 @@
+.employer-form > section { flex: initial; }
+.employer-form > section + section { margin-top: calc(8 * var(--candidate-unit)); }
+.employer-form h3 { font-size: calc(16 * var(--candidate-unit)); }
+.employer-form .candidate-intro { margin-bottom: calc(30 * var(--candidate-unit)); }
+.employer-submit-row { display: flex; align-items: flex-start; gap: calc(24 * var(--candidate-unit)); border-top: 1px solid #edf1f6; padding-top: calc(22 * var(--candidate-unit)); }
+.employer-submit-row .candidate-terms { border: 0; margin: 0; padding: 0; flex: 1; }
+.employer-submit-row > .btn { min-height: calc(44 * var(--candidate-unit)); white-space: nowrap; border-radius: calc(8 * var(--candidate-unit)); padding: calc(11 * var(--candidate-unit)) calc(18 * var(--candidate-unit)); font-size: calc(14 * var(--candidate-unit)); }
+.employer-tabs { display: flex; justify-content: center; gap: 24px; border-bottom: 1px solid #e2e8f0; margin-bottom: 26px; }
+.employer-tabs button { padding: 12px 4px; font-size: 14px; border-bottom: 2px solid transparent; color: #64748b; }
+.employer-tabs button[aria-current="page"] { color: #1d4ed8; border-color: #2563eb; }
+.employer-form .candidate-cv-file { margin-top: calc(16 * var(--candidate-unit)); }
+@media (max-width: 640px) {
+  .employer-submit-row { flex-direction: column; gap: 18px; }
+  .employer-submit-row > .btn { width: 100%; justify-content: center; }
+}

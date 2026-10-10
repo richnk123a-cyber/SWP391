@@ -1,0 +1,80 @@
+.candidate-career-banner { display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,38%); align-items:center; gap:38px; padding:30px 32px; margin-bottom:24px; border-radius:16px; color:#fff; background:linear-gradient(115deg,#0d1526 0%,#131e32 70%,#1b283e 100%); border:1px solid #29364b; box-shadow:0 8px 24px #14213a10; }
+.career-banner-copy { min-width:0; }
+.career-banner-label { display:inline-flex; align-items:center; flex-wrap:wrap; gap:5px; padding:5px 9px; border:1px solid #30486a; border-radius:20px; color:#80b7ff; background:#15243b; font-size:12px; font-weight:550; }
+.career-banner-label>span:first-child { width:4px; height:4px; background:#64a7ff; border-radius:50%; }
+.career-banner-label .label-divider { color:#6587ad; margin:0 1px; }
+.career-banner-copy h2 { font-size:32px; font-weight:650; letter-spacing:-.8px; line-height:1.3; margin:16px 0 6px; color:#fff; }
+.career-banner-description { color:#93b9f3; font-size:15px; line-height:1.8; }
+.career-banner-badges { display:flex; flex-wrap:wrap; gap:7px; margin-top:17px; }
+.career-banner-badges>span { font-size:12px; padding:5px 8px; border-radius:5px; color:#b7c6dd; background:#243145; border:1px solid #2f3e54; }
+.career-banner-badges .market-fit { color:#71d6b6; background:#143b37; border-color:#24564a; }
+.career-banner-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:25px; }
+.career-banner-actions button { display:flex; align-items:center; justify-content:center; gap:9px; min-height:39px; padding:10px 15px; font-size:14px; font-weight:550; border-radius:7px; transition:background-color .2s,border-color .2s; color:#fff; }
+.career-banner-actions button:first-child { background:#3266e7; border:1px solid #4779ee; }
+.career-banner-actions button:first-child:hover { background:#4377f4; }
+.career-banner-actions button:last-child { background:#233149; border:1px solid #344660; color:#d1def0; }
+.career-banner-actions button:last-child:hover { background:#2d405d; }
+.career-signal-network { position:relative; min-height:218px; border-radius:12px; border:1px solid #ffffff0d; background:#0d1728a6; overflow:hidden; }
+.career-signal-network>svg { position:absolute; inset:0; width:100%; height:100%; }
+.career-signal-network line { stroke:#597baf; stroke-width:.8; stroke-dasharray:3 4; opacity:.3; }
+.career-signal-network line.signal-matched { stroke:#5dbdba; opacity:.55; }
+.career-signal-network ellipse { stroke:#537ba6; stroke-width:.6; stroke-dasharray:2 6; fill:none; opacity:.2; }
+.signal-skill { position:absolute; display:block; font-size:11px; font-weight:600; padding:4px 6px; border:1px solid; border-radius:4px; }
+.signal-top-left { top:13%; left:7%; }
+.signal-top-right { top:13%; right:8%; }
+.signal-middle-right { top:42%; right:5%; }
+.signal-bottom-left { bottom:26%; left:8%; }
+.signal-bottom-right { bottom:26%; right:6%; }
+.signal-amber { color:#d3ad62; background:#473b253b; border-color:#6d562949; }
+.signal-blue { color:#83c4dd; background:#1b506148; border-color:#276b8349; }
+.signal-purple { color:#bba1e6; background:#4e376c49; border-color:#70559249; }
+.signal-green { color:#7cc9b5; background:#1d534947; border-color:#316d5b49; }
+.signal-target { position:absolute; left:50%; top:46%; transform:translate(-50%,-50%); width:38%; max-width:170px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:14px 10px; text-align:center; color:#fff; background:linear-gradient(145deg,#2b66e0,#5043c6); border:1px solid #6987e350; border-radius:9px; box-shadow:0 5px 20px #15233f80; }
+.signal-target>span { font-size:10px; font-weight:600; letter-spacing:1px; color:#b6d3ff; }
+.signal-target strong { font-size:14px; font-weight:600; line-height:1.4; overflow-wrap:anywhere; }
+.signal-target small { font-size:11px; color:#bdd2ff; }
+.signal-network-footer { position:absolute; bottom:12px; left:14px; right:14px; display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:10px; color:#71839e; }
+.signal-network-footer>span:first-child { color:#5db7a0; display:flex; align-items:center; gap:4px; }
+.signal-network-footer i { width:4px; height:4px; border-radius:50%; background:#5fc8a7; }
+.candidate-career-banner button:focus-visible { outline:2px solid #a5c6ff; outline-offset:4px; }
+@media(max-width:1100px) { .candidate-career-banner { gap:24px; padding:28px; } .career-banner-copy h2 { font-size:27px; } }
+@media(max-width:760px) { .candidate-career-banner { grid-template-columns:1fr; gap:24px; padding:26px 24px; } .career-signal-network { min-height:218px; } .career-banner-copy h2 { font-size:28px; } .career-banner-actions { margin-top:20px; } }
+@media(prefers-reduced-motion:reduce) { .candidate-career-banner * { transition:none!important; } }
+/* Slow ambient light and moving signal paths preserve the original banner. */
+.candidate-career-banner{position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(115deg,#101c30,#172944 65%,#243452);border-color:#3b506f;box-shadow:0 9px 28px #21355317}
+.candidate-career-banner:before,.candidate-career-banner:after{content:'';position:absolute;z-index:-1;pointer-events:none;border-radius:50%;filter:blur(45px);will-change:transform}
+.candidate-career-banner:before{width:440px;height:360px;left:20%;top:-190px;background:radial-gradient(ellipse,#5078bc38,transparent 70%);animation:career-ambient-drift 19s ease-in-out infinite alternate}
+.candidate-career-banner:after{width:470px;height:330px;right:-130px;bottom:-210px;background:radial-gradient(ellipse,#8571bb32,transparent 70%);animation:career-ambient-drift 24s ease-in-out infinite alternate-reverse}
+.career-banner-description{color:#b4cdf5;font-size:15px}
+.career-banner-label{color:#b0d0ff;border-color:#4a6488;background:#203351;font-size:13px}
+.career-banner-badges>span{color:#d4e0f2;background:#2d3e58;border-color:#455974;font-size:13px}
+.career-banner-badges .market-fit{color:#a6e2ca;background:#245247;border-color:#3d7565}
+.career-signal-network{background:#101d32b8;border-color:#48608066}
+.career-signal-network line{stroke:#8daedb;opacity:.55;animation:career-signal-flow 16s linear infinite}
+.career-signal-network line.signal-matched{stroke:#8ed5c5;opacity:.8}
+.career-signal-network ellipse{stroke:#92acdd;opacity:.4;animation:career-signal-flow 28s linear infinite reverse}
+.signal-skill{font-size:13px;padding:5px 7px}
+.signal-amber{color:#f0cd8c;background:#634d303d;border-color:#95794870}
+.signal-blue{color:#a4dff4;background:#28526c60;border-color:#5989a080}
+.signal-purple{color:#d5bff5;background:#58436f60;border-color:#9072b080}
+.signal-green{color:#a5e0c9;background:#285a4c60;border-color:#5b927d80}
+.signal-target{background:linear-gradient(135deg,#356cc5,#6657b9);border-color:#849bea80;box-shadow:0 7px 24px #07132455}
+.signal-target>span{font-size:11px;color:#e0eaff}.signal-target strong{font-size:15px}.signal-target small{font-size:13px;color:#dfe9ff}
+.signal-network-footer{font-size:12px;color:#a2b6d1}.signal-network-footer>span:first-child{color:#91d6bf}
+@keyframes career-ambient-drift{from{transform:translate3d(-35px,-5px,0)}to{transform:translate3d(95px,55px,0)}}
+@keyframes career-signal-flow{to{stroke-dashoffset:-112}}
+@media(prefers-reduced-motion:reduce){.candidate-career-banner:before,.candidate-career-banner:after,.career-signal-network line,.career-signal-network ellipse{animation:none;will-change:auto}}
+@media(max-width:480px){.signal-network-footer{font-size:11px}.signal-skill{font-size:12px}.career-banner-badges>span{font-size:12px}}
+/* Share node coordinates with SVG so every connector meets its label. */
+.candidate-career-banner{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:40px;padding:34px 38px}
+.career-banner-copy{padding-right:8px}
+.career-banner-copy h2{margin:20px 0 10px;font-size:clamp(28px,2.4vw,38px);line-height:1.25}
+.career-banner-description{max-width:560px;line-height:1.8}
+.career-banner-badges{margin-top:20px;gap:8px}
+.career-banner-actions{margin-top:28px}
+.career-signal-network{min-height:244px}
+.signal-skill{right:auto;bottom:auto;transform:translate(-50%,-50%);white-space:nowrap}
+@media(max-width:1100px){.candidate-career-banner{gap:28px;padding:28px}.career-banner-copy{padding-right:0}.career-signal-network{min-height:236px}}
+@media(max-width:760px){.candidate-career-banner{grid-template-columns:1fr;gap:24px;padding:26px 24px}.career-banner-copy h2{font-size:28px}.career-signal-network{min-height:230px}}
+
+

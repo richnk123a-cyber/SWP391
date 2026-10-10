@@ -1,0 +1,77 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: careerfit-backend
+
+  # === THÊM MỚI BỘ CẤU HÌNH ĐỌC DATA.SQL ===
+  sql:
+    init:
+      mode: always
+      continue-on-error: true
+  # ==========================================
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:730862041816-7ao5sj540kjlvqvbj20uf40n1ke2o05s.apps.googleusercontent.com}
+            client-secret: ${GOOGLE_CLIENT_SECRET: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}
+            scope: email, profile
+          microsoft:
+            client-id: ${MICROSOFT_CLIENT_ID:b93b94c1-5545-496b-8347-72271d1d068f}
+            client-secret: ${MICROSOFT_CLIENT_SECRET:ycj8Q~3DoiPdIYMG7_RAMQoOuUGbjwCR4jBD5c2m}
+            scope: User.Read
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          microsoft:
+            authorization-uri: https://login.microsoftonline.com/${MICROSOFT_TENANT_ID:common}/oauth2/v2.0/authorize
+            token-uri: https://login.microsoftonline.com/${MICROSOFT_TENANT_ID:common}/oauth2/v2.0/token
+            user-info-uri: https://graph.microsoft.com/v1.0/me
+            jwk-set-uri: https://login.microsoftonline.com/${MICROSOFT_TENANT_ID:common}/discovery/v2.0/keys
+            user-name-attribute: id
+
+  datasource:
+    url: ${DB_URL:jdbc:sqlserver://localhost:1433;databaseName=careerfit_db;integratedSecurity=true;encrypt=false;trustServerCertificate=true;sendStringParametersAsUnicode=true}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+  jpa:
+    # === THÊM MỚI: Bắt Spring đợi Hibernate tạo bảng xong mới bơm dữ liệu ===
+    defer-datasource-initialization: true 
+    hibernate:
+      # Tu dong tao/cap nhat bang tren bat ky may nao
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update} 
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.SQLServerDialect
+        format_sql: true
+        use_nationalized_character_data: true
+
+# JWT Configuration
+careerfit:
+  jwt:
+    secret: CareerFitSWP391SecretKeyMustBe256BitsLongForHS256Algorithm
+    expiration-ms: 86400000
+
+# CORS - Allow React frontend
+  cors:
+    allowed-origins: http://localhost:5173
+
+logging:
+  level:
+    com.careerfit: DEBUG
+    org.springframework.security: INFO
+
+# Swagger / SpringDoc config
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    try-it-out-enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+  api-docs:
+    path: /v3/api-docs

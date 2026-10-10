@@ -1,0 +1,179 @@
+/* CareerFit: restrained indigo, slate, sage and mauve. */
+:root {
+  --primary:#3d5fc4;
+  --primary-hover:#304ca4;
+  --primary-dark:#293f86;
+  --primary-light:#e7ecfb;
+  --primary-border:#bdcaed;
+  --bg-secondary:#e9edf5;
+  --bg-tertiary:#dfe6f1;
+  --border-color:#cdd7e7;
+  --text-main:#23344e;
+  --text-secondary:#526783;
+  --text-muted:#536780;
+  --workspace-canvas:#e9edf5;
+  --workspace-surface:#fcfdff;
+  --workspace-outline:#cbd5e6;
+  --workspace-shadow:0 3px 5px #23395604,0 12px 28px #23395607;
+}
+body{background:var(--workspace-canvas)}
+.workspace-content,.workspace-content:has(.candidate-overview),.workspace-content:has(.job-discovery){background:var(--workspace-canvas);color:var(--text-main)}
+.workspace-navbar{background:#f5f7fc!important;border-bottom-color:#c6d2e6!important;box-shadow:0 3px 14px #26395507}
+.workspace-navbar input{background:#e9eef8;border-color:#c9d5e8;color:#405a7f}
+.workspace-navbar input::placeholder{color:#687e9d}
+.workspace-sidebar,.workspace-sidebar:has(.sidebar-career-note){background:linear-gradient(165deg,#c7d1e4,#d2daea);border-right-color:#b3c1da}
+.workspace-sidebar .sidebar-heading-label,.workspace-sidebar .sidebar-career-note>span,.workspace-sidebar .sidebar-career-note p,.workspace-sidebar .sidebar-account-copy small{color:#5c718f}
+.workspace-sidebar .sidebar-group h2,.workspace-sidebar:has(.sidebar-career-note) .sidebar-group h2{color:#566c8d;font-size:12px;letter-spacing:1.1px}
+.workspace-sidebar .sidebar-item{color:#425a7b;font-size:15px}
+.workspace-sidebar .sidebar-item>svg{color:#6b81a4}
+.workspace-sidebar .sidebar-item:hover{background:#bac8e2;color:#29456e}
+.workspace-sidebar .sidebar-item.is-active{color:#284780;font-weight:650}
+.workspace-sidebar .sidebar-item.is-active>svg{color:#3b5e9e}
+.workspace-sidebar .sidebar-item.is-active:hover{background:transparent}
+.workspace-sidebar .sidebar-active-indicator,.workspace-sidebar:has(.sidebar-career-note) .sidebar-active-indicator{background:linear-gradient(110deg,#afc0e1,#bdccec);border-color:#9fb3d7;box-shadow:0 3px 9px #3154840a}
+.workspace-sidebar .sidebar-item-dot{background:#496aa4}
+.workspace-sidebar .sidebar-toggle{background:#d9e1ee;border-color:#afbed6;color:#59769d}
+.workspace-sidebar .sidebar-toggle:hover{background:#bfcde4;color:#35557f}
+.workspace-sidebar .sidebar-avatar,.workspace-sidebar:has(.sidebar-career-note) .sidebar-avatar{background:#adbedc;color:#3d5a85}
+.workspace-sidebar .sidebar-career-note h3,.workspace-sidebar .sidebar-account-copy strong{color:#405b7d}
+.workspace-sidebar .sidebar-career-note button{color:#4165a2}
+.workspace-sidebar .sidebar-account,.workspace-sidebar .sidebar-career-note,.workspace-sidebar:has(.sidebar-career-note) .sidebar-account,.workspace-sidebar:has(.sidebar-career-note) .sidebar-career-note{border-top-color:#b5c3da}
+.workspace-sidebar .sidebar-profile:hover{background:#bdcae0}
+.workspace-sidebar .sidebar-logout{color:#607a9e}
+.workspace-sidebar .sidebar-logout:hover{background:#e8d6e0;color:#996076}
+.workspace-sidebar .sidebar-scroll{scrollbar-color:#9cafd0 transparent}
+.workspace-sidebar button:focus-visible{outline-color:#587ebd}
+.workspace-mobile-panel{background:#c7d1e4}
+
+/* Surfaces and hierarchy stay consistent across every workspace page. */
+.workspace-content :is(.overview-panel,.profile-card,.profile-cv-card,.learning-curriculum,.learning-overview,.learning-guide,.applications-workspace,.discovery-filters,.discovery-job-card,.security-account,.security-password-card){background:var(--workspace-surface);border-color:var(--workspace-outline);box-shadow:var(--workspace-shadow)}
+.workspace-content :is(.overview-panel,.profile-card,.learning-curriculum,.applications-workspace){border-radius:16px}
+.workspace-content :is(.profile-section-heading,.learning-section-header,.applications-section-heading){background:linear-gradient(115deg,#f5f7fc,#fafbfe)}
+.workspace-content :is(.panel-heading h2,.profile-section-heading h2,.learning-section-header h2,.applications-section-heading h2,.security-heading h2){color:#263c5c;font-weight:650}
+.workspace-content :is(.panel-heading p,.profile-section-heading p,.learning-section-header p,.applications-kicker,.profile-kicker,.learning-kicker,.overview-eyebrow){color:#586d8c}
+.workspace-content :is(.profile-field input,.profile-field textarea,.security-page .form-control){background:#f0f3fa;border-color:#c9d4e7;color:#294260;box-shadow:inset 0 1px 2px #253a5503}
+.workspace-content :is(.profile-field input,.profile-field textarea)::placeholder{color:#7586a1}
+.workspace-content :is(.profile-field input,.profile-field textarea):focus{background:#fcfdff;border-color:#7e99d6;box-shadow:0 0 0 3px #b2c4ee30}
+.workspace-content :is(.profile-primary,.learning-primary,.applications-primary,.discovery-search-submit,.overview-button.primary){background:linear-gradient(125deg,#3c65cb,#555dbe);border-color:#4c67bd;box-shadow:0 4px 10px #3b56a41b;color:#fff}
+.workspace-content :is(.profile-primary,.learning-primary,.applications-primary,.discovery-search-submit,.overview-button.primary):hover{background:linear-gradient(125deg,#345bbb,#4a51ae)}
+.workspace-content :is(.profile-primary,.learning-primary,.applications-primary):disabled{box-shadow:none}
+.workspace-content :is(.discovery-hero,.applications-hero,.learning-hero,.profile-hero){background:radial-gradient(ellipse at 90% 0%,#36446766,transparent 58%),linear-gradient(120deg,#14223a,#233552);border-color:#354c70;box-shadow:0 10px 25px #22395612}
+.workspace-content :is(.discovery-hero-copy>p,.applications-hero p,.learning-hero-copy>p,.profile-hero-copy>p){color:#b9cbe5}
+.workspace-content :is(.profile-hero h1,.learning-hero h1,.applications-hero h1){color:#f5f8ff}
+
+/* Dashboard: readable metadata, gently tinted summary tiles. */
+.workspace-content .candidate-overview{--overview-ink:#223752;--overview-muted:#536983;--overview-line:#cdd7e6}
+.workspace-content :is(.stat-note,.job-company,.job-meta,.rail-description,.roadmap-progress-label,.next-topic p,.panel-footnote){color:#576d89}
+.workspace-content .stat-top{color:#405c80;font-size:15px}
+.workspace-content .stat-note{font-size:14px}
+.workspace-content .overview-stat{border-radius:13px;box-shadow:0 4px 14px #21375407}
+.workspace-content .overview-stat:nth-child(1){background:linear-gradient(135deg,#e1e9fa,#e9eef9);border-color:#b6c9ed}
+.workspace-content .overview-stat:nth-child(2){background:linear-gradient(135deg,#e5def2,#ece7f5);border-color:#c6b6df}
+.workspace-content .overview-stat:nth-child(3){background:linear-gradient(135deg,#efe3ca,#f3ecdF);border-color:#dbc69f}
+.workspace-content .overview-stat:nth-child(4){background:linear-gradient(135deg,#dbe9e2,#e5eee9);border-color:#b5d1c2}
+.workspace-content .recommended-panel>.panel-heading{background:#e5ecf9;border-bottom-color:#c4d2ea}
+.workspace-content .profile-panel{background:#e7edf9;border-color:#c0cfeb}
+.workspace-content .roadmap-panel{background:#ece4f2;border-color:#cdbdde}
+.workspace-content .roadmap-panel .next-topic{background:#e0d5ec}
+.workspace-content .overview-insight{background:#dcebe4;border-color:#b9d3c5}
+.workspace-content .overview-insight p{color:#536f60}
+.workspace-content :is(.job-skill-tags span,.profile-field>span,.profile-cv-note,.learning-time,.applications-metric small,.applications-row-title small,.applications-row-date){color:#516985}
+.workspace-content .job-match{background:#e2efe7;border-color:#c0dacb;color:#437557}
+.workspace-content .company-monogram{background:#e2eafa;border-color:#c6d5ee;color:#4c6da3}
+
+/* Profile, learning, jobs and application status use one family of accents. */
+.workspace-content :is(.profile-checklist,.discovery-highlight){background:#dfebe4;border-color:#bdd3c5}
+.workspace-content :is(.profile-checklist>p,.profile-checklist>div>div,.profile-checklist li){color:#476652;border-bottom-color:#c6d8cd}
+.workspace-content .check-pending{color:#826335}
+.workspace-content :is(.profile-selected-skills,.learning-next-card){background:linear-gradient(140deg,#e1e8f8,#e9e4f4);border-color:#c2cdea}
+.workspace-content :is(.learning-next-card>p,.profile-selected-skills>span,.learning-overview>small,.learning-guide p,.learning-note p,.profile-savebar small,.profile-cv-file p,.profile-dropzone p,.profile-dropzone small){color:#566d8a}
+.workspace-content .learning-note{background:#f0e7d5;border-color:#d9c7a5}
+.workspace-content .learning-lesson.is-next .learning-lesson-content{background:#e7edfb;border-color:#a8bde7;box-shadow:0 4px 13px #3c5ea60a}
+.workspace-content .learning-lesson.is-complete .learning-lesson-content{background:#e8f1eb;border-color:#c2d7c9}
+.workspace-content .learning-lesson-actions a{color:#486b9d}
+.workspace-content .profile-dropzone{background:#e8eef9;border-color:#b5c9e9}
+.workspace-content .profile-cv-file{background:#edf1fa;border-color:#ced9eb}
+.workspace-content .profile-pdf-icon{background:#eedce3;border-color:#d9bbc8;color:#9b6479}
+.workspace-content .profile-savebar{background:#e2eaf9;border-color:#bdceea}
+.workspace-content .profile-savebar p{color:#486990}
+.workspace-content .applications-metric.tone-blue{--tint:#e1e9fa;--tone:#3d61a3}
+.workspace-content .applications-metric.tone-violet{--tint:#e9e1f3;--tone:#7458a2}
+.workspace-content .applications-metric.tone-amber{--tint:#f0e6d2;--tone:#8c6b35}
+.workspace-content .applications-metric.tone-green{--tint:#dfece3;--tone:#487357}
+.workspace-content .applications-metric.tone-rose{--tint:#efdfe7;--tone:#965f79}
+.workspace-content .applications-preparation{background:#e4eaf6;border-left-color:#c6d2e8}
+.workspace-content .applications-interviews{background:#f1e7d3;border-color:#d9c79f}
+.workspace-content .applications-interview-grid article{background:#fffcf5;border-color:#e1d3b6}
+.workspace-content .discovery-company-name,.workspace-content .discovery-job-facts,.workspace-content .discovery-results-note{color:#526d8e}
+.workspace-content .discovery-job-title{color:#253f65;font-weight:650}
+.workspace-content .discovery-job-card{transition:border-color .2s,box-shadow .2s}
+.workspace-content .discovery-job-card:hover{border-color:#99b1dc;box-shadow:0 8px 20px #304e850e}
+.workspace-content .discovery-job-skills span{background:#eaf0fa;color:#536c91;border-color:#d5deed}
+@media(prefers-reduced-motion:reduce){.workspace-content .discovery-job-card{transition:none}}
+/* Brighter actions and distinct accents; quiet surfaces keep long pages readable. */
+:root{--primary:#285de4;--primary-hover:#1d4fc9;--primary-light:#e2eaff;--primary-border:#aec3f5}
+.workspace-content :is(.profile-primary,.learning-primary,.applications-primary,.discovery-search-submit,.overview-button.primary){background:linear-gradient(120deg,#2869ee,#4659df);border-color:#4273e5;box-shadow:0 4px 12px #315edd24;color:#fff;font-weight:650}
+.workspace-content :is(.profile-primary,.learning-primary,.applications-primary,.discovery-search-submit,.overview-button.primary):hover{background:linear-gradient(120deg,#205ddd,#384acb);box-shadow:0 5px 15px #315edd30}
+.workspace-content .profile-panel .overview-button.secondary{background:linear-gradient(120deg,#3479ed,#4263e2);color:#fff;border-color:#5384e8;box-shadow:0 4px 11px #3768d522}
+.workspace-content .roadmap-panel .overview-button.secondary{background:linear-gradient(120deg,#8754da,#695be3);color:#fff;border-color:#9275e3;box-shadow:0 4px 11px #815bd925}
+.workspace-content .profile-panel .overview-button.secondary:hover{background:linear-gradient(120deg,#286ad9,#3455d2)}
+.workspace-content .roadmap-panel .overview-button.secondary:hover{background:linear-gradient(120deg,#7747c6,#5b4dd1)}
+.workspace-content .overview-insight .overview-link{background:#167d6e;border:1px solid #248f7d;border-radius:8px;color:#fff;padding:10px 13px;box-shadow:0 4px 10px #157e6d1c}
+.workspace-content .overview-insight .overview-link:hover{background:#106d60}
+.workspace-content .application-empty-action{background:#2864e5;color:#fff;border-color:#467bed;box-shadow:0 3px 10px #3768d522}
+.workspace-content .overview-link{color:#245bd5;font-weight:600}
+.workspace-content :is(.panel-heading h2,.profile-section-heading h2,.learning-section-header h2,.applications-section-heading h2){color:#172e50;font-weight:650}
+.workspace-content :is(.stat-top,.stat-note,.job-company,.job-meta,.rail-description,.roadmap-progress-label,.next-topic p,.panel-footnote,.panel-heading p){color:#4e6380}
+.workspace-content .job-title{font-size:16px;color:#1e3557;font-weight:650}
+.workspace-content .job-company{font-size:15px}.workspace-content .job-meta{font-size:14px}
+.workspace-content .job-skill-tags span{background:#e8eefb;color:#3b5986;font-size:13px;border:1px solid #d6e1f5}
+.workspace-content .overview-stat:nth-child(1){background:linear-gradient(135deg,#dce7ff,#e9effb);border-color:#a9c1f6}
+.workspace-content .overview-stat:nth-child(2){background:linear-gradient(135deg,#e5d9f8,#efe8fa);border-color:#c3a9eb}
+.workspace-content .overview-stat:nth-child(3){background:linear-gradient(135deg,#f5e3bd,#f8eedb);border-color:#dfbf79}
+.workspace-content .overview-stat:nth-child(4){background:linear-gradient(135deg,#cfeadd,#e4f1eb);border-color:#9fceb8}
+.workspace-content .overview-stat:nth-child(1)>strong{color:#2d62be}.workspace-content .overview-stat:nth-child(2)>strong{color:#7851ad}.workspace-content .overview-stat:nth-child(3)>strong{color:#94651b}.workspace-content .overview-stat:nth-child(4)>strong{color:#287762}
+.workspace-content .profile-panel{background:linear-gradient(150deg,#e2ebff,#edf2fd);border-color:#b7caf0}
+.workspace-content .roadmap-panel{background:linear-gradient(150deg,#e9def8,#f1eafb);border-color:#cdb5e8}
+.workspace-content .roadmap-panel .next-topic{background:#dfd0f1;border:1px solid #d2bee8}
+.workspace-content .roadmap-panel .next-topic h3{color:#503c73;font-weight:600}
+.workspace-content .roadmap-panel .next-topic>span,.workspace-content .roadmap-panel .next-topic p{color:#695385}
+.workspace-content .overview-insight{background:linear-gradient(145deg,#d5eade,#e7f2ec);border-color:#add0bb}
+.workspace-content .recommended-panel>.panel-heading{background:linear-gradient(100deg,#e0eaff,#edf2fc);border-bottom-color:#bdd0f0}
+.workspace-content .profile-panel .overview-progress>span{background:linear-gradient(90deg,#3b79eb,#6864de)}
+.workspace-content .roadmap-panel .overview-progress>span{background:linear-gradient(90deg,#9b61de,#7357d6)}
+.workspace-content .profile-checklist li{color:#3b5e4c;font-size:15px}
+.workspace-content .check-pending{color:#805922;font-size:13px}
+.workspace-content .applications-view-switch button[aria-pressed=true],.workspace-content .learning-tabs button[aria-pressed=true]{color:#2859cf;font-weight:650}
+.workspace-content .learning-lesson.is-next .learning-lesson-actions button{background:#3569e7;color:#fff;border-color:#4a7bea;box-shadow:0 3px 9px #3569e720}
+.workspace-content .profile-ai-card button{background:linear-gradient(110deg,#3166d9,#6e59cc);border-color:#647ddb;color:#fff}
+.workspace-content .security-password-card form>div:last-child button{background:linear-gradient(120deg,#2e6ceb,#525cdb);border-color:#547ae5;color:#fff}
+.workspace-content .discovery-job-actions button:not(.discovery-bookmark){border-color:#b2c6ee}
+.career-banner-actions button:first-child{background:linear-gradient(110deg,#2e71f2,#505be5);border-color:#628cf5;box-shadow:0 5px 16px #2867e92b}
+.career-banner-actions button:last-child{background:#edf2ff;border-color:#c1d2fb;color:#315693}
+.career-banner-actions button:last-child:hover{background:#dbe6ff}
+.career-banner-label{color:#c4dcff}.career-banner-description{color:#c0d6f7}
+.signal-target{background:linear-gradient(130deg,#326fea,#7355da);border-color:#97aaff;box-shadow:0 7px 25px #3854ac30}
+.workspace-content button:focus-visible{outline:3px solid #8faef0;outline-offset:3px}
+@media(prefers-reduced-motion:reduce){.workspace-content button{transition:none!important}}
+/* Navigation emphasis: distinct canvas and a bright selected item. */
+.workspace-sidebar,.workspace-sidebar:has(.sidebar-career-note){background:linear-gradient(165deg,#b8c7e0,#cbd5e7);border-right-color:#9fb4d6;box-shadow:4px 0 16px #304b7609}
+.workspace-sidebar .sidebar-heading-label{color:#425e88;font-weight:600}
+.workspace-sidebar .sidebar-group h2,.workspace-sidebar:has(.sidebar-career-note) .sidebar-group h2{color:#4a6388;font-weight:650;letter-spacing:1.2px}
+.workspace-sidebar .sidebar-item{color:#354e72;font-size:15px;font-weight:550}
+.workspace-sidebar .sidebar-item>svg{color:#4e6d9a;stroke-width:1.8}
+.workspace-sidebar .sidebar-item:hover{background:#aabcdb;color:#203f70}
+.workspace-sidebar .sidebar-active-indicator,.workspace-sidebar:has(.sidebar-career-note) .sidebar-active-indicator{background:linear-gradient(115deg,#316fe6,#5163db);border-color:#6385e7;box-shadow:0 5px 13px #315fc52b}
+.workspace-sidebar .sidebar-item.is-active{color:#fff;font-weight:650}
+.workspace-sidebar .sidebar-item.is-active>svg{color:#eff5ff;stroke-width:2}
+.workspace-sidebar .sidebar-item.is-active:hover{background:transparent}
+.workspace-sidebar .sidebar-item-dot{background:#d7e8ff;width:5px;height:5px;box-shadow:0 0 0 3px #ffffff15}
+.workspace-sidebar .sidebar-toggle{background:#dce5f5;border-color:#9fb5d7;color:#416797}
+.workspace-sidebar .sidebar-toggle:hover{background:#eef3fd;color:#285cc2}
+.workspace-sidebar .sidebar-career-note h3,.workspace-sidebar .sidebar-account-copy strong{color:#314d74;font-weight:600}
+.workspace-sidebar .sidebar-career-note>span,.workspace-sidebar .sidebar-career-note p,.workspace-sidebar .sidebar-account-copy small{color:#516c93}
+.workspace-sidebar .sidebar-career-note button{color:#2859ac;font-weight:600}
+.workspace-sidebar .sidebar-avatar,.workspace-sidebar:has(.sidebar-career-note) .sidebar-avatar{background:#a5bce1;color:#315887;border:1px solid #96afd4}
+.workspace-sidebar .sidebar-account,.workspace-sidebar .sidebar-career-note,.workspace-sidebar:has(.sidebar-career-note) .sidebar-account,.workspace-sidebar:has(.sidebar-career-note) .sidebar-career-note{border-top-color:#9fb4d5}
+.workspace-sidebar .sidebar-logout{color:#4b6d9b}
+.workspace-mobile-panel{background:#b8c7e0}
+
