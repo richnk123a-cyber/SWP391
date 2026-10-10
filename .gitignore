@@ -29,3 +29,8 @@ backend/target/
 *.sw?
 
 .env
+
+# Uploaded user files
+backend/uploads/cvs/
+uploads/cvs/
+

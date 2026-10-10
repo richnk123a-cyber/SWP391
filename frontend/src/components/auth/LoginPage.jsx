@@ -1,24 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Building2, CircleHelp, Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Loader2, KeyRound, ShieldCheck } from 'lucide-react';
+import { CircleHelp, Lock, AlertCircle, Loader2, ShieldCheck } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import './LoginPage.css';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 export function LoginPage() {
-  const { setActivePage, showToast, login, resetPassword, setCurrentUser } = useApp();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
+  const { showToast } = useApp();
   const [infoModal, setInfoModal] = useState(null);
-  const [isPasswordLoginOpen, setIsPasswordLoginOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
-  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState('');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -87,75 +79,6 @@ export function LoginPage() {
     window.location.href = `${BACKEND_URL}/oauth2/authorization/microsoft`;
   };
 
-  const performLogin = async (targetEmail, targetPassword) => {
-    setIsLoading(true);
-    setErrorMessage('');
-
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email: targetEmail, 
-          password: targetPassword,
-          authProvider: 'AUTO'
-        }),
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        const msg = data.message || 'Email hoặc mật khẩu không chính xác.';
-        setErrorMessage(msg);
-        showToast(msg, 'danger');
-        return;
-      }
-
-      const authData = data.data;
-      if (authData.token) {
-        localStorage.setItem('careerfit_token', authData.token);
-      }
-      localStorage.setItem('careerfit_current_user', JSON.stringify(authData));
-      if (setCurrentUser) {
-        setCurrentUser(authData);
-      }
-
-      if (authData.role === 'EMPLOYER') setActivePage('employer-dashboard');
-      else if (authData.role === 'ADMIN') setActivePage('admin-dashboard');
-      else setActivePage('candidate-dashboard');
-
-      showToast('Đăng nhập thành công!', 'success');
-    } catch (err) {
-      console.error('LOGIN FETCH ERROR:', err);
-      // Fallback local mock login if backend endpoint error
-      const mockRes = login(targetEmail, targetPassword, 'AUTO');
-      if (mockRes && mockRes.success) {
-        showToast('Đăng nhập thành công!', 'success');
-      } else {
-        const msg = mockRes?.message || 'Không thể kết nối đến máy chủ backend hoặc thông tin sai.';
-        setErrorMessage(msg);
-        showToast(msg, 'danger');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleFormSubmit = (e) => {
-    e.preventDefault();
-    performLogin(email, password);
-  };
-
-  const handleSendResetEmail = (e) => {
-    e.preventDefault();
-    if (resetPassword && resetPassword(forgotEmail)) {
-      setIsForgotModalOpen(false);
-      setForgotEmail('');
-      showToast('Đã gửi email khôi phục mật khẩu!', 'success');
-    } else {
-      showToast('Vui lòng kiểm tra lại địa chỉ email.', 'danger');
-    }
-  };
-
   return (
     <div className="login-page">
       <section className="login-content" aria-labelledby="login-heading">
@@ -196,163 +119,34 @@ export function LoginPage() {
               </svg>
               <span>Tiếp tục đăng nhập bằng Microsoft (Outlook)</span>
             </button>
-
           </div>
           {isLoading && <p className="login-progress" role="status"><Loader2 className="animate-spin" size={18} /> Đang kết nối đăng nhập...</p>}
           <p className="login-trust"><ShieldCheck aria-hidden="true" /><span>Hỗ trợ tài khoản sinh viên, giảng viên và đối tác doanh nghiệp</span></p>
         </div>
         <nav className="login-secondary" aria-label="Hỗ trợ đăng nhập">
-          <button type="button" onClick={() => setIsPasswordLoginOpen(true)}><Building2 aria-hidden="true" /><span>Cổng Doanh nghiệp & Nhà tuyển dụng</span><ArrowRight aria-hidden="true" /></button>
-          <span className="login-link-dot" aria-hidden="true">•</span>
-          <button type="button" onClick={() => setInfoModal('help')}><CircleHelp aria-hidden="true" /><span>Trợ giúp & Hướng dẫn</span></button>
+          <button type="button" onClick={() => setInfoModal('help')}>
+            <CircleHelp aria-hidden="true" />
+            <span>Trợ giúp & Hướng dẫn</span>
+          </button>
         </nav>
         <p className="login-legal">Bằng cách đăng nhập, bạn đồng ý với <button type="button" onClick={() => setInfoModal('terms')}>Điều khoản dịch vụ</button> và <button type="button" onClick={() => setInfoModal('privacy')}>Chính sách bảo mật</button> của CareerFit.</p>
       </section>
       <footer className="login-footer">© {new Date().getFullYear()} CareerFit. Nền tảng tuyển dụng và phát triển nghề nghiệp công nghệ.</footer>
-      <Modal isOpen={isPasswordLoginOpen} onClose={() => setIsPasswordLoginOpen(false)} title="Cổng Doanh nghiệp & Nhà tuyển dụng">
-        <p className="text-sm text-slate-600 mb-5">Đăng nhập bằng tài khoản hiện có hoặc đăng ký tài khoản doanh nghiệp.</p>
-          <form onSubmit={handleFormSubmit} className="space-y-4">
-            <div className="form-group">
-              <label className="form-label font-semibold text-slate-800">Email hoặc Tên đăng nhập *</label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 z-10" size={18} />
-                <input
-                  type="text"
-                  className="form-control text-xs font-medium h-11 rounded-xl"
-                  style={{ paddingLeft: '2.75rem' }}
-                  placeholder="Email hoặc Tên đăng nhập (VD: candidate1 hoặc hr@company.com)"
-                  value={email}
-                  onChange={e => {
-                    setEmail(e.target.value);
-                    setErrorMessage('');
-                  }}
-                  required
-                />
-              </div>
-            </div>
 
-            <div className="form-group">
-              <div className="flex items-center justify-between mb-1">
-                <label className="form-label font-semibold text-slate-800">Mật khẩu *</label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setForgotEmail(email);
-                    setIsForgotModalOpen(true);
-                  }}
-                  className="text-xs text-blue-600 font-bold hover:underline cursor-pointer"
-                >
-                  Quên mật khẩu?
-                </button>
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 z-10" size={18} />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  className="form-control text-xs font-medium h-11 rounded-xl"
-                  style={{ paddingLeft: '2.75rem', paddingRight: '2.75rem' }}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={e => {
-                    setPassword(e.target.value);
-                    setErrorMessage('');
-                  }}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 z-10 p-1 cursor-pointer"
-                  title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </div>
-            <div className="flex items-center justify-between text-xs text-slate-600 pt-0.5">
-              <label className="flex items-center gap-2 cursor-pointer font-medium select-none">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={e => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
-                />
-                <span>Ghi nhớ đăng nhập</span>
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="btn btn-primary w-full btn-lg font-bold h-11 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all cursor-pointer disabled:opacity-50"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Đang đăng nhập...
-                </>
-              ) : (
-                <>
-                  Đăng nhập ngay <ArrowRight size={18} />
-                </>
-              )}
-            </button>
-
-          </form>
-        {errorMessage && <p role="alert" className="login-error">{errorMessage}</p>}
-        <button type="button" className="text-sm text-blue-700 underline mt-5" onClick={() => setActivePage('employer-register')}>Đăng ký tài khoản doanh nghiệp</button>
-      </Modal>
+      {/* Info / Help Modal */}
       <Modal isOpen={Boolean(infoModal)} onClose={() => setInfoModal(null)} title={infoModal === 'help' ? 'Trợ giúp & Hướng dẫn' : infoModal === 'terms' ? 'Điều khoản dịch vụ' : 'Chính sách bảo mật'}>
         <div className="text-sm text-slate-600 leading-relaxed space-y-3">
-          {infoModal === 'help' ? <>
-            <p>Chọn Google hoặc Microsoft (Outlook), sau đó xác thực bằng tài khoản trường học hoặc công việc của bạn trên trang của nhà cung cấp.</p>
-            <p>Nếu chưa có hồ sơ, hệ thống sẽ hướng dẫn bạn hoàn tất đăng ký sau khi xác thực. Với tài khoản dùng mật khẩu, hãy mở Cổng Doanh nghiệp & Nhà tuyển dụng.</p>
-            <p>Nếu phiên đăng nhập hết hạn, hãy quay lại trang này và chọn lại phương thức đăng nhập.</p>
-          </> : <p>{infoModal === 'terms' ? 'Nội dung điều khoản dịch vụ đang được cập nhật. Vui lòng liên hệ đơn vị vận hành CareerFit để biết điều khoản áp dụng trước khi tiếp tục.' : 'Nội dung chính sách bảo mật đang được cập nhật. Vui lòng liên hệ đơn vị vận hành CareerFit để biết cách dữ liệu tài khoản của bạn được xử lý trước khi tiếp tục.'}</p>}
+          {infoModal === 'help' ? (
+            <>
+              <p>Chọn Google hoặc Microsoft (Outlook), sau đó xác thực bằng tài khoản trường học hoặc công việc của bạn trên trang của nhà cung cấp.</p>
+              <p>Nếu là lần đầu đăng nhập, hệ thống sẽ hướng dẫn bạn chọn vai trò (Ứng viên hoặc Nhà tuyển dụng) và hoàn thiện thông tin hồ sơ.</p>
+              <p>Nếu phiên đăng nhập hết hạn, hãy quay lại trang này và chọn lại phương thức đăng nhập.</p>
+            </>
+          ) : (
+            <p>{infoModal === 'terms' ? 'Nội dung điều khoản dịch vụ đang được cập nhật. Vui lòng liên hệ đơn vị vận hành CareerFit để biết điều khoản áp dụng trước khi tiếp tục.' : 'Nội dung chính sách bảo mật đang được cập nhật. Vui lòng liên hệ đơn vị vận hành CareerFit để biết cách dữ liệu tài khoản của bạn được xử lý trước khi tiếp tục.'}</p>
+          )}
         </div>
       </Modal>
-      {/* Forgot Password Modal */}
-      {isForgotModalOpen && (
-        <Modal
-          isOpen={isForgotModalOpen}
-          onClose={() => setIsForgotModalOpen(false)}
-          title="Đặt lại mật khẩu tài khoản"
-        >
-          <form onSubmit={handleSendResetEmail} className="space-y-4 text-xs">
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 flex items-center gap-2">
-              <KeyRound size={20} className="text-blue-600 shrink-0" />
-              <p>Nhập email đăng ký của bạn. Hệ thống CareerFit sẽ gửi liên kết đặt lại mật khẩu an toàn đến hộp thư.</p>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label font-bold text-slate-800">Email khôi phục *</label>
-              <input
-                type="email"
-                className="form-control text-xs h-10"
-                placeholder="nhap.email@gmail.com"
-                value={forgotEmail}
-                onChange={e => setForgotEmail(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setIsForgotModalOpen(false)}
-                className="btn btn-secondary text-xs cursor-pointer"
-              >
-                Hủy
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary text-xs font-bold cursor-pointer"
-              >
-                Gửi liên kết khôi phục
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
     </div>
   );
 }

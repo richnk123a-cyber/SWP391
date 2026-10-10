@@ -945,12 +945,32 @@ export function AppProvider({ children }) {
     showToast('Đã cập nhật danh sách kỹ năng cá nhân!', 'success');
   };
 
-  const uploadCandidateCV = (fileName) => {
-    const finalName = typeof fileName === 'string' && fileName ? fileName : 'CV_Ung_Vien.pdf';
+  const uploadCandidateCV = async (fileOrName) => {
+    let finalName = 'CV_Ung_Vien.pdf';
+    let extractedText = '';
+
+    if (fileOrName instanceof File) {
+      finalName = fileOrName.name;
+      try {
+        const formData = new FormData();
+        formData.append('file', fileOrName);
+        const res = await candidateApi.uploadCv(formData);
+        if (res && res.data) {
+          finalName = res.data.cvFileName || finalName;
+          extractedText = res.data.extractedCvText || '';
+        }
+      } catch (err) {
+        console.warn('Backend CV upload sync failed, fallback to local state:', err);
+      }
+    } else if (typeof fileOrName === 'string' && fileOrName) {
+      finalName = fileOrName;
+    }
+
     const updatedProf = {
       ...candidateProfile,
       hasCV: true,
       cvFileName: finalName,
+      extractedCvText: extractedText || candidateProfile?.extractedCvText || '',
       cvUploadDate: new Date().toLocaleDateString('vi-VN')
     };
     setCandidateProfile(updatedProf);
@@ -958,15 +978,24 @@ export function AppProvider({ children }) {
       const userKey = `careerfit_cand_profile_${currentUser.id}`;
       localStorage.setItem(userKey, JSON.stringify(updatedProf));
     }
-    showToast(`Đã tải lên CV "${finalName}" thành công! Bây giờ bạn có thể ứng tuyển.`, 'success');
+    showToast(`Đã tải lên và cập nhật CV "${finalName}" thành công!`, 'success');
+    return updatedProf;
   };
 
-  const deleteCandidateCV = () => {
+  const deleteCandidateCV = async () => {
+    try {
+      await candidateApi.deleteCv();
+    } catch (err) {
+      console.warn('Backend CV delete failed, falling back to local state:', err);
+    }
+
     const updatedProf = {
       ...candidateProfile,
       hasCV: false,
       cvFileName: '',
-      cvUploadDate: ''
+      extractedCvText: '',
+      cvUploadDate: '',
+      cvFileSize: 0
     };
     setCandidateProfile(updatedProf);
     if (currentUser && currentUser.id) {
@@ -974,6 +1003,7 @@ export function AppProvider({ children }) {
       localStorage.setItem(userKey, JSON.stringify(updatedProf));
     }
     showToast('Đã xóa CV thành công!', 'info');
+    return updatedProf;
   };
 
   const toggleRoadmapTopic = (roadmapId, topicId) => {

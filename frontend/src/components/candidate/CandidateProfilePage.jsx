@@ -27,6 +27,8 @@ export function CandidateProfilePage() {
   const [category, setCategory] = useState('all');
   const [dragOver, setDragOver] = useState(false);
   const [cvPreview, setCvPreview] = useState('');
+  const [uploadingCv, setUploadingCv] = useState(false);
+  const [downloadingCv, setDownloadingCv] = useState(false);
   const fileRef = useRef(null);
   const avatarRef = useRef(null);
   const formRef = useRef(null);
@@ -43,13 +45,48 @@ export function CandidateProfilePage() {
     markDirty();
     setSkills(prev => remove ? prev.filter(item => item.toLowerCase() !== skill.toLowerCase()) : prev.some(item => item.toLowerCase() === skill.toLowerCase()) ? prev : [...prev, skill]);
   };
-  const uploadCV = file => {
+  const uploadCV = async file => {
     if (!file) return;
-    if (!/\.pdf$/i.test(file.name) || (file.type && file.type !== 'application/pdf')) { showToast('Vui lòng chọn tệp PDF.', 'danger'); return; }
-    if (!file.size || file.size > 5 * 1024 * 1024) { showToast('Tệp PDF phải có dung lượng lớn hơn 0 và không quá 5 MB.', 'danger'); return; }
-    uploadCandidateCV(file.name);
-    setCandidateProfile(prev => ({ ...prev, cvFileSize: file.size }));
-    setCvPreview(URL.createObjectURL(file));
+    const isPdf = /\.pdf$/i.test(file.name) || (file.type && file.type === 'application/pdf');
+    const isDocx = /\.docx$/i.test(file.name) || (file.type && file.type.includes('wordprocessingml'));
+    if (!isPdf && !isDocx) {
+      showToast('Vui lòng chọn tệp định dạng PDF hoặc DOCX.', 'danger');
+      return;
+    }
+    if (!file.size || file.size > 5 * 1024 * 1024) {
+      showToast('Dung lượng tệp phải lớn hơn 0 và không quá 5 MB.', 'danger');
+      return;
+    }
+    setUploadingCv(true);
+    try {
+      await uploadCandidateCV(file);
+      setCandidateProfile(prev => ({ ...prev, cvFileSize: file.size }));
+    } catch {
+      showToast('Tải lên CV thất bại. Vui lòng thử lại.', 'danger');
+    } finally {
+      setUploadingCv(false);
+    }
+  };
+
+  const handleDownloadCv = async () => {
+    setDownloadingCv(true);
+    try {
+      const blob = await candidateApi.downloadCv();
+      const isDocx = candidateProfile?.cvFileName?.toLowerCase().endsWith('.docx');
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = candidateProfile?.cvFileName || (isDocx ? 'CV.docx' : 'CV.pdf');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 2000);
+      showToast('Đã tải tệp CV từ máy chủ về máy thành công!', 'success');
+    } catch (err) {
+      showToast(err.message || 'Không thể tải file CV từ máy chủ.', 'danger');
+    } finally {
+      setDownloadingCv(false);
+    }
   };
   const changeAvatar = event => {
     const file = event.target.files?.[0]; event.target.value = '';
@@ -92,7 +129,7 @@ export function CandidateProfilePage() {
     <section className="profile-card"><div className="profile-section-heading"><span className="profile-section-icon"><UserRound size={18}/></span><div><h2>Thông tin cá nhân</h2><p>Thông tin để nhà tuyển dụng liên hệ với bạn.</p></div><span className="profile-section-number">01</span></div><div className="profile-fields">{field('name','Họ và tên',{required:true,autoComplete:'name'})}{field('email','Email liên hệ',{required:true,type:'email',autoComplete:'email'})}{field('phone','Số điện thoại',{required:true,type:'tel',autoComplete:'tel'})}{field('location','Khu vực sinh sống',{placeholder:'Ví dụ: Đà Nẵng'})}{field('bio','Giới thiệu bản thân',{textarea:true,wide:true,placeholder:'Giới thiệu ngắn về kinh nghiệm, thế mạnh và mục tiêu của bạn.'})}</div></section>
     <section className="profile-card"><div className="profile-section-heading"><span className="profile-section-icon is-violet"><GraduationCap size={19}/></span><div><h2>Học vấn & định hướng</h2><p>Cho nhà tuyển dụng thấy nền tảng và mục tiêu của bạn.</p></div><span className="profile-section-number">02</span></div><div className="profile-fields">{field('university','Trường Đại học / Cao đẳng')}{field('major','Chuyên ngành')}{field('graduationYear','Năm tốt nghiệp dự kiến',{placeholder:'Ví dụ: 2026'})}{field('desiredRole','Vị trí mục tiêu',{required:true,placeholder:'Ví dụ: Backend Developer'})}{field('expectedSalary','Mức lương kỳ vọng',{placeholder:'Ví dụ: 8 – 12 triệu VNĐ'})}{field('githubUrl','GitHub',{type:'url',placeholder:'https://github.com/username'})}{field('portfolioUrl','Website / Portfolio',{type:'url',placeholder:'https://your-portfolio.com',wide:true})}</div></section>
     <section className="profile-card profile-skills"><div className="profile-section-heading"><span className="profile-section-icon is-green"><BriefcaseBusiness size={18}/></span><div><h2>Kỹ năng chuyên môn <b>{skills.length}</b></h2><p>Chọn những kỹ năng bạn có thể sử dụng và trình bày khi phỏng vấn.</p></div><span className="profile-section-number">03</span></div><div className="profile-selected-skills"><span>KỸ NĂNG CỦA BẠN</span><div>{skills.map(skill => <span key={skill}><Check size={12}/>{skill}<button type="button" aria-label={`Xóa kỹ năng ${skill}`} onClick={() => changeSkill(skill,true)}><X size={12}/></button></span>)}{!skills.length && <p>Chưa có kỹ năng. Chọn từ danh mục bên dưới để bắt đầu.</p>}</div></div><div className="profile-skills-tools"><label><Search size={15}/><input aria-label="Tìm kỹ năng" value={search} onChange={event => setSearch(event.target.value)} placeholder="Tìm kỹ năng…"/></label><select aria-label="Nhóm kỹ năng" value={category} onChange={event => setCategory(event.target.value)}><option value="all">Tất cả nhóm kỹ năng</option>{Object.keys(CATEGORIZED_SKILLS).map(name => <option key={name}>{name}</option>)}</select></div><div className="profile-skill-categories">{categories.map(([name,items]) => <div key={name}><h3>{name}</h3><div>{items.map(skill => { const added = skills.some(item => item.toLowerCase() === skill.toLowerCase()); return <button type="button" key={skill} disabled={added} onClick={() => changeSkill(skill)}>{added ? <Check size={12}/> : <Plus size={12}/>}{skill}</button>; })}</div></div>)}{!categories.length && <p className="profile-skill-empty">Không có kỹ năng phù hợp. Thử từ khóa hoặc nhóm khác.</p>}</div></section>
-    </div><aside className="profile-aside"><section className="profile-cv-card"><div className="profile-aside-heading"><FileText size={18}/><h2>CV của bạn</h2>{candidateProfile?.hasCV && <span><Check size={12}/>Đã có CV</span>}</div>{candidateProfile?.hasCV ? <div className="profile-cv-file"><span className="profile-pdf-icon">PDF</span><h3>{candidateProfile.cvFileName || 'CV đính kèm'}</h3><p>{candidateProfile.cvUploadDate || 'Chưa có ngày cập nhật'}{candidateProfile.cvFileSize ? ` · ${(candidateProfile.cvFileSize/1024/1024).toFixed(2)} MB` : ''}</p><div><button type="button" onClick={() => fileRef.current.click()}>Đổi tệp</button><button type="button" aria-label="Xóa CV" onClick={() => { deleteCandidateCV(); setCandidateProfile(prev => ({...prev,cvFileSize:0})); setCvPreview(''); }}><Trash2 size={14}/></button></div>{cvPreview && <a href={cvPreview} target="_blank" rel="noopener noreferrer">Xem tệp vừa chọn <ArrowRight size={13}/></a>}</div> : <button type="button" className={`profile-dropzone ${dragOver ? 'is-dragging' : ''}`} onClick={() => fileRef.current.click()} onDragOver={event => {event.preventDefault();setDragOver(true);}} onDragLeave={() => setDragOver(false)} onDrop={event => {event.preventDefault();setDragOver(false);uploadCV(event.dataTransfer.files?.[0]);}}><span><Upload size={23}/></span><strong>Thêm CV để sẵn sàng ứng tuyển</strong><p>Kéo thả tệp vào đây hoặc chọn từ thiết bị</p><small>PDF · tối đa 5 MB</small></button>}<input ref={fileRef} type="file" accept="application/pdf,.pdf" hidden onChange={event => { uploadCV(event.target.files?.[0]); event.target.value=''; }}/><p className="profile-cv-note">Chọn bản CV mới nhất, có thông tin liên hệ và các dự án tiêu biểu.</p></section>
+    </div><aside className="profile-aside"><section className="profile-cv-card"><div className="profile-aside-heading"><FileText size={18}/><h2>CV của bạn</h2>{candidateProfile?.hasCV && <span><Check size={12}/>Đã có CV</span>}</div>{uploadingCv ? (<div className="p-6 text-center border-2 border-dashed border-blue-400 bg-blue-50/50 rounded-2xl space-y-2"><div className="animate-spin inline-block w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mb-1"></div><p className="font-bold text-xs text-blue-900">Đang tải lên & trích xuất nội dung CV...</p><small className="text-[10px] text-slate-500">Đang xử lý phân tích văn bản qua Apache PDFBox / POI</small></div>) : candidateProfile?.hasCV ? (<div className="profile-cv-file"><span className="profile-pdf-icon">{candidateProfile.cvFileName?.toLowerCase().endsWith('.docx') ? 'DOCX' : 'PDF'}</span><h3>{candidateProfile.cvFileName || 'CV đính kèm'}</h3><p>{candidateProfile.cvUploadDate || 'Đã cập nhật'}{candidateProfile.cvFileSize ? ` · ${(candidateProfile.cvFileSize/1024/1024).toFixed(2)} MB` : ''}</p>{candidateProfile.extractedCvText && (<span className="inline-block text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-semibold my-1">✓ Đã trích xuất {candidateProfile.extractedCvText.length} ký tự cho AI Matching</span>)}<div><button type="button" onClick={() => fileRef.current.click()}>Đổi tệp</button><button type="button" aria-label="Xóa CV" onClick={async () => { setUploadingCv(true); try { await deleteCandidateCV(); setCandidateProfile(prev => ({...prev, cvFileSize: 0})); } finally { setUploadingCv(false); } }}><Trash2 size={14}/></button></div><button type="button" onClick={handleDownloadCv} disabled={downloadingCv} className="inline-flex items-center gap-1.5 text-[11px] font-bold text-blue-600 hover:text-blue-800 transition-colors mt-2 text-left">{downloadingCv ? 'Đang tải tệp…' : 'Tải CV về máy'} <ArrowRight size={13}/></button></div>) : (<button type="button" className={`profile-dropzone ${dragOver ? 'is-dragging' : ''}`} onClick={() => fileRef.current.click()} onDragOver={event => {event.preventDefault();setDragOver(true);}} onDragLeave={() => setDragOver(false)} onDrop={event => {event.preventDefault();setDragOver(false);uploadCV(event.dataTransfer.files?.[0]);}}><span><Upload size={23}/></span><strong>Thêm CV để sẵn sàng ứng tuyển</strong><p>Kéo thả tệp vào đây hoặc chọn từ thiết bị</p><small>PDF hoặc DOCX · tối đa 5 MB</small></button>)}<input ref={fileRef} type="file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden onChange={event => { uploadCV(event.target.files?.[0]); event.target.value=''; }}/><p className="profile-cv-note">Hỗ trợ PDF & DOCX. Nội dung được trích xuất tự động phục vụ AI Deep Matching.</p></section>
     <section className="profile-checklist"><span className="profile-kicker">TỪNG CHÚT MỘT</span><h2>Hoàn thiện hồ sơ</h2><p>Thông tin đầy đủ giúp nhà tuyển dụng hiểu rõ hơn về bạn.</p><div>{checklist.map(item => <div key={item.label}><span>{item.label}</span>{item.done ? <Check size={15}/> : <small>Bổ sung</small>}</div>)}</div></section>
     <section className="profile-ai-card"><Sparkles size={21}/><span className="profile-kicker">CAREERFIT AI</span><h2>Một góc nhìn khác<br/>cho CV của bạn.</h2><p>Xem phân tích và gợi ý để điều chỉnh CV theo mục tiêu nghề nghiệp.</p><button type="button" onClick={() => setIsAIModalOpen(true)}>Phân tích CV <ArrowRight size={15}/></button></section></aside></div>
     <div className="profile-savebar"><div><span className={`profile-save-dot ${dirty ? 'is-dirty' : ''}`}/><p role="status">{saveMessage || (dirty ? 'Bạn có thay đổi chưa lưu.' : 'Thông tin hồ sơ của bạn.')}<small>Kỹ năng và ảnh đại diện được lưu cùng hồ sơ.</small></p></div><button className="profile-primary" type="submit" disabled={saving}><Save size={15}/>{saving ? 'Đang lưu…' : 'Lưu thay đổi'}</button></div></form>

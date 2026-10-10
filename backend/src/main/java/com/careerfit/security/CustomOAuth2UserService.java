@@ -127,7 +127,32 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         if (userOptional.isPresent()) {
             User user = userOptional.get();
+            boolean needSave = false;
+            if (providerId != null && !providerId.equals(user.getProviderId())) {
+                user.setProviderId(providerId);
+                needSave = true;
+            }
+            if (avatar != null && !avatar.equals(user.getAvatarUrl())) {
+                user.setAvatarUrl(avatar);
+                needSave = true;
+            }
+            if (needSave) {
+                userRepository.save(user);
+                log.info("Synchronized providerId/avatar for existing user [{}]: {}", user.getId(), email);
+            }
             log.info("Found existing [{}] user by email: {}", provider, email);
+            return new CustomOAuth2User(oAuth2User, user);
+        }
+
+        // 2b. Fallback: Find by email regardless of auth provider, and link provider (supports seed users & legacy accounts)
+        userOptional = userRepository.findFirstByEmail(email);
+        if (userOptional.isPresent()) {
+            User user = userOptional.get();
+            user.setAuthProvider(provider);
+            if (providerId != null) user.setProviderId(providerId);
+            if (avatar != null && user.getAvatarUrl() == null) user.setAvatarUrl(avatar);
+            userRepository.save(user);
+            log.info("Linked existing user by email [{}] with provider [{}]: {}", user.getId(), provider, email);
             return new CustomOAuth2User(oAuth2User, user);
         }
 
