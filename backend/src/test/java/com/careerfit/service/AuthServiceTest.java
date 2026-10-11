@@ -269,7 +269,7 @@ public class AuthServiceTest {
     }
 
     @Test
-    void testOauthComplete_InvalidEmailForEmployer() {
+    void testOauthComplete_MissingLicenseForEmployer() {
         OAuthRegisterRequest request = new OAuthRegisterRequest();
         request.setTempToken("valid-token");
         request.setEmail("hr@gmail.com");
@@ -284,6 +284,6 @@ public class AuthServiceTest {
         when(userRepository.existsByEmailAndAuthProvider(anyString(), anyString())).thenReturn(false);
 
         BadRequestException exception = assertThrows(BadRequestException.class, () -> authService.oauthCompleteRegistration(request, null));
-        assertTrue(exception.getMessage().contains("Chỉ sử dụng email công ty"));
+        assertTrue(exception.getMessage().contains("Vui lòng tải lên Giấy phép kinh doanh"));
     }
 }

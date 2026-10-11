@@ -119,4 +119,23 @@ export const employerApi = {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
+
+  // SCRUM-52: Xem chi tiết hồ sơ ứng viên
+  getCandidateProfile: (candidateId) => api.get(`/employer/candidates/${candidateId}`),
+
+  // SCRUM-52: Tải CV ứng viên thật từ server (kèm JWT Header)
+  downloadCandidateCv: async (candidateId) => {
+    const token = localStorage.getItem('careerfit_token');
+    const response = await fetch(`${BASE_URL}/employer/candidates/${candidateId}/cv/download`, {
+      method: 'GET',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`Không thể tải tệp từ máy chủ (Mã lỗi ${response.status})`);
+    }
+    return await response.blob();
+  },
+  getCandidateCvDownloadUrl: (candidateId) => `${BASE_URL}/employer/candidates/${candidateId}/cv/download`,
 };

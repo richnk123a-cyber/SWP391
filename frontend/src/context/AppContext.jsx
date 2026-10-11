@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import {
   INITIAL_USERS_DB,
   INITIAL_CANDIDATE,
@@ -113,7 +113,31 @@ export function AppProvider({ children }) {
 
   const [applications, setApplications] = useState(() => safeGetLocalStorage('careerfit_applications', INITIAL_APPLICATIONS));
   const [roadmaps, setRoadmaps] = useState(() => safeGetLocalStorage('careerfit_roadmaps', INITIAL_ROADMAPS));
-  const [employerVerifications, setEmployerVerifications] = useState(() => safeGetLocalStorage('careerfit_employer_verifications', INITIAL_EMPLOYER_VERIFICATIONS));
+  const [employerVerifications, setEmployerVerifications] = useState(() => {
+    const saved = safeGetLocalStorage('careerfit_employer_verifications', INITIAL_EMPLOYER_VERIFICATIONS);
+    const list = Array.isArray(saved) ? saved : INITIAL_EMPLOYER_VERIFICATIONS;
+    const hasCareerFit = list.some(v => v.email === 'nguyenlamthi87@gmail.com' || v.companyName === 'Công ty TNHH CareerFit');
+    if (!hasCareerFit) {
+      const pendingCareerFit = {
+        id: 'ver-careerfit-new',
+        companyId: 'comp-b6082c17',
+        companyName: 'Công ty TNHH CareerFit',
+        representative: 'Nguyễn Như Ý',
+        email: 'nguyenlamthi87@gmail.com',
+        phone: '0912345678',
+        submittedDate: new Date().toLocaleDateString('vi-VN'),
+        status: 'Pending',
+        documentName: 'Giay_Phep_Kinh_Doanh_Mau.pdf',
+        website: 'https://careerfit.vn',
+        industry: 'Công nghệ thông tin',
+        location: 'TP. Hồ Chí Minh',
+        taxId: '0312345678',
+        rejectReason: ''
+      };
+      return [pendingCareerFit, ...list];
+    }
+    return list;
+  });
   const [reportedJobs, setReportedJobs] = useState(() => safeGetLocalStorage('careerfit_reported_jobs', INITIAL_REPORTED_JOBS));
   const [skillsCatalog, setSkillsCatalog] = useState(() => safeGetLocalStorage('careerfit_skills_catalog', INITIAL_SKILLS_CATALOG));
   const [notifications, setNotifications] = useState(() => safeGetLocalStorage('careerfit_notifications', INITIAL_NOTIFICATIONS));
@@ -795,28 +819,42 @@ export function AppProvider({ children }) {
   const [customEmployerProfile, setCustomEmployerProfile] = useState(null);
 
   // Helper to resolve currently logged in employer's company record
-  const currentEmployerCompany = customEmployerProfile || (currentUser && currentUser.role === 'EMPLOYER'
-    ? (companies.find(c => c.ownerUserId === currentUser.id) ||
-       companies.find(c => c.email && c.email.toLowerCase() === currentUser.email.toLowerCase()) ||
-       (currentUser.email && currentUser.email.toLowerCase().includes('vonguyenkhanh') ? (companies.find(c => c.id === 'comp-55122454' || c.companyName === 'VNK Technology Solutions') || INITIAL_COMPANIES.find(c => c.id === 'comp-55122454')) : null) ||
-       (currentUser.email && currentUser.email.toLowerCase().includes('pending') ? INITIAL_COMPANIES[1] : null) ||
-       {
-         id: `comp-${currentUser.id || 'emp'}`,
-         ownerUserId: currentUser.id,
-         companyName: currentUser.fullName || currentUser.username || 'Doanh nghiệp mới',
-         recruiterName: currentUser.fullName || currentUser.username || '',
-         email: currentUser.email || '',
-         phone: currentUser.phone || '',
-         website: '',
-         industry: '',
-         size: '',
-         location: '',
-         taxId: '',
-         logo: '🏢',
-         verificationStatus: 'Pending',
-         description: ''
-       })
-    : (companies[0] || INITIAL_COMPANIES[0]));
+  const currentEmployerCompany = useMemo(() => {
+    let resolved = customEmployerProfile || (currentUser && currentUser.role === 'EMPLOYER'
+      ? (companies.find(c => c.ownerUserId === currentUser.id) ||
+         companies.find(c => c.email && c.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+         (currentUser.email && currentUser.email.toLowerCase().includes('vonguyenkhanh') ? (companies.find(c => c.id === 'comp-55122454' || c.companyName === 'VNK Technology Solutions') || INITIAL_COMPANIES.find(c => c.id === 'comp-55122454')) : null) ||
+         (currentUser.email && currentUser.email.toLowerCase().includes('pending') ? INITIAL_COMPANIES[1] : null) ||
+         {
+           id: `comp-${currentUser.id || 'emp'}`,
+           ownerUserId: currentUser.id,
+           companyName: currentUser.fullName || currentUser.username || 'Doanh nghiệp mới',
+           recruiterName: currentUser.fullName || currentUser.username || '',
+           email: currentUser.email || '',
+           phone: currentUser.phone || '',
+           website: '',
+           industry: '',
+           size: '',
+           location: '',
+           taxId: '',
+           logo: '🏢',
+           verificationStatus: 'Pending',
+           description: ''
+         })
+      : (companies[0] || INITIAL_COMPANIES[0]));
+
+    if (resolved && Array.isArray(employerVerifications)) {
+      const matchVerify = employerVerifications.find(v => 
+        (v.email && resolved.email && v.email.toLowerCase() === resolved.email.toLowerCase()) ||
+        (v.companyName && resolved.companyName && v.companyName.trim() === resolved.companyName.trim()) ||
+        (v.companyId && (v.companyId === resolved.id || v.companyId === resolved.ownerUserId))
+      );
+      if (matchVerify && (matchVerify.status === 'Verified' || matchVerify.status === 'Approved')) {
+        return { ...resolved, verificationStatus: 'Verified' };
+      }
+    }
+    return resolved;
+  }, [customEmployerProfile, currentUser, companies, employerVerifications]);
 
   // Automatically sync employer company profile from backend SQL Server & migrate local cache
   useEffect(() => {
@@ -826,6 +864,15 @@ export function AppProvider({ children }) {
         .then(res => {
           const comp = res?.data || res;
           if (comp && (comp.companyName || comp.id)) {
+            const isApproved = Array.isArray(employerVerifications) && employerVerifications.some(v =>
+              (v.status === 'Verified' || v.status === 'Approved') &&
+              ((v.email && comp.email && v.email.toLowerCase() === comp.email.toLowerCase()) ||
+               (v.companyName && comp.companyName && v.companyName.trim() === comp.companyName.trim()) ||
+               (v.companyId && (v.companyId === comp.id || v.companyId === comp.ownerUserId)))
+            );
+            if (isApproved || comp.verificationStatus === 'Verified') {
+              comp.verificationStatus = 'Verified';
+            }
             setCustomEmployerProfile(comp);
             setCompanies(cList => {
               const list = Array.isArray(cList) ? cList : [];

@@ -3,6 +3,7 @@ import { useApp } from './context/AppContext';
 import { Navbar } from './components/common/Navbar';
 import { Sidebar } from './components/common/Sidebar';
 import { ToastContainer } from './components/common/ToastContainer';
+import { CandidateDetailModal } from './components/common/CandidateDetailModal';
 
 // Public & Auth Pages
 import { HomePage } from './components/public/HomePage';
@@ -42,7 +43,7 @@ import { SkillManagementPage } from './components/admin/SkillManagementPage';
 import { RoadmapManagementPage } from './components/admin/RoadmapManagementPage';
 
 export default function App() {
-  const { currentUser, activePage, isMobileDrawerOpen, setIsMobileDrawerOpen } = useApp();
+  const { currentUser, activePage, isMobileDrawerOpen, setIsMobileDrawerOpen, viewingCVModalCandidate, setViewingCVModalCandidate } = useApp();
 
   useEffect(() => {
     if (!isMobileDrawerOpen) return;
@@ -226,6 +227,11 @@ export default function App() {
       {/* Modals & Toasts */}
       <AIAnalysisModal />
       <ReportJobModal />
+      <CandidateDetailModal
+        isOpen={Boolean(viewingCVModalCandidate)}
+        onClose={() => setViewingCVModalCandidate(null)}
+        candidateData={viewingCVModalCandidate}
+      />
       <ToastContainer />
     </div>
   );

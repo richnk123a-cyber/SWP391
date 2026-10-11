@@ -369,10 +369,6 @@ public class AuthService {
             if (!requestedEmail.matches("^[a-zA-Z0-9._%+-]{3,}@(gmail\\.com|outlook\\.com)$")) {
                 throw new BadRequestException("Email ứng viên phải có đuôi @gmail.com hoặc @outlook.com, và trước @ phải có ít nhất 3 ký tự.", "email");
             }
-        } else {
-            if (requestedEmail.endsWith("@gmail.com") || requestedEmail.endsWith("@outlook.com")) {
-                throw new BadRequestException("Chỉ sử dụng email công ty.", "email");
-            }
         }
         
         // 6. Tạo User chung

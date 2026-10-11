@@ -254,6 +254,70 @@ public class CandidateService {
         return profile.getCvFileName() != null ? profile.getCvFileName() : "CV.pdf";
     }
 
+    // ============================================================
+    // SCRUM-52: XEM HỒ SƠ & TẢI CV ỨNG VIÊN (DÀNH CHO EMPLOYER / ADMIN)
+    // ============================================================
+    public CandidateProfileResponse getProfileByCandidateId(String candidateId) {
+        CandidateProfile profile = candidateProfileRepository.findById(candidateId)
+                .or(() -> candidateProfileRepository.findByUserId(candidateId))
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hồ sơ ứng viên với ID: " + candidateId));
+
+        User user = userRepository.findById(profile.getUserId()).orElse(null);
+        return mapToResponse(profile, user);
+    }
+
+    public Resource getCvFileResourceByCandidateId(String candidateId) {
+        CandidateProfile profile = candidateProfileRepository.findById(candidateId)
+                .or(() -> candidateProfileRepository.findByUserId(candidateId))
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hồ sơ ứng viên với ID: " + candidateId));
+
+        if (profile.getCvFileName() == null || profile.getCvFileName().isBlank()) {
+            throw new ResourceNotFoundException("Ứng viên này chưa tải lên CV nào.");
+        }
+
+        Path uploadPath = Paths.get(UPLOAD_DIR).toAbsolutePath().normalize();
+        Path pdfPath = uploadPath.resolve(profile.getUserId() + "_cv.pdf");
+        Path docxPath = uploadPath.resolve(profile.getUserId() + "_cv.docx");
+
+        Path targetPath = Files.exists(pdfPath) ? pdfPath : (Files.exists(docxPath) ? docxPath : null);
+
+        // Fallback kiểm tra theo tên file hoặc candidateId nếu file chưa đổi theo userId
+        if (targetPath == null) {
+            Path directNamePath = uploadPath.resolve(profile.getCvFileName());
+            if (Files.exists(directNamePath)) {
+                targetPath = directNamePath;
+            } else {
+                Path candIdPath = uploadPath.resolve(profile.getId() + "_cv.pdf");
+                if (Files.exists(candIdPath)) {
+                    targetPath = candIdPath;
+                }
+            }
+        }
+
+        if (targetPath == null) {
+            throw new ResourceNotFoundException("Không tìm thấy tệp CV vật lý trên hệ thống lưu trữ.");
+        }
+
+        try {
+            Resource resource = new UrlResource(targetPath.toUri());
+            if (resource.exists() && resource.isReadable()) {
+                return resource;
+            } else {
+                throw new ResourceNotFoundException("Không thể đọc tệp CV.");
+            }
+        } catch (MalformedURLException e) {
+            throw new ResourceNotFoundException("Đường dẫn tệp không hợp lệ: " + e.getMessage());
+        }
+    }
+
+    public String getCvFileNameByCandidateId(String candidateId) {
+        CandidateProfile profile = candidateProfileRepository.findById(candidateId)
+                .or(() -> candidateProfileRepository.findByUserId(candidateId))
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hồ sơ ứng viên với ID: " + candidateId));
+
+        return profile.getCvFileName() != null ? profile.getCvFileName() : "CV.pdf";
+    }
+
     // ===== Helper: map Entity -> DTO =====
     private CandidateProfileResponse mapToResponse(CandidateProfile p, User u) {
         
@@ -267,7 +331,7 @@ public class CandidateService {
                 .id(p.getId())
                 .userId(p.getUserId())
                 .fullName(p.getFullName())
-                .email(u.getEmail()) // <-- Móc email từ User qua
+                .email(u != null ? u.getEmail() : "")
                 .phone(p.getPhone())
                 .location(p.getLocation())
                 .university(p.getUniversity())
