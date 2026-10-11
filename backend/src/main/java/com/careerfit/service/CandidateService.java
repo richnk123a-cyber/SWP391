@@ -7,6 +7,7 @@ import com.careerfit.model.CandidateProfile;
 import com.careerfit.model.Skill;
 import com.careerfit.model.User;
 import com.careerfit.repository.CandidateProfileRepository;
+import com.careerfit.repository.SkillRepository;
 import com.careerfit.repository.UserRepository;
 import com.careerfit.util.CvParserUtil;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,6 +36,7 @@ public class CandidateService {
 
     private final CandidateProfileRepository candidateProfileRepository;
     private final UserRepository userRepository;
+    private final SkillRepository skillRepository;
     private final CvParserUtil cvParserUtil;
 
     private static final String UPLOAD_DIR = "uploads/cvs";
@@ -90,9 +95,41 @@ public class CandidateService {
         if (request.getGraduationYear() != null) profile.setGraduationYear(request.getGraduationYear().trim());
         if (request.getDesiredRole() != null)    profile.setDesiredRole(request.getDesiredRole().trim());
         if (request.getExpectedSalary() != null) profile.setExpectedSalary(request.getExpectedSalary().trim());
+        if (request.getBio() != null)            profile.setBio(request.getBio().trim());
+        if (request.getGithubUrl() != null)      profile.setGithubUrl(request.getGithubUrl().trim());
+        if (request.getPortfolioUrl() != null)   profile.setPortfolioUrl(request.getPortfolioUrl().trim());
 
-        // LƯU Ý: Phần cập nhật Skills tạm thời không gán String trực tiếp ở đây nữa. 
-        // Sau này sẽ tạo hàm riêng gọi qua SkillService để xử lý quan hệ ManyToMany.
+        // Cập nhật Skills vào DB (quan hệ ManyToMany qua bảng candidate_skill)
+        List<String> incomingSkills = new ArrayList<>();
+        if (request.getSkillList() != null && !request.getSkillList().isEmpty()) {
+            incomingSkills.addAll(request.getSkillList());
+        } else if (request.getSkills() != null && !request.getSkills().isBlank()) {
+            incomingSkills.addAll(Arrays.stream(request.getSkills().split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toList()));
+        }
+
+        if (request.getSkillList() != null || request.getSkills() != null) {
+            List<Skill> matchedSkills = new ArrayList<>();
+            for (String sName : incomingSkills) {
+                if (sName.isBlank()) continue;
+                Skill skill = skillRepository.findByNameIgnoreCase(sName.trim())
+                        .orElseGet(() -> {
+                            Skill newSkill = Skill.builder()
+                                    .id("skill-" + UUID.randomUUID().toString().substring(0, 8))
+                                    .name(sName.trim())
+                                    .category("Khác")
+                                    .isActive(true)
+                                    .build();
+                            return skillRepository.save(newSkill);
+                        });
+                if (!matchedSkills.contains(skill)) {
+                    matchedSkills.add(skill);
+                }
+            }
+            profile.setSkills(matchedSkills);
+        }
 
         candidateProfileRepository.save(profile);
         log.info("Candidate profile updated for userId=[{}]", userId);
@@ -165,7 +202,7 @@ public class CandidateService {
             throw new RuntimeException("Lưu tệp CV thất bại: " + e.getMessage(), e);
         }
 
-        // 4. Cập nhật vào Cơ sở dữ liệu SQL Server
+        // 4. Cập nhật vào Cơ sở dữ liệu SQL Server (chỉ lưu tệp & văn bản trích xuất cho AI Matching)
         profile.setCvFileName(cleanFilename);
         profile.setExtractedCvText(extractedText);
         candidateProfileRepository.save(profile);
@@ -320,12 +357,10 @@ public class CandidateService {
 
     // ===== Helper: map Entity -> DTO =====
     private CandidateProfileResponse mapToResponse(CandidateProfile p, User u) {
-        
-        // Chuyển List<Skill> thành String "Skill1, Skill2" để Frontend dễ hiển thị
-        String skillsStr = "";
-        if (p.getSkills() != null && !p.getSkills().isEmpty()) {
-            skillsStr = p.getSkills().stream().map(Skill::getName).collect(Collectors.joining(", "));
-        }
+        List<String> skillNames = (p.getSkills() != null)
+                ? p.getSkills().stream().map(Skill::getName).collect(Collectors.toList())
+                : Collections.emptyList();
+        String skillsStr = String.join(", ", skillNames);
 
         return CandidateProfileResponse.builder()
                 .id(p.getId())
@@ -337,7 +372,11 @@ public class CandidateService {
                 .university(p.getUniversity())
                 .major(p.getMajor())
                 .graduationYear(p.getGraduationYear())
-                .skills(skillsStr) 
+                .skills(skillsStr)
+                .skillList(skillNames)
+                .bio(p.getBio())
+                .githubUrl(p.getGithubUrl())
+                .portfolioUrl(p.getPortfolioUrl())
                 .hasCv(p.getCvFileName() != null && !p.getCvFileName().isBlank())
                 .cvFileName(p.getCvFileName())
                 .cvUploadDate(null)

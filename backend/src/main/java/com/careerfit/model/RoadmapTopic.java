@@ -13,4 +13,6 @@ public class RoadmapTopic {
     @Column(name = "resource_name", length = 100) private String resourceName;
     @Column(length = 255) private String url;
     @Column(name = "step_order") private Integer stepOrder;
+    @Builder.Default @Column(name = "completed") private Boolean completed = false;
+    @Column(name = "resource_type", length = 50) private String resourceType;
 }

@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface RoadmapTopicRepository extends JpaRepository<RoadmapTopic, String> {
     List<RoadmapTopic> findByRoadmapIdOrderByStepOrderAsc(String roadmapId);
+    void deleteByRoadmapId(String roadmapId);
 }

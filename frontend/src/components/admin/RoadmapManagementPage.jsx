@@ -16,7 +16,8 @@ import {
   X,
   CheckCircle2,
   Clock,
-  AlertTriangle
+  AlertTriangle,
+  RotateCw
 } from 'lucide-react';
 
 export function RoadmapManagementPage() {
@@ -29,9 +30,12 @@ export function RoadmapManagementPage() {
     updateRoadmapTopic,
     deleteRoadmapTopic,
     reorderRoadmapTopic,
+    refreshRoadmaps,
     skillsCatalog,
     showToast
   } = useApp();
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSkillFilter, setSelectedSkillFilter] = useState('All');
@@ -88,13 +92,13 @@ export function RoadmapManagementPage() {
 
   const activeRoadmap = roadmaps.find(rm => rm.id === activeEditorRoadmapId) || null;
 
-  const handleCreateRoadmapSubmit = (e) => {
+  const handleCreateRoadmapSubmit = async (e) => {
     e.preventDefault();
     if (!newRoadmapForm.targetRole.trim()) {
       showToast('Vui lòng nhập vị trí mục tiêu cho Roadmap.', 'danger');
       return;
     }
-    const created = createRoadmap(newRoadmapForm);
+    const created = await createRoadmap(newRoadmapForm);
     setIsCreateRoadmapModalOpen(false);
     setNewRoadmapForm({ skill: 'Spring Boot', targetRole: '', description: '' });
     if (created && created.id) {
@@ -102,13 +106,13 @@ export function RoadmapManagementPage() {
     }
   };
 
-  const handleAddTopicSubmit = (e) => {
+  const handleAddTopicSubmit = async (e) => {
     e.preventDefault();
     if (!newTopicForm.title.trim() || !activeEditorRoadmapId) {
       showToast('Vui lòng nhập tiêu đề chủ đề.', 'danger');
       return;
     }
-    addRoadmapTopic(activeEditorRoadmapId, newTopicForm);
+    await addRoadmapTopic(activeEditorRoadmapId, newTopicForm);
     setIsAddTopicModalOpen(false);
     setNewTopicForm({
       title: '',
@@ -119,17 +123,17 @@ export function RoadmapManagementPage() {
     });
   };
 
-  const handleEditTopicSubmit = (e) => {
+  const handleEditTopicSubmit = async (e) => {
     e.preventDefault();
     if (!editingTopic || !editTopicForm.title.trim() || !activeEditorRoadmapId) return;
-    updateRoadmapTopic(activeEditorRoadmapId, editingTopic.id, editTopicForm);
+    await updateRoadmapTopic(activeEditorRoadmapId, editingTopic.id, editTopicForm);
     setEditingTopic(null);
   };
 
-  const handleEditRoadmapMetaSubmit = (e) => {
+  const handleEditRoadmapMetaSubmit = async (e) => {
     e.preventDefault();
     if (!editingRoadmapMeta) return;
-    updateRoadmap(editingRoadmapMeta.id, {
+    await updateRoadmap(editingRoadmapMeta.id, {
       targetRole: editingRoadmapMeta.targetRole,
       skill: editingRoadmapMeta.skill,
       description: editingRoadmapMeta.description
@@ -137,9 +141,9 @@ export function RoadmapManagementPage() {
     setEditingRoadmapMeta(null);
   };
 
-  const handleDeleteRoadmapConfirm = () => {
+  const handleDeleteRoadmapConfirm = async () => {
     if (deletingRoadmap) {
-      deleteRoadmap(deletingRoadmap.id);
+      await deleteRoadmap(deletingRoadmap.id);
       if (activeEditorRoadmapId === deletingRoadmap.id) {
         setActiveEditorRoadmapId(null);
       }
@@ -173,6 +177,25 @@ export function RoadmapManagementPage() {
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0">
+          {!activeRoadmap && (
+            <button
+              onClick={async () => {
+                setIsRefreshing(true);
+                try {
+                  await refreshRoadmaps?.();
+                  showToast('Đã làm mới danh sách lộ trình học!', 'success');
+                } finally {
+                  setIsRefreshing(false);
+                }
+              }}
+              disabled={isRefreshing}
+              className="btn btn-secondary text-xs font-semibold h-10 px-3.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs flex items-center gap-1.5 cursor-pointer"
+              title="Đồng bộ lộ trình học từ máy chủ"
+            >
+              <RotateCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+              {isRefreshing ? 'Đang tải...' : 'Làm mới'}
+            </button>
+          )}
           {activeRoadmap ? (
             <button
               onClick={() => setIsAddTopicModalOpen(true)}

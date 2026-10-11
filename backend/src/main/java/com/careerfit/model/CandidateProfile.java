@@ -17,6 +17,9 @@ public class CandidateProfile {
     @Column(name = "graduation_year", length = 10) private String graduationYear;
     @Column(name = "desired_role", length = 100) private String desiredRole;
     @Column(name = "expected_salary", length = 50) private String expectedSalary;
+    @Column(name = "bio", columnDefinition = "NVARCHAR(MAX)") private String bio;
+    @Column(name = "github_url", length = 255) private String githubUrl;
+    @Column(name = "portfolio_url", length = 255) private String portfolioUrl;
     @Column(name = "cv_file_name", length = 255) private String cvFileName;
     @Column(name = "extracted_cv_text", columnDefinition = "NVARCHAR(MAX)") private String extractedCvText;
 

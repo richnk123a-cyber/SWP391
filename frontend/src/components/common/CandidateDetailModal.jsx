@@ -62,10 +62,10 @@ export function CandidateDetailModal({ isOpen, onClose, candidateData }) {
     setLoading(true);
     try {
       const res = await employerApi.getCandidateProfile(id);
-      if (res.data?.success && res.data?.data) {
-        setProfile(res.data.data);
+      const profileData = res?.data || (res?.id ? res : null);
+      if (profileData) {
+        setProfile(profileData);
       } else {
-        // Fallback dùng thông tin có sẵn trong candidateData
         setProfile(candidateData);
       }
     } catch (err) {
@@ -78,44 +78,33 @@ export function CandidateDetailModal({ isOpen, onClose, candidateData }) {
 
   if (!isOpen || !candidateData) return null;
 
-  // Tổng hợp dữ liệu hiển thị (kết hợp profile từ API và mock data)
+  // Tổng hợp dữ liệu hiển thị từ API máy chủ
   const displayName = profile?.fullName || candidateData?.candidateName || candidateData?.name || 'Ứng viên';
   const displayEmail = profile?.email || candidateData?.candidateEmail || candidateData?.email || 'Chưa cập nhật';
-  const displayPhone = profile?.phone || candidateData?.phone || '0987 654 321';
-  const displayLocation = profile?.location || candidateData?.location || 'Thành phố Hồ Chí Minh';
-  const displayUni = profile?.university || candidateData?.candidateUniversity || candidateData?.university || 'Đại học FPT';
-  const displayMajor = profile?.major || candidateData?.major || 'Kỹ thuật phần mềm (IT)';
-  const displayGradYear = profile?.graduationYear || candidateData?.graduationYear || '2025';
-  const displayDesiredRole = profile?.desiredRole || candidateData?.desiredRole || relatedJob?.title || 'Fresher Developer';
-  const displaySalary = profile?.expectedSalary || candidateData?.expectedSalary || '8.000.000 - 12.000.000 VNĐ';
+  const displayPhone = profile?.phone || candidateData?.phone || 'Chưa cập nhật';
+  const displayLocation = profile?.location || candidateData?.location || 'Chưa cập nhật';
+  // Ưu tiên tuyệt đối dữ liệu thực tế từ Candidate Profile đã lưu
+  const displayUni = profile 
+    ? (profile.university?.trim() || 'Chưa cập nhật') 
+    : (candidateData?.candidateUniversity?.trim() || candidateData?.university?.trim() || 'Chưa cập nhật');
+  const displayMajor = profile 
+    ? (profile.major?.trim() || 'Chưa cập nhật') 
+    : (candidateData?.candidateMajor?.trim() || candidateData?.major?.trim() || 'Chưa cập nhật');
+  const displayGradYear = profile 
+    ? (profile.graduationYear?.trim() || 'Chưa cập nhật') 
+    : (candidateData?.graduationYear?.trim() || 'Chưa cập nhật');
+  const displayDesiredRole = profile?.desiredRole?.trim() || candidateData?.desiredRole?.trim() || relatedJob?.title || 'Chưa cập nhật';
+  const displaySalary = profile?.expectedSalary?.trim() || candidateData?.expectedSalary?.trim() || 'Thỏa thuận';
   
-  // Kỹ năng
-  const skillsList = profile?.skills
-    ? (typeof profile.skills === 'string' ? profile.skills.split(',').map(s => s.trim()).filter(Boolean) : profile.skills)
-    : (candidateData?.candidateSkills || ['Java', 'Spring Boot', 'SQL', 'Git', 'OOP']);
+  // Kỹ năng thực tế từ backend
+  const skillsList = profile?.skillList && profile.skillList.length > 0
+    ? profile.skillList
+    : (profile?.skills
+        ? (typeof profile.skills === 'string' ? profile.skills.split(',').map(s => s.trim()).filter(Boolean) : (Array.isArray(profile.skills) ? profile.skills : []))
+        : (Array.isArray(candidateData?.candidateSkills) ? candidateData.candidateSkills : []));
 
-  const cvFileName = profile?.cvFileName || candidateData?.cvFileName || 'Nguyen_Van_A_Fresher_Java.pdf';
-  const extractedCvText = profile?.extractedCvText || candidateData?.extractedCvText || `MỤC TIÊU NGHỀ NGHIỆP:
-Fresher / Junior Backend Developer với mong muốn áp dụng kiến thức Java, Spring Boot và cơ sở dữ liệu vào các dự án phần mềm thực tế.
-
-HỌC VẤN:
-- Đại học FPT (2021 - 2025)
-- Chuyên ngành: Kỹ thuật phần mềm (GPA: 3.4/4.0)
-
-KỸ NĂNG CHUYÊN MÔN:
-- Ngôn ngữ: Java, SQL, JavaScript, HTML/CSS
-- Framework: Spring Boot, Spring Security, Hibernate / JPA, ReactJS cơ bản
-- Cơ sở dữ liệu: SQL Server, MySQL, Redis
-- Công cụ: Git, Docker, Postman, Maven
-
-DỰ ÁN NỔI BẬT:
-1. CareerFit Recruitment Platform (Đồ án tốt nghiệp / SWP391)
-- Vai trò: Backend Developer
-- Công nghệ: Spring Boot, Spring Security OAuth2, JWT, SQL Server
-- Chức năng: Xây dựng hệ thống REST API, quản lý ứng viên, tích hợp trích xuất nội dung CV và gợi ý việc làm.
-
-2. E-Commerce Microservices
-- Xây dựng API giỏ hàng và thanh toán, áp dụng clean architecture và unit test.`;
+  const cvFileName = profile?.cvFileName || candidateData?.cvFileName || 'CV_Ung_Vien.pdf';
+  const extractedCvText = profile?.extractedCvText || candidateData?.extractedCvText || '';
 
   // Tải file CV thật
   const handleDownloadCv = async () => {
@@ -311,20 +300,48 @@ DỰ ÁN NỔI BẬT:
                     </div>
                   </div>
 
+                  {/* Giới thiệu & Liên kết trực tuyến (nếu có) */}
+                  {(profile?.bio || profile?.githubUrl || profile?.portfolioUrl) && (
+                    <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                      <h4 className="font-bold text-slate-900 text-xs flex items-center gap-1.5 text-slate-800 uppercase tracking-wider">
+                        <User size={15} className="text-blue-600" /> Giới thiệu & Liên kết trực tuyến
+                      </h4>
+                      {profile?.bio && (
+                        <p className="text-slate-700 text-xs whitespace-pre-wrap leading-relaxed">{profile.bio}</p>
+                      )}
+                      <div className="flex flex-wrap gap-4 pt-1 text-xs">
+                        {profile?.githubUrl && (
+                          <a href={profile.githubUrl.startsWith('http') ? profile.githubUrl : `https://${profile.githubUrl}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline flex items-center gap-1 font-semibold">
+                            GitHub: {profile.githubUrl}
+                          </a>
+                        )}
+                        {profile?.portfolioUrl && (
+                          <a href={profile.portfolioUrl.startsWith('http') ? profile.portfolioUrl : `https://${profile.portfolioUrl}`} target="_blank" rel="noreferrer" className="text-indigo-600 hover:underline flex items-center gap-1 font-semibold">
+                            Portfolio: {profile.portfolioUrl}
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Kỹ năng ứng viên */}
                   <div className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-2">
                     <h4 className="font-bold text-slate-900 text-xs flex items-center gap-1.5 text-slate-800 uppercase tracking-wider">
                       <Award size={15} className="text-blue-600" /> Kỹ năng chuyên môn ({skillsList.length})
                     </h4>
                     <div className="flex flex-wrap gap-1.5 pt-1">
-                      {skillsList.map((skill, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 font-semibold text-xs border border-blue-200 flex items-center gap-1"
-                        >
-                          <Check size={12} className="text-blue-600" /> {skill}
-                        </span>
-                      ))}
+                      {skillsList.length > 0 ? (
+                        skillsList.map((skill, idx) => (
+                          <span
+                            key={idx}
+                            className="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 font-semibold text-xs border border-blue-200 flex items-center gap-1"
+                          >
+                            <Check size={12} className="text-blue-600" /> {skill}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-slate-400 italic text-xs">Chưa cập nhật kỹ năng chuyên môn</span>
+                      )}
                     </div>
                   </div>
 
@@ -366,9 +383,15 @@ DỰ ÁN NỔI BẬT:
                   </div>
 
                   {/* Text Container */}
-                  <div className="p-4 bg-slate-900 text-slate-100 rounded-xl font-mono text-[11px] leading-relaxed overflow-y-auto max-h-[380px] border border-slate-800 shadow-inner whitespace-pre-wrap selection:bg-blue-600 selection:text-white">
-                    {extractedCvText}
-                  </div>
+                  {extractedCvText ? (
+                    <div className="p-4 bg-slate-900 text-slate-100 rounded-xl font-mono text-[11px] leading-relaxed overflow-y-auto max-h-[380px] border border-slate-800 shadow-inner whitespace-pre-wrap selection:bg-blue-600 selection:text-white">
+                      {extractedCvText}
+                    </div>
+                  ) : (
+                    <div className="p-8 text-center bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-xs">
+                      Chưa có nội dung văn bản trích xuất từ tệp CV của ứng viên này.
+                    </div>
+                  )}
                 </div>
               )}
 

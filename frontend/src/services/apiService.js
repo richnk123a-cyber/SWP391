@@ -125,6 +125,32 @@ export const adminApi = {
   getAllVerifications: () => api.get('/admin/verifications/all'),
   approveVerification: (companyId) => api.put(`/admin/verifications/${companyId}/approve`),
   rejectVerification: (companyId, reason) => api.put(`/admin/verifications/${companyId}/reject`, { reason }),
+
+  // Skills Catalog (SCRUM-57, SCRUM-86, SCRUM-85)
+  getAllSkills: () => api.get('/admin/skills'),
+  createSkill: (data) => api.post('/admin/skills', data),
+  updateSkill: (id, data) => api.put(`/admin/skills/${id}`, data),
+  deleteSkill: (id) => api.delete(`/admin/skills/${id}`),
+
+  // Roadmaps (SCRUM-58, SCRUM-89, SCRUM-88)
+  getAllRoadmaps: () => api.get('/admin/roadmaps'),
+  createRoadmap: (data) => api.post('/admin/roadmaps', data),
+  updateRoadmap: (id, data) => api.put(`/admin/roadmaps/${id}`, data),
+  deleteRoadmap: (id) => api.delete(`/admin/roadmaps/${id}`),
+  addRoadmapTopic: (roadmapId, data) => api.post(`/admin/roadmaps/${roadmapId}/topics`, data),
+  updateRoadmapTopic: (roadmapId, topicId, data) => api.put(`/admin/roadmaps/${roadmapId}/topics/${topicId}`, data),
+  deleteRoadmapTopic: (roadmapId, topicId) => api.delete(`/admin/roadmaps/${roadmapId}/topics/${topicId}`),
+  reorderRoadmapTopics: (roadmapId, topicIds) => api.put(`/admin/roadmaps/${roadmapId}/topics/reorder`, topicIds),
+};
+
+// ============================================================
+// PUBLIC CATALOG APIs (SKILLS & ROADMAPS)
+// ============================================================
+export const catalogApi = {
+  getSkills: () => api.get('/skills'),
+  getRoadmaps: () => api.get('/roadmaps'),
+  getRoadmapById: (id) => api.get(`/roadmaps/${id}`),
+  getRoadmapBySkill: (skillName) => api.get(`/roadmaps/skill/${encodeURIComponent(skillName)}`),
 };
 
 // ============================================================

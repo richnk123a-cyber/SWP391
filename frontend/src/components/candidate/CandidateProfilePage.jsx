@@ -33,6 +33,53 @@ export function CandidateProfilePage() {
   const avatarRef = useRef(null);
   const formRef = useRef(null);
   useEffect(() => {
+    let isMounted = true;
+    candidateApi.getMyProfile()
+      .then(res => {
+        const data = res?.data || (res?.id ? res : null);
+        if (data && isMounted) {
+          const skillsArray = (data.skillList && data.skillList.length > 0)
+            ? data.skillList
+            : (typeof data.skills === 'string' && data.skills ? data.skills.split(',').map(s => s.trim()).filter(Boolean) : []);
+          
+          setForm(prev => ({
+            ...prev,
+            name: data.fullName || prev.name,
+            email: data.email || prev.email,
+            phone: data.phone || prev.phone,
+            location: data.location || prev.location,
+            university: data.university || prev.university,
+            major: data.major || prev.major,
+            graduationYear: data.graduationYear || prev.graduationYear,
+            desiredRole: data.desiredRole || prev.desiredRole,
+            expectedSalary: data.expectedSalary || prev.expectedSalary,
+            bio: data.bio || prev.bio,
+            githubUrl: data.githubUrl || prev.githubUrl,
+            portfolioUrl: data.portfolioUrl || prev.portfolioUrl,
+          }));
+
+          if (skillsArray.length > 0) {
+            setSkills(skillsArray);
+          }
+
+          setCandidateProfile(prev => ({
+            ...prev,
+            ...data,
+            name: data.fullName || prev.name,
+            skills: skillsArray.length > 0 ? skillsArray : prev.skills,
+            hasCV: !!data.hasCv,
+            cvFileName: data.cvFileName || prev.cvFileName,
+            extractedCvText: data.extractedCvText || prev.extractedCvText,
+          }));
+        }
+      })
+      .catch(err => {
+        console.warn('Không thể tải profile từ backend, dùng cache cục bộ:', err);
+      });
+    return () => { isMounted = false; };
+  }, []);
+
+  useEffect(() => {
     if (dirtyRef.current) return;
     setForm(profileForm(candidateProfile, currentUser));
     setSkills(candidateProfile?.skills || []);
@@ -96,20 +143,54 @@ export function CandidateProfilePage() {
   };
   const save = async event => {
     event.preventDefault(); if (saving) return;
-    if (![form.name, form.email, form.phone, form.desiredRole].every(value => value.trim())) { showToast('Vui lòng điền đầy đủ thông tin bắt buộc.', 'warning'); return; }
+    if (![form.name, form.email, form.phone, form.desiredRole].every(value => value.trim())) { 
+      showToast('Vui lòng điền đầy đủ các thông tin bắt buộc (Họ tên, Email, Số điện thoại, Vị trí mục tiêu).', 'warning'); 
+      return; 
+    }
     setSaving(true);
-    const updated = { ...candidateProfile, ...form, name: form.name.trim(), email: form.email.trim(), avatarUrl: avatar, skills, preferences: { ...candidateProfile?.preferences, desiredRole: form.desiredRole.trim(), expectedSalary: form.expectedSalary }, userId: currentUser?.id };
+    const updated = { 
+      ...candidateProfile, 
+      ...form, 
+      name: form.name.trim(), 
+      email: form.email.trim(), 
+      avatarUrl: avatar, 
+      skills, 
+      preferences: { 
+        ...candidateProfile?.preferences, 
+        desiredRole: form.desiredRole.trim(), 
+        expectedSalary: form.expectedSalary 
+      }, 
+      userId: currentUser?.id 
+    };
     let message;
     try {
-      localStorage.setItem(`careerfit_cand_profile_${currentUser.id}`, JSON.stringify(updated));
+      localStorage.setItem(`careerfit_cand_profile_${currentUser?.id}`, JSON.stringify(updated));
       setCandidateProfile(updated);
       dirtyRef.current = false; setDirty(false);
       try {
-        await candidateApi.updateMyProfile({ fullName: updated.name, phone: form.phone, location: form.location, university: form.university, major: form.major, graduationYear: form.graduationYear, desiredRole: updated.preferences.desiredRole, expectedSalary: form.expectedSalary });
-        message = 'Đã lưu hồ sơ trên thiết bị và đồng bộ thông tin cá nhân.';
-      } catch { message = 'Đã lưu trên thiết bị. Chưa đồng bộ được với máy chủ.'; }
-      setSaveMessage(message); showToast(message, 'info');
-    } catch { showToast('Chưa lưu được hồ sơ. Vui lòng thử lại.', 'danger'); }
+        await candidateApi.updateMyProfile({ 
+          fullName: updated.name, 
+          phone: form.phone, 
+          location: form.location, 
+          university: form.university, 
+          major: form.major, 
+          graduationYear: form.graduationYear, 
+          desiredRole: updated.preferences.desiredRole, 
+          expectedSalary: form.expectedSalary,
+          bio: form.bio,
+          githubUrl: form.githubUrl,
+          portfolioUrl: form.portfolioUrl,
+          skills: skills.join(', '),
+          skillList: skills
+        });
+        message = 'Đã lưu hồ sơ thành công vào cơ sở dữ liệu hệ thống!';
+      } catch (apiErr) { 
+        message = 'Đã lưu trên thiết bị. Lỗi đồng bộ máy chủ: ' + (apiErr?.message || 'Không xác định'); 
+      }
+      setSaveMessage(message); showToast(message, 'success');
+    } catch { 
+      showToast('Chưa lưu được hồ sơ. Vui lòng thử lại.', 'danger'); 
+    }
     finally { setSaving(false); }
   };
   const checklist = [
@@ -118,7 +199,7 @@ export function CandidateProfilePage() {
     { label: 'Mục tiêu nghề nghiệp', done: !!form.desiredRole.trim() },
     { label: 'Giới thiệu bản thân', done: !!form.bio.trim() },
     { label: 'Kỹ năng chuyên môn', done: skills.length > 0 },
-    { label: 'CV đính kèm', done: !!candidateProfile?.hasCV }
+    { label: 'CV đính kèm', done: !!(candidateProfile?.hasCv ?? candidateProfile?.hasCV) }
   ];
   const completion = Math.round(checklist.filter(item => item.done).length / checklist.length * 100);
   const categories = Object.entries(CATEGORIZED_SKILLS).filter(([name]) => category === 'all' || category === name).map(([name, items]) => [name, items.filter(skill => skill.toLowerCase().includes(search.trim().toLowerCase()))]).filter(([, items]) => items.length);
