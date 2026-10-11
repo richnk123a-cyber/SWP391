@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import {
   INITIAL_USERS_DB,
   INITIAL_CANDIDATE,
@@ -113,31 +113,7 @@ export function AppProvider({ children }) {
 
   const [applications, setApplications] = useState(() => safeGetLocalStorage('careerfit_applications', INITIAL_APPLICATIONS));
   const [roadmaps, setRoadmaps] = useState(() => safeGetLocalStorage('careerfit_roadmaps', INITIAL_ROADMAPS));
-  const [employerVerifications, setEmployerVerifications] = useState(() => {
-    const saved = safeGetLocalStorage('careerfit_employer_verifications', INITIAL_EMPLOYER_VERIFICATIONS);
-    const list = Array.isArray(saved) ? saved : INITIAL_EMPLOYER_VERIFICATIONS;
-    const hasCareerFit = list.some(v => v.email === 'nguyenlamthi87@gmail.com' || v.companyName === 'Công ty TNHH CareerFit');
-    if (!hasCareerFit) {
-      const pendingCareerFit = {
-        id: 'ver-careerfit-new',
-        companyId: 'comp-b6082c17',
-        companyName: 'Công ty TNHH CareerFit',
-        representative: 'Nguyễn Như Ý',
-        email: 'nguyenlamthi87@gmail.com',
-        phone: '0912345678',
-        submittedDate: new Date().toLocaleDateString('vi-VN'),
-        status: 'Pending',
-        documentName: 'Giay_Phep_Kinh_Doanh_Mau.pdf',
-        website: 'https://careerfit.vn',
-        industry: 'Công nghệ thông tin',
-        location: 'TP. Hồ Chí Minh',
-        taxId: '0312345678',
-        rejectReason: ''
-      };
-      return [pendingCareerFit, ...list];
-    }
-    return list;
-  });
+  const [employerVerifications, setEmployerVerifications] = useState(() => safeGetLocalStorage('careerfit_employer_verifications', INITIAL_EMPLOYER_VERIFICATIONS));
   const [reportedJobs, setReportedJobs] = useState(() => safeGetLocalStorage('careerfit_reported_jobs', INITIAL_REPORTED_JOBS));
   const [skillsCatalog, setSkillsCatalog] = useState(() => safeGetLocalStorage('careerfit_skills_catalog', INITIAL_SKILLS_CATALOG));
   const [notifications, setNotifications] = useState(() => safeGetLocalStorage('careerfit_notifications', INITIAL_NOTIFICATIONS));
@@ -1019,72 +995,54 @@ export function AppProvider({ children }) {
   }, [currentUser]);
 
   // Sync employer verifications from backend (for Admin to see newly submitted verifications)
+  const refreshEmployerVerifications = useCallback(() => {
+    return adminApi.getAllVerifications()
+      .then(res => {
+        const backendVerifications = res?.data || res;
+        if (Array.isArray(backendVerifications) && backendVerifications.length > 0) {
+          setEmployerVerifications(prev => {
+            const localList = Array.isArray(prev) ? prev : [];
+            const merged = [...localList];
+            backendVerifications.forEach(bv => {
+              const idx = merged.findIndex(lv =>
+                lv.companyId === bv.id ||
+                lv.id === bv.id
+              );
+              const mapped = {
+                id: bv.id || `ver-${Date.now()}-${Math.random().toString(36).substr(2,4)}`,
+                companyId: bv.id,
+                companyName: bv.companyName || '',
+                representative: bv.recruiterName || '',
+                recruiterName: bv.recruiterName || '',
+                email: bv.email || '',
+                phone: bv.phone || '',
+                taxId: bv.taxId || '',
+                location: bv.location || '',
+                industry: bv.industry || '',
+                website: bv.website || '',
+                submittedDate: new Date().toLocaleDateString('vi-VN'),
+                status: bv.verificationStatus || 'Pending',
+                documentName: bv.businessLicenseFile || '',
+                rejectReason: bv.rejectionReason || ''
+              };
+              if (idx >= 0) {
+                merged[idx] = { ...merged[idx], ...mapped };
+              } else {
+                merged.unshift(mapped);
+              }
+            });
+            return merged;
+          });
+        }
+      })
+      .catch(err => console.warn('Admin getAllVerifications sync note:', err));
+  }, []);
+
   useEffect(() => {
     if (currentUser?.role === 'ADMIN') {
-      adminApi.getAllVerifications()
-        .then(res => {
-          const backendVerifications = res?.data || res;
-          if (Array.isArray(backendVerifications) && backendVerifications.length > 0) {
-            setEmployerVerifications(prev => {
-              const localList = Array.isArray(prev) ? prev : [];
-              // Merge: add backend verifications not yet in local list
-              const merged = [...localList];
-              backendVerifications.forEach(bv => {
-                const exists = merged.some(lv =>
-                  lv.companyId === bv.id ||
-                  lv.id === bv.id ||
-                  (bv.email && lv.email && lv.email.toLowerCase() === bv.email.toLowerCase())
-                );
-                if (!exists) {
-                  merged.unshift({
-                    id: bv.id || `ver-${Date.now()}-${Math.random().toString(36).substr(2,4)}`,
-                    companyId: bv.id,
-                    companyName: bv.companyName || '',
-                    recruiterName: bv.recruiterName || '',
-                    email: bv.email || '',
-                    phone: bv.phone || '',
-                    taxId: bv.taxId || '',
-                    location: bv.location || '',
-                    industry: bv.industry || '',
-                    website: bv.website || '',
-                    submittedDate: new Date().toLocaleDateString('vi-VN'),
-                    status: bv.verificationStatus || 'Pending',
-                    documentName: bv.businessLicenseFile || '',
-                    rejectReason: bv.rejectionReason || ''
-                  });
-                } else {
-                  // Update status from backend (source of truth)
-                  const idx = merged.findIndex(lv =>
-                    lv.companyId === bv.id ||
-                    lv.id === bv.id ||
-                    (bv.email && lv.email && lv.email.toLowerCase() === bv.email.toLowerCase())
-                  );
-                  if (idx >= 0) {
-                    merged[idx] = {
-                      ...merged[idx],
-                      companyId: bv.id || merged[idx].companyId,
-                      companyName: bv.companyName || merged[idx].companyName,
-                      status: bv.verificationStatus || merged[idx].status,
-                      recruiterName: bv.recruiterName || merged[idx].recruiterName,
-                      email: bv.email || merged[idx].email,
-                      phone: bv.phone || merged[idx].phone,
-                      taxId: bv.taxId || merged[idx].taxId,
-                      location: bv.location || merged[idx].location,
-                      industry: bv.industry || merged[idx].industry,
-                      website: bv.website || merged[idx].website,
-                      documentName: bv.businessLicenseFile || merged[idx].documentName,
-                      rejectReason: bv.rejectionReason || merged[idx].rejectReason
-                    };
-                  }
-                }
-              });
-              return merged;
-            });
-          }
-        })
-        .catch(err => console.warn('Admin getPendingVerifications sync note:', err));
+      refreshEmployerVerifications();
     }
-  }, [currentUser]);
+  }, [currentUser, refreshEmployerVerifications]);
 
 
   const employerProfile = currentEmployerCompany;
@@ -1959,6 +1917,7 @@ export function AppProvider({ children }) {
         toggleLockUser,
         handleApproveVerification,
         handleRejectVerification,
+        refreshEmployerVerifications,
         handleApproveJobModeration,
         handleRejectJobModeration,
         handleRemoveApprovedJob,

@@ -364,16 +364,9 @@ export function ApplicantManagementPage() {
                           <button
                             onClick={() => setViewingCVModalCandidate({ ...app, match, job, candidateId: app.candidateId })}
                             className="btn btn-secondary btn-sm text-xs font-semibold"
-                            title="Xem chi tiết hồ sơ ứng viên"
+                            title="Xem chi tiết hồ sơ và CV ứng viên"
                           >
-                            <UserCheck size={13} /> Hồ sơ
-                          </button>
-                          <button
-                            onClick={() => setViewingCVModalCandidate({ ...app, match, job, candidateId: app.candidateId })}
-                            className="btn btn-secondary btn-sm text-xs"
-                            title="Xem bản CV PDF"
-                          >
-                            <FileText size={13} /> CV
+                            <FileText size={13} /> Hồ sơ & CV
                           </button>
                           <button
                             onClick={() => setActiveInterviewAppId(app.id)}

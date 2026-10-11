@@ -40,15 +40,20 @@ export function ScheduleInterviewModal({ appId, onClose }) {
       title={`Lên Lịch Phỏng vấn với Ứng viên - ${app.candidateName}`}
     >
       <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200 text-slate-800 space-y-1">
+        <div 
+          className="p-4 rounded-xl border border-blue-400/40 space-y-1.5 shadow-sm"
+          style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%)', color: '#ffffff' }}
+        >
           <div className="flex items-center justify-between">
-            <p className="font-bold text-slate-900 text-sm">{app.candidateName}</p>
-            <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded">
+            <p className="font-bold text-white text-base tracking-wide" style={{ color: '#ffffff' }}>
+              {app.candidateName}
+            </p>
+            <span className="text-[11px] font-bold text-blue-800 bg-white px-2.5 py-0.5 rounded shadow-xs" style={{ color: '#1e40af', backgroundColor: '#ffffff' }}>
               {app.candidateUniversity || app.candidateEmail}
             </span>
           </div>
-          <p className="text-[11px] text-slate-600">
-            Trạng thái ứng viên sẽ được chuyển sang <strong>"Phỏng vấn"</strong> và hệ thống tự động gửi thông báo lịch phỏng vấn tới Ứng viên.
+          <p className="text-xs leading-relaxed" style={{ color: '#e0e7ff' }}>
+            Trạng thái ứng viên sẽ được chuyển sang <strong className="text-amber-300 font-bold" style={{ color: '#fde047' }}>"Phỏng vấn"</strong> và hệ thống tự động gửi thông báo lịch phỏng vấn tới Ứng viên.
           </p>
         </div>
 
