@@ -36,7 +36,7 @@ import { CompanyProfilePage } from './components/employer/CompanyProfilePage';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { EmployerVerificationPage } from './components/admin/EmployerVerificationPage';
 import { JobModerationPage } from './components/admin/JobModerationPage';
-import { ReportManagementPage } from './components/admin/ReportManagementPage';
+import { ReportManagementApiPage } from './components/admin/ReportManagementApiPage';
 import { UserManagementPage } from './components/admin/UserManagementPage';
 import { SkillManagementPage } from './components/admin/SkillManagementPage';
 import { RoadmapManagementPage } from './components/admin/RoadmapManagementPage';
@@ -174,7 +174,7 @@ export default function App() {
         case 'admin-job-moderation':
           return <JobModerationPage />;
         case 'admin-reports':
-          return <ReportManagementPage />;
+          return <ReportManagementApiPage />;
         case 'admin-user-management':
           return <UserManagementPage />;
         case 'admin-skills':

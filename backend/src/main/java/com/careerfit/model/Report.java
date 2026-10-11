@@ -11,6 +11,7 @@ public class Report {
     @Column(name = "job_id", length = 50) private String jobId;
     @Column(name = "reporter_id", length = 50) private String reporterId;
     @Column(length = 255) private String reason;
+    @Column(columnDefinition = "NVARCHAR(MAX)") private String description;
     @Column(length = 20) private String status;
     @Column(name = "created_at") private LocalDateTime createdAt;
     @Column(name = "admin_note", columnDefinition = "NVARCHAR(MAX)") private String adminNote;

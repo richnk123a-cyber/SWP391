@@ -109,6 +109,23 @@ IF NOT EXISTS (SELECT 1 FROM dbo.applications WHERE id = 'app-vnk-4')
     INSERT INTO dbo.applications (id, job_id, candidate_id, status, applied_date, last_update)
     VALUES ('app-vnk-4', 'job-vnk-2', 'user-cand-35da1bdf', N'Offer', GETDATE(), GETDATE());
 
+-- Backfill dữ liệu lương chuẩn hóa cho các bản ghi cũ theo định dạng hiện tại:
+UPDATE dbo.jobs
+SET salary_min = TRY_CONVERT(BIGINT,
+        REPLACE(LTRIM(RTRIM(LEFT(salary, CHARINDEX('-', salary) - 1))), '.', '')),
+    salary_max = TRY_CONVERT(BIGINT,
+        REPLACE(LTRIM(RTRIM(
+            REPLACE(REPLACE(
+                SUBSTRING(salary, CHARINDEX('-', salary) + 1, LEN(salary)),
+                N'VNĐ', ''), 'USD', '')
+        )), '.', '')),
+    salary_currency = CASE
+        WHEN UPPER(salary) LIKE '%USD%' THEN 'USD'
+        ELSE N'VNĐ'
+    END
+WHERE (salary_min IS NULL OR salary_max IS NULL OR salary_currency IS NULL)
+  AND CHARINDEX('-', salary) > 0;
+
 -- 7. Seed Job Skills
 IF NOT EXISTS (SELECT 1 FROM dbo.job_skill WHERE job_id = 'job-1' AND skill_id = 'sk-1')
     INSERT INTO dbo.job_skill (job_id, skill_id) VALUES ('job-1', 'sk-1');

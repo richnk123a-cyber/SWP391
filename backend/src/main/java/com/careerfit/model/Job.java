@@ -15,6 +15,9 @@ public class Job {
     @Column(name = "job_type", length = 50) private String jobType;
     @Column(length = 100) private String location;
     @Column(length = 50) private String salary;
+    @Column(name = "salary_min") private Long salaryMin;
+    @Column(name = "salary_max") private Long salaryMax;
+    @Column(name = "salary_currency", length = 10) private String salaryCurrency;
     @Column(columnDefinition = "NVARCHAR(MAX)") private String description;
     @Column(columnDefinition = "NVARCHAR(MAX)") private String responsibilities;
     @Column(columnDefinition = "NVARCHAR(MAX)") private String requirements;

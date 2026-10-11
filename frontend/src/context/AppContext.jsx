@@ -11,7 +11,7 @@ import {
   INITIAL_SKILLS_CATALOG,
   INITIAL_NOTIFICATIONS
 } from '../data/mockData';
-import { authApi, adminApi, candidateApi, employerApi, jobApi } from '../services/apiService';
+import { authApi, adminApi, candidateApi, employerApi, jobApi, reportApi } from '../services/apiService';
 
 
 const AppContext = createContext();
@@ -109,6 +109,7 @@ export function AppProvider({ children }) {
   const [jobs, setJobs] = useState(() => safeGetLocalStorage('careerfit_jobs', INITIAL_JOBS));
 
   const [selectedJobId, setSelectedJobId] = useState('job-1');
+  const [selectedJobOverride, setSelectedJobOverride] = useState(null);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
 
   const [applications, setApplications] = useState(() => safeGetLocalStorage('careerfit_applications', INITIAL_APPLICATIONS));
@@ -1415,21 +1416,15 @@ export function AppProvider({ children }) {
   };
 
 
-  const reportJob = (jobId, reason, description) => {
-    const job = jobs.find(j => j.id === jobId);
-    const newReport = {
-      id: `rep-${Date.now()}`,
-      jobId,
-      jobTitle: job ? job.title : 'Tin tuyển dụng',
-      company: job ? job.company : 'Doanh nghiệp',
-      reporterName: candidateProfile.name,
-      reason,
-      description,
-      date: new Date().toLocaleDateString('vi-VN'),
-      status: 'Pending'
-    };
-    setReportedJobs(prev => [newReport, ...prev]);
-    showToast('Đã gửi báo cáo tin tuyển dụng đáng ngờ tới Ban quản trị.', 'success');
+  const reportJob = async (jobId, reason, description) => {
+    try {
+      const response = await reportApi.create(jobId, { reason, description });
+      showToast(response.message || 'Đã gửi báo cáo tin tuyển dụng vi phạm tới Ban quản trị.', 'success');
+      return response.data;
+    } catch (err) {
+      showToast(err?.message || 'Không thể gửi báo cáo.', 'danger');
+      throw err;
+    }
   };
 
   // ADMIN USER MANAGEMENT
@@ -1643,33 +1638,27 @@ export function AppProvider({ children }) {
 
 
   // SUSPICIOUS REPORT HANDLING
-  const handleDismissReport = (reportId) => {
-    setReportedJobs(prev =>
-      prev.map(r => (r.id === reportId ? { ...r, status: 'Dismissed' } : r))
-    );
-    showToast('Đã bác bỏ báo cáo vi phạm.', 'info');
+  const handleDismissReport = async (reportId, adminNote) => {
+    try {
+      const response = await reportApi.updateStatus(reportId, { status: 'DISMISSED', adminNote });
+      setReportedJobs(prev => prev.map(r => (r.id === reportId ? response.data : r)));
+      showToast(response.message || 'Đã bác bỏ báo cáo vi phạm.', 'info');
+      return response.data;
+    } catch (err) {
+      showToast(err?.message || 'Không thể bác bỏ báo cáo.', 'danger');
+      throw err;
+    }
   };
 
-  const handleResolveReport = (reportId, action = 'resolve_only') => {
-    const report = reportedJobs.find(r => r.id === reportId);
-    setReportedJobs(prev =>
-      prev.map(r => (r.id === reportId ? { ...r, status: 'Resolved' } : r))
-    );
-
-    if (action === 'remove_job' && report) {
-      setJobs(prev => prev.filter(j => j.id !== report.jobId));
-      showToast('Đã gỡ bỏ tin tuyển dụng vi phạm khỏi hệ thống.', 'danger');
-    } else if (action === 'lock_employer' && report) {
-      const targetJob = jobs.find(j => j.id === report.jobId);
-      if (targetJob) {
-        setJobs(prev => prev.filter(j => j.id !== report.jobId));
-        setUsersDB(prev =>
-          prev.map(u => (u.id === targetJob.employerId ? { ...u, status: 'LOCKED', lockReason: 'Khóa tài khoản do vi phạm nghiêm trọng từ Báo cáo tin giả mạo' } : u))
-        );
-      }
-      showToast('Đã gỡ tin và khóa tài khoản doanh nghiệp vi phạm!', 'danger');
-    } else {
-      showToast('Đã đánh dấu xử lý xong báo cáo.', 'success');
+  const handleResolveReport = async (reportId, adminNote) => {
+    try {
+      const response = await reportApi.updateStatus(reportId, { status: 'RESOLVED', adminNote });
+      setReportedJobs(prev => prev.map(r => (r.id === reportId ? response.data : r)));
+      showToast(response.message || 'Đã hoàn tất xử lý báo cáo vi phạm.', 'success');
+      return response.data;
+    } catch (err) {
+      showToast(err?.message || 'Không thể xử lý báo cáo.', 'danger');
+      throw err;
     }
   };
 
@@ -1858,7 +1847,9 @@ export function AppProvider({ children }) {
     showToast('Đã đăng xuất khỏi hệ thống.', 'info');
   };
 
-  const selectedJob = jobs.find(j => j.id === selectedJobId) || jobs[0];
+  const selectedJob = selectedJobOverride?.id === selectedJobId
+    ? selectedJobOverride
+    : (jobs.find(j => j.id === selectedJobId) || jobs[0]);
 
   return (
     <AppContext.Provider
@@ -1887,6 +1878,8 @@ export function AppProvider({ children }) {
         setJobs,
         selectedJob,
         setSelectedJobId,
+        selectedJobOverride,
+        setSelectedJobOverride,
         savedJobIds,
         toggleSaveJob,
         applications,

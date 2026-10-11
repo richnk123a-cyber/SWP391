@@ -23,6 +23,15 @@ public class PostJobRequest {
     @NotBlank(message = "Mức lương không được để trống.")
     private String salary;
 
+    @jakarta.validation.constraints.Min(value = 0, message = "Lương tối thiểu không được là số âm.")
+    private Long salaryMin;
+
+    @jakarta.validation.constraints.Min(value = 0, message = "Lương tối đa không được là số âm.")
+    private Long salaryMax;
+
+    @Size(max = 10, message = "Đơn vị tiền tệ không được vượt quá 10 ký tự.")
+    private String salaryCurrency;
+
     private String description;
     private String responsibilities;
     private String requirements;

@@ -14,6 +14,9 @@ public class JobResponse {
     private String jobType;
     private String location;
     private String salary;
+    private Long salaryMin;
+    private Long salaryMax;
+    private String salaryCurrency;
     private String postedDate;
     private String description;
     private String responsibilities;
