@@ -22,5 +22,6 @@ public class JobResponse {
     private String preferredSkills;
     private String deadline;
     private String verificationStatus;
+    private String rejectionReason;
     private boolean isSaved;
 }

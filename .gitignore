@@ -31,6 +31,5 @@ backend/target/
 .env
 
 # Uploaded user files
-backend/uploads/cvs/
-uploads/cvs/
-
+backend/uploads/
+uploads/

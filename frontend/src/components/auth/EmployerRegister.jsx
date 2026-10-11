@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
+import { employerApi } from '../../services/apiService';
 import { getPasswordError } from '../../utils/passwordValidation';
 import './CandidateOnboarding.css';
 import './EmployerRegister.css';
@@ -28,6 +29,7 @@ export function EmployerRegister() {
     setEmployerProfile,
     setCompanies,
     setEmployerVerifications,
+    setJobs,
     setActivePage,
     setCurrentRole,
     showToast
@@ -102,14 +104,16 @@ export function EmployerRegister() {
 
   const handleNewRegistration = async (e) => {
     e.preventDefault();
-    const cleanEmail = formData.email.trim();
+    const cleanEmail = isEmployerUser ? (currentUser?.email || formData.email).trim() : formData.email.trim();
     const cleanPhone = formData.phone.replace(/\s+/g, '');
     const nextErrors = {};
     if (formData.recruiterName.trim().length < 2) nextErrors.recruiterName = 'Vui lòng nhập họ và tên (ít nhất 2 ký tự).';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) nextErrors.email = 'Vui lòng nhập email công việc hợp lệ.';
-    nextErrors.password = getPasswordError(formData.password);
-    if (!formData.confirmPassword) nextErrors.confirmPassword = 'Vui lòng nhập lại mật khẩu.';
-    else if (formData.password !== formData.confirmPassword) nextErrors.confirmPassword = 'Mật khẩu xác nhận không khớp.';
+    if (!isEmployerUser) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) nextErrors.email = 'Vui lòng nhập email công việc hợp lệ.';
+      nextErrors.password = getPasswordError(formData.password);
+      if (!formData.confirmPassword) nextErrors.confirmPassword = 'Vui lòng nhập lại mật khẩu.';
+      else if (formData.password !== formData.confirmPassword) nextErrors.confirmPassword = 'Mật khẩu xác nhận không khớp.';
+    }
     if (!/^(03|05|07|08|09)\d{8}$/.test(cleanPhone)) nextErrors.phone = 'Nhập 10 chữ số, bắt đầu bằng 03, 05, 07, 08 hoặc 09.';
     if (!formData.location.trim()) nextErrors.location = 'Vui lòng nhập tỉnh hoặc thành phố.';
     if (formData.companyName.trim().length < 2) nextErrors.companyName = 'Vui lòng nhập tên doanh nghiệp theo giấy phép.';
@@ -118,7 +122,7 @@ export function EmployerRegister() {
     if (!actualFile) nextErrors.license = 'Vui lòng đính kèm giấy phép kinh doanh.';
     if (!agreeTerms) nextErrors.terms = 'Vui lòng xác nhận cam kết trước khi đăng ký.';
     setErrors(nextErrors);
-    setPasswordTouched(true);
+    if (!isEmployerUser) setPasswordTouched(true);
     const firstError = Object.keys(nextErrors).find(key => nextErrors[key]);
     if (firstError) {
       document.getElementById('employer-' + firstError)?.focus();
@@ -127,6 +131,94 @@ export function EmployerRegister() {
 
     setIsSubmitting(true);
     try {
+      if (isEmployerUser) {
+        const formPayload = new FormData();
+        formPayload.append('recruiterName', formData.recruiterName.trim());
+        formPayload.append('companyName', formData.companyName.trim());
+        formPayload.append('phone', cleanPhone);
+        formPayload.append('taxId', formData.taxId.trim());
+        formPayload.append('location', formData.location.trim());
+        formPayload.append('industry', formData.industry.trim());
+        formPayload.append('website', formData.website || '');
+        formPayload.append('companySize', formData.companySize || '');
+        if (actualFile) formPayload.append('licenseFile', actualFile);
+
+        const result = await employerApi.submitVerification(formPayload);
+        const backendCompany = result?.data || result;
+
+        const updatedProfile = {
+          id: backendCompany?.id || employerProfile?.id || `comp-${Date.now()}`,
+          ownerUserId: currentUser?.id,
+          recruiterName: formData.recruiterName.trim(),
+          email: cleanEmail,
+          companyName: formData.companyName.trim(),
+          taxId: formData.taxId.trim(),
+          companySize: formData.companySize,
+          industry: formData.industry,
+          website: formData.website,
+          location: formData.location,
+          businessLicenseDoc: backendCompany?.businessLicenseFile || docName,
+          verificationStatus: 'Pending',
+          rejectionReason: '',
+          logo: backendCompany?.logo || employerProfile?.logo || '🏢',
+          phone: cleanPhone,
+        };
+
+        setJustRegisteredProfile(updatedProfile);
+        if (typeof setEmployerProfile === 'function') {
+          try { setEmployerProfile(updatedProfile); } catch (err2) { console.warn(err2); }
+        }
+        if (typeof setCompanies === 'function') {
+          try {
+            setCompanies(prev => {
+              const list = Array.isArray(prev) ? prev : [];
+              const idx = list.findIndex(c => c.id === updatedProfile.id || c.ownerUserId === currentUser?.id || c.email?.toLowerCase() === cleanEmail.toLowerCase());
+              if (idx >= 0) return list.map((c, i) => i === idx ? { ...c, ...updatedProfile } : c);
+              return [updatedProfile, ...list];
+            });
+          } catch (err2) { console.warn(err2); }
+        }
+        if (typeof setEmployerVerifications === 'function') {
+          try {
+            setEmployerVerifications(prev => [
+              {
+                id: backendCompany?.id || `ver-${Date.now()}`,
+                companyId: updatedProfile.id,
+                companyName: formData.companyName.trim(),
+                submittedDate: new Date().toLocaleDateString('vi-VN'),
+                status: 'Pending',
+                documentName: backendCompany?.businessLicenseFile || docName,
+                website: formData.website,
+                industry: formData.industry,
+                location: formData.location,
+                rejectReason: ''
+              },
+              ...(Array.isArray(prev) ? prev.filter(v => v.companyId !== updatedProfile.id) : [])
+            ]);
+          } catch (err2) { console.warn(err2); }
+        }
+        if (typeof setJobs === 'function' && formData.companyName.trim()) {
+          try {
+            setJobs(prev => {
+              const list = Array.isArray(prev) ? prev : [];
+              return list.map(j => {
+                const isMyJob = (currentUser?.id && j.employerId === currentUser.id) ||
+                                (employerProfile?.ownerUserId && j.employerId === employerProfile.ownerUserId) ||
+                                (employerProfile?.id && j.employerId === employerProfile.id) ||
+                                (employerProfile?.companyName && j.company === employerProfile.companyName);
+                if (isMyJob) {
+                  return { ...j, company: formData.companyName.trim(), employerId: currentUser?.id || j.employerId };
+                }
+                return j;
+              });
+            });
+          } catch (err3) { console.warn(err3); }
+        }
+        setActiveTab('status');
+        showToast('Hồ sơ xác minh đã được gửi tới Ban Quản trị xét duyệt!', 'success');
+        return;
+      }
+
       const formPayload = new FormData();
       formPayload.append('recruiterName', formData.recruiterName.trim());
       formPayload.append('companyName', formData.companyName.trim());
@@ -139,9 +231,7 @@ export function EmployerRegister() {
       formPayload.append('location', formData.location.trim());
       formPayload.append('industry', formData.industry.trim());
       formPayload.append('website', formData.website || '');
-
-      const licenseToUpload = actualFile;
-      formPayload.append('licenseFile', licenseToUpload);
+      formPayload.append('licenseFile', actualFile);
 
       const res = await fetch(`${BACKEND_URL}/api/auth/register/employer`, {
         method: 'POST',
@@ -149,21 +239,15 @@ export function EmployerRegister() {
       });
 
       let data = {};
-      try {
-        data = await res.json();
-      } catch (parseErr) {
-        console.warn('Response JSON parse warning:', parseErr);
-      }
+      try { data = await res.json(); } catch (parseErr) { console.warn('Response JSON parse warning:', parseErr); }
 
       if (!res.ok) {
         let errorMsg = data.message || 'Đăng ký doanh nghiệp không thành công.';
         if (data.errors && typeof data.errors === 'object') {
           const detailList = Object.values(data.errors);
-          if (detailList.length > 0) {
-            errorMsg = detailList.join(' | ');
-          }
+          if (detailList.length > 0) errorMsg = detailList.join(' | ');
+          setErrors(data.errors);
         }
-        if (data.errors && typeof data.errors === 'object') setErrors(data.errors);
         showToast(errorMsg, 'danger');
         return;
       }
@@ -187,40 +271,22 @@ export function EmployerRegister() {
       };
 
       setJustRegisteredProfile(updatedProfile);
-
       if (typeof setEmployerProfile === 'function') {
-        try {
-          setEmployerProfile(updatedProfile);
-        } catch (e) {
-          console.warn('setEmployerProfile error:', e);
-        }
+        try { setEmployerProfile(updatedProfile); } catch (e) { console.warn('setEmployerProfile error:', e); }
       }
-
       if (typeof setCurrentRole === 'function') {
-        try {
-          setCurrentRole('employer');
-        } catch (e) {
-          console.warn('setCurrentRole error:', e);
-        }
+        try { setCurrentRole('employer'); } catch (e) { console.warn('setCurrentRole error:', e); }
       }
-
-      // Update company catalog safely
       if (typeof setCompanies === 'function') {
         try {
           setCompanies(prev => {
             const list = Array.isArray(prev) ? prev : [];
             const exists = list.find(c => c.companyName.toLowerCase() === formData.companyName.trim().toLowerCase());
-            if (exists) {
-              return list.map(c => c.id === exists.id ? { ...c, ...updatedProfile, verificationStatus: 'Pending' } : c);
-            }
+            if (exists) return list.map(c => c.id === exists.id ? { ...c, ...updatedProfile, verificationStatus: 'Pending' } : c);
             return [updatedProfile, ...list];
           });
-        } catch (e) {
-          console.warn('setCompanies error:', e);
-        }
+        } catch (e) { console.warn('setCompanies error:', e); }
       }
-
-      // Push verification ticket safely
       if (typeof setEmployerVerifications === 'function') {
         try {
           setEmployerVerifications(prev => [
@@ -238,9 +304,7 @@ export function EmployerRegister() {
             },
             ...(Array.isArray(prev) ? prev : [])
           ]);
-        } catch (e) {
-          console.warn('setEmployerVerifications error:', e);
-        }
+        } catch (e) { console.warn('setEmployerVerifications error:', e); }
       }
 
       setActiveTab('status');
@@ -320,9 +384,15 @@ export function EmployerRegister() {
           <h3>1. Thông tin người liên hệ / HR<span>* Trường bắt buộc</span></h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {field('recruiterName', 'Họ và tên', 'Ví dụ: Trần Thị Hà', 'text', true)}
-            {field('email', 'Email công việc', 'Ví dụ: hr@congty.vn', 'email', true)}
-            <div className="form-group"><label className="form-label" htmlFor="employer-password">Mật khẩu *</label><div className="relative"><input id="employer-password" className="form-control pr-10" type={showPassword ? 'text' : 'password'} autoComplete="new-password" maxLength={100} placeholder="Tối thiểu 8 ký tự" value={formData.password} onChange={event => updateField('password', event.target.value)} onBlur={() => setPasswordTouched(true)} aria-invalid={Boolean(passwordError)} aria-describedby="employer-password-help employer-password-error" /><button type="button" className="candidate-password-toggle" aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} onClick={() => setShowPassword(previous => !previous)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div><p id="employer-password-help" className="candidate-input-hint">Ít nhất 8 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt.</p><p id="employer-password-error" className={passwordError ? 'candidate-field-error' : 'candidate-password-valid'} aria-live="polite">{passwordError || (formData.password ? 'Mật khẩu đáp ứng yêu cầu.' : '')}</p></div>
-            <div className="form-group"><label className="form-label" htmlFor="employer-confirmPassword">Xác nhận mật khẩu *</label><input id="employer-confirmPassword" className="form-control" type={showPassword ? 'text' : 'password'} autoComplete="new-password" placeholder="Nhập lại mật khẩu" value={formData.confirmPassword} onChange={event => updateField('confirmPassword', event.target.value)} aria-invalid={Boolean(errors.confirmPassword || (formData.confirmPassword && formData.password !== formData.confirmPassword))} />{(errors.confirmPassword || (formData.confirmPassword && formData.password !== formData.confirmPassword)) && <p className="candidate-field-error" role="alert">{errors.confirmPassword || 'Mật khẩu xác nhận không khớp.'}</p>}</div>
+            {isEmployerUser ? (
+              <div className="form-group">
+                <label className="form-label">Email tài khoản</label>
+                <input className="form-control" type="email" value={currentUser?.email || formData.email} readOnly disabled style={{background:'#f8f9fa',cursor:'not-allowed',color:'#6c757d'}} />
+                <p className="candidate-input-hint">Email liên kết với tài khoản hiện tại của bạn.</p>
+              </div>
+            ) : field('email', 'Email c\u00f4ng vi\u1ec7c', 'V\u00ed d\u1ee5: hr@congty.vn', 'email', true)}
+            {!isEmployerUser && (<><div className="form-group"><label className="form-label" htmlFor="employer-password">Mật khẩu *</label><div className="relative"><input id="employer-password" className="form-control pr-10" type={showPassword ? 'text' : 'password'} autoComplete="new-password" maxLength={100} placeholder="Tối thiểu 8 ký tự" value={formData.password} onChange={event => updateField('password', event.target.value)} onBlur={() => setPasswordTouched(true)} aria-invalid={Boolean(passwordError)} aria-describedby="employer-password-help employer-password-error" /><button type="button" className="candidate-password-toggle" aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} onClick={() => setShowPassword(previous => !previous)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div><p id="employer-password-help" className="candidate-input-hint">Ít nhất 8 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt.</p><p id="employer-password-error" className={passwordError ? 'candidate-field-error' : 'candidate-password-valid'} aria-live="polite">{passwordError || (formData.password ? 'Mật khẩu đáp ứng yêu cầu.' : '')}</p></div>
+            <div className="form-group"><label className="form-label" htmlFor="employer-confirmPassword">Xác nhận mật khẩu *</label><input id="employer-confirmPassword" className="form-control" type={showPassword ? 'text' : 'password'} autoComplete="new-password" placeholder="Nhập lại mật khẩu" value={formData.confirmPassword} onChange={event => updateField('confirmPassword', event.target.value)} aria-invalid={Boolean(errors.confirmPassword || (formData.confirmPassword && formData.password !== formData.confirmPassword))} />{(errors.confirmPassword || (formData.confirmPassword && formData.password !== formData.confirmPassword)) && <p className="candidate-field-error" role="alert">{errors.confirmPassword || 'Mật khẩu xác nhận không khớp.'}</p>}</div></>)}
             {field('phone', 'Số điện thoại', 'Ví dụ: 0908 678 910', 'tel', true)}
             {field('location', 'Tỉnh / Thành phố', 'Ví dụ: TP. Hồ Chí Minh', 'text', true)}
           </div>
@@ -345,7 +415,7 @@ export function EmployerRegister() {
           {docFile && <div className="candidate-cv-file"><FileText aria-hidden="true" /><div><strong>{docName}</strong><p>{actualFile ? (actualFile.size / 1024 / 1024).toFixed(2) + ' MB · Sẵn sàng gửi xác minh' : 'Tài liệu đã đính kèm'}</p></div><button type="button" aria-label="Bỏ giấy phép đã chọn" onClick={() => { setActualFile(null); setDocFile(null); setDocName(''); }}><XCircle size={18} /></button></div>}
           {errors.license && <p className="candidate-field-error" role="alert">{errors.license}</p>}
         </section>
-        <div className="employer-submit-row"><div className="candidate-terms"><label><input id="employer-terms" type="checkbox" checked={agreeTerms} onChange={event => { setAgreeTerms(event.target.checked); setErrors(previous => ({ ...previous, terms: '' })); }} />Tôi cam kết thông tin cung cấp là chính xác và đồng ý với điều khoản dịch vụ của CareerFit.</label>{errors.terms && <p className="candidate-field-error" role="alert">{errors.terms}</p>}</div><button type="submit" disabled={isSubmitting} className="btn btn-primary">{isSubmitting ? <><Loader2 size={18} className="animate-spin" /> Đang gửi hồ sơ...</> : <>Đăng ký tài khoản <ArrowRight size={16} /></>}</button></div>
+        <div className="employer-submit-row"><div className="candidate-terms"><label><input id="employer-terms" type="checkbox" checked={agreeTerms} onChange={event => { setAgreeTerms(event.target.checked); setErrors(previous => ({ ...previous, terms: '' })); }} />Tôi cam kết thông tin cung cấp là chính xác và đồng ý với điều khoản dịch vụ của CareerFit.</label>{errors.terms && <p className="candidate-field-error" role="alert">{errors.terms}</p>}</div><button type="submit" disabled={isSubmitting} className="btn btn-primary">{isSubmitting ? <><Loader2 size={18} className="animate-spin" /> Đang gửi hồ sơ...</> : <>{isEmployerUser ? 'Gửi hồ sơ xác minh' : 'Đăng ký tài khoản'} <ArrowRight size={16} /></>}</button></div>
       </form>}
 
       {/* TAB 2: STATUS & VERIFICATION DASHBOARD */}
@@ -381,7 +451,7 @@ export function EmployerRegister() {
                 </div>
                 <div className="flex justify-between border-b border-slate-200 pb-2">
                   <span className="text-slate-400">Tài liệu đã duyệt:</span>
-                  <strong className="text-blue-600">{targetCompany.businessLicenseDoc || 'Chưa có tài liệu'}</strong>
+                  <strong className="text-blue-600">{targetCompany.businessLicenseFile || targetCompany.businessLicenseDoc || 'Chưa có tài liệu'}</strong>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Người đại diện HR:</span>
@@ -439,7 +509,7 @@ export function EmployerRegister() {
                     <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
                     <div>
                       <p className="font-bold text-slate-900">2. Tải lên tài liệu GPKD</p>
-                      <p className="text-[11px] text-slate-500">File: {targetCompany.businessLicenseDoc || docName || 'GPKD_DoanhNghiep.pdf'}</p>
+                      <p className="text-[11px] text-slate-500">File: {targetCompany.businessLicenseFile || targetCompany.businessLicenseDoc || docName || 'GPKD_DoanhNghiep.pdf'}</p>
                     </div>
                   </div>
 

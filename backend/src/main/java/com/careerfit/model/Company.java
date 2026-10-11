@@ -20,4 +20,5 @@ public class Company {
     @Column(name = "business_license_file", length = 255) private String businessLicenseFile;
     @Column(name = "rejection_reason", columnDefinition = "NVARCHAR(MAX)") private String rejectionReason;
     @Column(length = 20) private String phone;
+    @Column(name = "tax_id", length = 50) private String taxId;
 }

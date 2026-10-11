@@ -57,6 +57,17 @@ public class JobController {
                 .body(ApiResponse.success("Đăng tin tuyển dụng thành công! Đang chờ Admin duyệt.", job));
     }
 
+    // PUT /api/jobs/{jobId} - Chỉnh sửa tin tuyển dụng
+    @PutMapping("/{jobId}")
+    @PreAuthorize("hasRole('EMPLOYER')")
+    public ResponseEntity<ApiResponse<JobResponse>> updateJob(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable String jobId,
+            @Valid @RequestBody PostJobRequest request) {
+        JobResponse job = jobService.updateJob(userDetails.getUsername(), jobId, request);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật tin tuyển dụng thành công!", job));
+    }
+
     // GET /api/jobs/my - Employer xem tin của mình
     @GetMapping("/my")
     @PreAuthorize("hasRole('EMPLOYER')")
@@ -76,6 +87,16 @@ public class JobController {
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách ứng viên thành công.", apps));
     }
 
+    // DELETE /api/jobs/{jobId} - Employer xóa tin của mình
+    @DeleteMapping("/{jobId}")
+    @PreAuthorize("hasRole('EMPLOYER')")
+    public ResponseEntity<ApiResponse<Void>> deleteMyJob(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable String jobId) {
+        jobService.deleteJob(userDetails.getUsername(), jobId);
+        return ResponseEntity.ok(ApiResponse.success("Đã xóa tin tuyển dụng thành công."));
+    }
+
     // ===== CANDIDATE ENDPOINTS =====
 
     // POST /api/jobs/{jobId}/apply - Nộp đơn ứng tuyển
@@ -89,6 +110,17 @@ public class JobController {
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Nộp đơn ứng tuyển thành công!", app));
     }
+
+    // DELETE /api/jobs/{jobId}/apply - Hủy đơn ứng tuyển
+    @DeleteMapping("/{jobId}/apply")
+    @PreAuthorize("hasRole('CANDIDATE')")
+    public ResponseEntity<ApiResponse<Void>> cancelApplication(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable String jobId) {
+        jobService.cancelApplication(userDetails.getUsername(), jobId);
+        return ResponseEntity.ok(ApiResponse.success("Đã hủy đơn ứng tuyển thành công."));
+    }
+
 
     // POST /api/jobs/{jobId}/save - Lưu / bỏ lưu job
     @PostMapping("/{jobId}/save")

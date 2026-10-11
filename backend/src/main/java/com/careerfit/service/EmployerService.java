@@ -17,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -48,9 +49,9 @@ public class EmployerService {
                             .recruiterName(user.getUsername() != null ? user.getUsername() : "")
                             .email(user.getEmail())
                             .logo("🏢")
-                            .verificationStatus("Pending")
+                            .verificationStatus(null)
                             .build();
-                    log.info("Auto-created company=[{}] linked to employer user=[{}] with status Pending", compId, user.getId());
+                    log.info("Auto-created company=[{}] linked to employer user=[{}] with status null (not yet submitted)", compId, user.getId());
                     return companyRepository.save(newComp);
                 });
 
@@ -84,7 +85,7 @@ public class EmployerService {
                             .recruiterName(request.getRecruiterName() != null ? request.getRecruiterName().trim() : user.getUsername())
                             .email(user.getEmail())
                             .logo("🏢")
-                            .verificationStatus("Verified")
+                            .verificationStatus(null)
                             .build();
                     log.info("Auto-created company=[{}] on update for employer user=[{}]", compId, user.getId());
                     return newComp;
@@ -106,10 +107,86 @@ public class EmployerService {
         if (request.getSize() != null)          company.setSize(request.getSize().trim());
         if (request.getLocation() != null)      company.setLocation(request.getLocation().trim());
         if (request.getLogo() != null)          company.setLogo(request.getLogo().trim());
+        if (request.getTaxId() != null)         company.setTaxId(request.getTaxId().trim());
 
         company = companyRepository.save(company);
-        log.info("Company info updated for employer=[{}] companyId=[{}] logo_len=[{}]", 
+        log.info("Company info updated for employer=[{}] companyId=[{}] logo_len=[{}]",
                 user.getEmail(), company.getId(), company.getLogo() != null ? company.getLogo().length() : 0);
+        return mapToResponse(company);
+    }
+
+    // ===== Nộp hồ sơ xác minh doanh nghiệp (cho employer đã có tài khoản) =====
+    @Transactional
+    public CompanyResponse submitVerification(String userIdOrEmail, String recruiterName, String companyName,
+                                              String phone, String taxId, String location, String industry,
+                                              String website, String companySize, MultipartFile licenseFile) {
+        User user = userRepository.findById(userIdOrEmail)
+                .or(() -> userRepository.findFirstByEmail(userIdOrEmail.toLowerCase()))
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản."));
+
+        Company company = companyRepository.findByOwnerUserId(user.getId())
+                .or(() -> companyRepository.findFirstByEmail(user.getEmail().toLowerCase()))
+                .orElseGet(() -> {
+                    String compId = "comp-" + UUID.randomUUID().toString().substring(0, 8);
+                    Company newComp = Company.builder()
+                            .id(compId)
+                            .ownerUserId(user.getId())
+                            .email(user.getEmail())
+                            .logo("🏢")
+                            .build();
+                    log.info("Auto-created company=[{}] for submit-verification of user=[{}]", compId, user.getId());
+                    return newComp;
+                });
+
+        // Cập nhật ownerUserId và email
+        company.setOwnerUserId(user.getId());
+        company.setEmail(user.getEmail());
+
+        // Cập nhật các trường thông tin
+        if (recruiterName != null && !recruiterName.isBlank()) company.setRecruiterName(recruiterName.trim());
+        if (companyName   != null && !companyName.isBlank())   company.setCompanyName(companyName.trim());
+        if (phone         != null && !phone.isBlank())         company.setPhone(phone.trim());
+        if (taxId         != null && !taxId.isBlank())         company.setTaxId(taxId.trim());
+        if (location      != null && !location.isBlank())      company.setLocation(location.trim());
+        if (industry      != null && !industry.isBlank())      company.setIndustry(industry.trim());
+        if (website       != null && !website.isBlank())       company.setWebsite(website.trim());
+        if (companySize   != null && !companySize.isBlank())   company.setSize(companySize.trim());
+
+        // Lưu file GPKD vào thư mục uploads/
+        if (licenseFile != null && !licenseFile.isEmpty()) {
+            String originalFilename = licenseFile.getOriginalFilename();
+            String extension = ".pdf";
+            if (originalFilename != null && originalFilename.contains(".")) {
+                extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            }
+            String fileName = "GPKD_" + UUID.randomUUID() + extension;
+            try {
+                Path uploadPath = Paths.get("uploads/");
+                if (!Files.exists(uploadPath)) Files.createDirectories(uploadPath);
+                Files.write(uploadPath.resolve(fileName), licenseFile.getBytes());
+            } catch (Exception e) {
+                throw new BadRequestException("Lỗi khi lưu file giấy phép kinh doanh: " + e.getMessage());
+            }
+            company.setBusinessLicenseFile(fileName);
+            log.info("Saved business license file=[{}] for employer=[{}]", fileName, user.getEmail());
+        }
+
+        // Đặt trạng thái chờ kiểm duyệt
+        company.setVerificationStatus("Pending");
+        company.setRejectionReason(null);
+
+        company = companyRepository.save(company);
+        log.info("Employer=[{}] submitted verification for companyId=[{}]", user.getEmail(), company.getId());
+
+        // Dọn dẹp bất kỳ bản ghi công ty trùng lặp cùng email để tránh xung đột trạng thái
+        List<Company> duplicates = companyRepository.findAllByEmail(user.getEmail().toLowerCase());
+        for (Company dup : duplicates) {
+            if (!dup.getId().equals(company.getId())) {
+                companyRepository.delete(dup);
+                log.info("Deleted orphan duplicate company=[{}] for email=[{}]", dup.getId(), user.getEmail());
+            }
+        }
+
         return mapToResponse(company);
     }
 
@@ -173,6 +250,8 @@ public class EmployerService {
                 .logo(c.getLogo())
                 .verificationStatus(c.getVerificationStatus())
                 .rejectionReason(c.getRejectionReason())
+                .taxId(c.getTaxId())
+                .businessLicenseFile(c.getBusinessLicenseFile())
                 .build();
     }
 }

@@ -16,8 +16,11 @@ export function JobDetailPage() {
   const {
     selectedJob,
     jobs = [],
+    applications = [],
     candidateProfile,
+    currentUser,
     applyForJob,
+    cancelApplication,
     savedJobIds = [],
     toggleSaveJob,
     setIsAIModalOpen,
@@ -44,6 +47,15 @@ export function JobDetailPage() {
 
   const isSaved = savedJobIds.includes(selectedJob.id);
   const candidateSkills = candidateProfile?.skills || [];
+
+  // Kiểm tra ứng viên đã nộp đơn vào công việc này chưa
+  const hasApplied = currentUser?.role === 'CANDIDATE' && applications.some(a =>
+    a.jobId === selectedJob.id &&
+    (a.candidateEmail === candidateProfile?.email ||
+     a.candidateId === candidateProfile?.id ||
+     a.candidateId === currentUser?.id)
+  );
+
   const safeRequiredSkills = Array.isArray(selectedJob.requiredSkills)
     ? selectedJob.requiredSkills
     : (typeof selectedJob.requiredSkills === 'string'
@@ -167,13 +179,24 @@ export function JobDetailPage() {
                 <span>{isSaved ? 'Đã lưu tin' : 'Lưu tin'}</span>
               </button>
 
-              <button
-                onClick={() => applyForJob(selectedJob.id)}
-                className="px-7 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl text-xs sm:text-sm font-black shadow-lg shadow-blue-500/25 hover:shadow-xl transition-all cursor-pointer"
-              >
-                Ứng tuyển ngay
-              </button>
+              {hasApplied ? (
+                <button
+                  onClick={() => cancelApplication(selectedJob.id)}
+                  className="px-7 py-3 bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white rounded-2xl text-xs sm:text-sm font-black shadow-lg shadow-rose-500/25 hover:shadow-xl transition-all cursor-pointer flex items-center gap-2"
+                >
+                  <span>✓ Đã ứng tuyển</span>
+                  <span className="text-rose-200 font-normal">— Hủy</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => applyForJob(selectedJob.id)}
+                  className="px-7 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl text-xs sm:text-sm font-black shadow-lg shadow-blue-500/25 hover:shadow-xl transition-all cursor-pointer"
+                >
+                  Ứng tuyển ngay
+                </button>
+              )}
             </div>
+
           </div>
         </div>
       </div>

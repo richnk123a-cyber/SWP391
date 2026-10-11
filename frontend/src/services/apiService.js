@@ -65,13 +65,16 @@ export const jobApi = {
 
   // Candidate
   applyJob: (jobId) => api.post(`/jobs/${jobId}/apply`),
+  cancelApplication: (jobId) => api.delete(`/jobs/${jobId}/apply`),
   toggleSaveJob: (jobId) => api.post(`/jobs/${jobId}/save`),
   getMyApplications: () => api.get('/jobs/applications/my'),
 
   // Employer
   postJob: (data) => api.post('/jobs', data),
+  updateJob: (jobId, data) => api.put(`/jobs/${jobId}`, data),
   getMyJobs: () => api.get('/jobs/my'),
   getApplicationsByJob: (jobId) => api.get(`/jobs/${jobId}/applications`),
+  deleteJob: (jobId) => api.delete(`/jobs/${jobId}`),
 };
 
 // ============================================================
@@ -107,6 +110,24 @@ export const candidateApi = {
 };
 
 // ============================================================
+// ADMIN APIs
+// ============================================================
+export const adminApi = {
+  // Job Moderation
+  getAllJobs: () => api.get('/admin/jobs'),
+  getPendingJobs: () => api.get('/admin/jobs/pending'),
+  approveJob: (jobId) => api.put(`/admin/jobs/${jobId}/approve`),
+  rejectJob: (jobId, reason) => api.put(`/admin/jobs/${jobId}/reject`, { reason }),
+  removeJob: (jobId) => api.delete(`/admin/jobs/${jobId}`),
+
+  // Employer Verification Management
+  getPendingVerifications: () => api.get('/admin/verifications'),
+  getAllVerifications: () => api.get('/admin/verifications/all'),
+  approveVerification: (companyId) => api.put(`/admin/verifications/${companyId}/approve`),
+  rejectVerification: (companyId, reason) => api.put(`/admin/verifications/${companyId}/reject`, { reason }),
+};
+
+// ============================================================
 // EMPLOYER APIs
 // ============================================================
 export const employerApi = {
@@ -119,7 +140,6 @@ export const employerApi = {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
-
   // SCRUM-52: Xem chi tiết hồ sơ ứng viên
   getCandidateProfile: (candidateId) => api.get(`/employer/candidates/${candidateId}`),
 
@@ -138,4 +158,10 @@ export const employerApi = {
     return await response.blob();
   },
   getCandidateCvDownloadUrl: (candidateId) => `${BASE_URL}/employer/candidates/${candidateId}/cv/download`,
+
+  // Endpoint dành cho employer đã có tài khoản (chuyển từ CANDIDATE → EMPLOYER trong DB)
+  // nộp hồ sơ xác minh doanh nghiệp mà không cần tạo user mới
+  submitVerification: (formData) => api.post('/employer/company/submit-verification', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
 };

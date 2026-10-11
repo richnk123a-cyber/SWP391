@@ -39,6 +39,7 @@ export function EmployerVerificationPage() {
       !q ||
       ver.companyName.toLowerCase().includes(q) ||
       (ver.representative && ver.representative.toLowerCase().includes(q)) ||
+      (ver.recruiterName && ver.recruiterName.toLowerCase().includes(q)) ||
       (ver.email && ver.email.toLowerCase().includes(q)) ||
       (ver.taxId && ver.taxId.includes(q));
 
@@ -220,7 +221,7 @@ export function EmployerVerificationPage() {
                       <p className="text-xs text-slate-500 mt-0.5">{ver.industry} • {ver.location}</p>
                     </td>
                     <td className="py-3.5 px-4 text-slate-700">
-                      <p className="font-semibold text-slate-800">{ver.representative || 'Chưa cập nhật'}</p>
+                      <p className="font-semibold text-slate-800">{ver.representative || ver.recruiterName || 'Chưa cập nhật'}</p>
                       <p className="text-xs text-slate-500 mt-0.5">{ver.email || 'Chưa có email'}</p>
                     </td>
                     <td className="py-3.5 px-4 font-mono text-xs font-bold text-slate-800">
@@ -231,7 +232,7 @@ export function EmployerVerificationPage() {
                         onClick={() => setViewingVerify(ver)}
                         className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
                       >
-                        <FileText size={14} /> Xem tài liệu
+                        <FileText size={14} /> {ver.documentName || ver.businessLicenseFile || 'Xem tài liệu'}
                       </button>
                     </td>
                     <td className="py-3.5 px-4 text-xs text-slate-500">{ver.submittedDate}</td>
@@ -338,7 +339,7 @@ export function EmployerVerificationPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Người đại diện pháp luật</label>
-                <p className="font-semibold text-slate-900 mt-1">{viewingVerify.representative || 'Chưa cập nhật'}</p>
+                <p className="font-semibold text-slate-900 mt-1">{viewingVerify.representative || viewingVerify.recruiterName || 'Chưa cập nhật'}</p>
               </div>
 
               <div>
@@ -369,7 +370,7 @@ export function EmployerVerificationPage() {
                   </div>
                   <div>
                     <p className="text-xs font-bold text-slate-900">
-                      {viewingVerify.businessLicenseFile || `GPKD_${viewingVerify.companyName.replace(/\s+/g, '_')}.pdf`}
+                      {viewingVerify.documentName || viewingVerify.businessLicenseFile || `GPKD_${viewingVerify.companyName?.replace(/\s+/g, '_') || 'DoanhNghiep'}.pdf`}
                     </p>
                     <p className="text-[11px] text-slate-400">Định dạng: PDF Document • Đã xác thực chữ ký số</p>
                   </div>
@@ -378,9 +379,15 @@ export function EmployerVerificationPage() {
                   href={`#view-license`}
                   onClick={(e) => {
                     e.preventDefault();
-                    showToast('Đang mở tài liệu Giấy phép kinh doanh...', 'info');
+                    const doc = viewingVerify.documentName || viewingVerify.businessLicenseFile;
+                    if (doc && doc.startsWith('GPKD_')) {
+                      const backendUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || 'http://localhost:8080';
+                      window.open(`${backendUrl}/uploads/${doc}`, '_blank');
+                    } else {
+                      showToast(`Đang mở tài liệu: ${doc || 'GPKD_DoanhNghiep.pdf'}`, 'info');
+                    }
                   }}
-                  className="btn btn-secondary text-xs font-semibold h-8 px-3 rounded border border-slate-200 bg-white hover:bg-slate-50"
+                  className="btn btn-secondary text-xs font-semibold h-8 px-3 rounded border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer"
                 >
                   <ExternalLink size={13} className="mr-1 inline" /> Mở xem
                 </a>
