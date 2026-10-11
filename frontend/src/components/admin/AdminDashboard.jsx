@@ -284,11 +284,12 @@ export function AdminDashboard() {
                     {rep.jobTitle || 'Tin tuyển dụng'}
                   </span>
                   <span className={`text-[11px] font-semibold px-2 py-0.5 rounded ${
-                    rep.status === 'Resolved' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
-                    rep.status === 'Dismissed' ? 'bg-slate-100 text-slate-700' :
+                    ['RESOLVED', 'Resolved'].includes(rep.status) ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
+                    ['DISMISSED', 'Dismissed'].includes(rep.status) ? 'bg-slate-100 text-slate-700' :
+                    ['REVIEWING', 'Reviewing'].includes(rep.status) ? 'bg-amber-50 text-amber-800 border border-amber-200' :
                     'bg-rose-50 text-rose-800 border border-rose-200'
                   }`}>
-                    {rep.status === 'Resolved' ? 'Đã xử lý' : rep.status === 'Dismissed' ? 'Đã bác bỏ' : 'Chờ xử lý'}
+                    {['RESOLVED', 'Resolved'].includes(rep.status) ? 'Đã xử lý' : ['DISMISSED', 'Dismissed'].includes(rep.status) ? 'Đã bác bỏ' : ['REVIEWING', 'Reviewing'].includes(rep.status) ? 'Đang xác minh' : 'Chờ xử lý'}
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 line-clamp-2">

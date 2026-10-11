@@ -60,7 +60,8 @@ export const authApi = {
 // ============================================================
 export const jobApi = {
   // Public
-  searchJobs: (params) => api.get('/jobs', { params }),
+  searchJobs: (params, signal) => api.get('/jobs', { params, signal }),
+  getFilterOptions: () => api.get('/jobs/filter-options'),
   getJobById: (jobId) => api.get(`/jobs/${jobId}`),
 
   // Candidate
@@ -190,4 +191,15 @@ export const employerApi = {
   submitVerification: (formData) => api.post('/employer/company/submit-verification', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+};
+
+// ============================================================
+// REPORT APIs
+// ============================================================
+export const reportApi = {
+  create: (jobId, data) => api.post(`/jobs/${jobId}/reports`, data),
+  getMine: (params) => api.get('/candidate/reports', { params }),
+  getAdminList: (params) => api.get('/admin/reports', { params }),
+  getAdminDetail: (reportId) => api.get(`/admin/reports/${reportId}`),
+  updateStatus: (reportId, data) => api.patch(`/admin/reports/${reportId}/status`, data),
 };

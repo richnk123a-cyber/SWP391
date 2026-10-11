@@ -1,14 +1,16 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { calculateSkillMatch } from '../../utils/matching';
-import { ArrowUpRight, ArrowRight, Bookmark, BriefcaseBusiness, Check, CheckCircle2, ChevronRight, FileText, MapPin, Send, Eye, CalendarDays, Trophy, BookOpen } from 'lucide-react';
+import { ArrowUpRight, ArrowRight, Bookmark, BriefcaseBusiness, Check, CheckCircle2, ChevronRight, FileText, MapPin, Send, Eye, CalendarDays, Trophy, BookOpen, ShieldAlert } from 'lucide-react';
 import './CandidateDashboard.css';
 import { CandidateCareerBanner } from './CandidateCareerBanner';
+import { CandidateReportHistoryModal } from './CandidateReportHistoryModal';
 
 const EMPTY_SKILLS = [];
 
 export function CandidateDashboard() {
   const { currentUser, candidateProfile, jobs = [], applications = [], roadmaps = [], setActivePage, setSelectedJobId, setIsAIModalOpen, savedJobIds = [], toggleSaveJob } = useApp();
+  const [isReportHistoryOpen, setIsReportHistoryOpen] = useState(false);
   const profile = candidateProfile || {};
   const skills = profile.skills || EMPTY_SKILLS;
   const name = profile.name || currentUser?.fullName || currentUser?.username || 'bạn';
@@ -49,7 +51,15 @@ export function CandidateDashboard() {
     <div className="candidate-overview">
       <header className="overview-heading">
         <div><p className="overview-eyebrow">KHÔNG GIAN CỦA BẠN</p><h1>Tổng quan sự nghiệp</h1><p>Mỗi bước nhỏ hôm nay, một cơ hội mới ngày mai.</p></div>
-        <span className="overview-date"><CalendarDays size={15} />{date}</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsReportHistoryOpen(true)}
+            className="btn btn-secondary text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 font-medium bg-white text-slate-700 shadow-xs transition-colors cursor-pointer"
+          >
+            <ShieldAlert size={14} className="text-amber-600" /> Báo cáo của tôi
+          </button>
+          <span className="overview-date"><CalendarDays size={15} />{date}</span>
+        </div>
       </header>
 
       <CandidateCareerBanner name={name} targetRole={profile.preferences?.desiredRole || 'Fresher Developer'} skills={skills} jobCount={recommended.length} hasCV={profile.hasCV} onNavigate={setActivePage} />
@@ -96,6 +106,7 @@ export function CandidateDashboard() {
         </aside>
       </div>
       <footer className="overview-footer"><span>CareerFit <span> / </span> Hành trình nghề nghiệp của bạn</span></footer>
+      <CandidateReportHistoryModal isOpen={isReportHistoryOpen} onClose={() => setIsReportHistoryOpen(false)} />
     </div>
   );
 }

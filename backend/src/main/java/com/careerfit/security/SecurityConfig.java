@@ -59,6 +59,7 @@ public class SecurityConfig {
                     "/api/auth/**",
                     "/api/dev/**",
                     "/api/jobs",
+                    "/api/jobs/filter-options",
                     "/api/jobs/{id}",
                     "/api/skills/**",
                     "/api/roadmaps/**",

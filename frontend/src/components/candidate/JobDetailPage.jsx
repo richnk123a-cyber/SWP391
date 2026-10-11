@@ -296,12 +296,21 @@ export function JobDetailPage() {
             {/* Report Job Trigger Button */}
             <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
               <span>Mã tin: #{selectedJob.id}</span>
-              <button
-                onClick={() => setIsReportModalOpen && setIsReportModalOpen(true)}
-                className="text-slate-400 hover:text-rose-600 flex items-center gap-1 transition-colors cursor-pointer"
-              >
-                <ShieldAlert size={14} /> Báo cáo tin đăng không phù hợp
-              </button>
+              {(!currentUser || currentUser.role === 'CANDIDATE') && (
+                <button
+                  onClick={() => {
+                    if (!currentUser) {
+                      showToast('Vui lòng đăng nhập bằng tài khoản Candidate để gửi báo cáo.', 'info');
+                      setActivePage('login');
+                      return;
+                    }
+                    setIsReportModalOpen(true);
+                  }}
+                  className="text-slate-400 hover:text-rose-600 flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  <ShieldAlert size={14} /> Báo cáo tin đăng không phù hợp
+                </button>
+              )}
             </div>
           </div>
 

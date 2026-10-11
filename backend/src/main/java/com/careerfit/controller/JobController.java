@@ -5,6 +5,7 @@ import com.careerfit.exception.ApiResponse;
 import com.careerfit.service.JobService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,14 +24,33 @@ public class JobController {
 
     // ===== PUBLIC ENDPOINTS (không cần token) =====
 
-    // GET /api/jobs?keyword=&location=&category=
+    // GET /api/jobs?keyword=&location=&category=&jobType=&minSalary=&maxSalary=&sort=&page=0&size=10
     @GetMapping
-    public ResponseEntity<ApiResponse<List<JobResponse>>> searchJobs(
+    public ResponseEntity<ApiResponse<PagedResponse<JobResponse>>> searchJobs(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String location,
-            @RequestParam(required = false) String category) {
-        List<JobResponse> jobs = jobService.searchJobs(keyword, location, category);
-        return ResponseEntity.ok(ApiResponse.success("Lấy danh sách việc làm thành công.", jobs));
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String jobType,
+            @RequestParam(required = false) Long minSalary,
+            @RequestParam(required = false) Long maxSalary,
+            @RequestParam(defaultValue = "newest") String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Page<JobResponse> jobs = jobService.searchJobs(
+                keyword, location, category, jobType, minSalary, maxSalary, sort, page, size
+        );
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy danh sách việc làm thành công.",
+                PagedResponse.from(jobs)
+        ));
+    }
+
+    @GetMapping("/filter-options")
+    public ResponseEntity<ApiResponse<JobFilterOptionsResponse>> getFilterOptions() {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy tùy chọn bộ lọc thành công.",
+                jobService.getFilterOptions()
+        ));
     }
 
     // GET /api/jobs/{id}
@@ -120,7 +140,6 @@ public class JobController {
         jobService.cancelApplication(userDetails.getUsername(), jobId);
         return ResponseEntity.ok(ApiResponse.success("Đã hủy đơn ứng tuyển thành công."));
     }
-
 
     // POST /api/jobs/{jobId}/save - Lưu / bỏ lưu job
     @PostMapping("/{jobId}/save")
