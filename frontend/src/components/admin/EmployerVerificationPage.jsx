@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Modal } from '../common/Modal';
 import {
@@ -14,11 +14,17 @@ import {
   Mail,
   MapPin,
   Calendar,
+  RotateCw,
   X
 } from 'lucide-react';
 
 export function EmployerVerificationPage() {
-  const { employerVerifications, handleApproveVerification, handleRejectVerification, showToast } = useApp();
+  const { employerVerifications, handleApproveVerification, handleRejectVerification, refreshEmployerVerifications, showToast } = useApp();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  useEffect(() => {
+    refreshEmployerVerifications?.();
+  }, [refreshEmployerVerifications]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All'); // 'All', 'Pending', 'Approved', 'Rejected'
@@ -77,6 +83,24 @@ export function EmployerVerificationPage() {
           <p className="text-sm text-slate-600 mt-1.5 leading-relaxed">
             Kiểm tra thông tin pháp lý, Mã số thuế, Giấy phép kinh doanh và phê duyệt hoặc từ chối có lý do bắt buộc.
           </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={async () => {
+              setIsRefreshing(true);
+              try {
+                await refreshEmployerVerifications?.();
+                showToast('Đã làm mới danh sách xác minh từ hệ thống!', 'success');
+              } finally {
+                setIsRefreshing(false);
+              }
+            }}
+            disabled={isRefreshing}
+            className="btn btn-secondary text-xs font-semibold h-9 px-3.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs flex items-center gap-1.5 cursor-pointer"
+          >
+            <RotateCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+            {isRefreshing ? 'Đang tải...' : 'Làm mới danh sách'}
+          </button>
         </div>
       </div>
 

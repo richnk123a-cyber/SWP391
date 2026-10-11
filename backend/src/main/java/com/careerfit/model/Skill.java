@@ -9,5 +9,6 @@ public class Skill {
     @Id @Column(length = 50) private String id;
     @Column(length = 50, unique = true) private String name;
     @Column(length = 50) private String category;
+    @Column(columnDefinition = "NVARCHAR(MAX)") private String description;
     @Builder.Default @Column(name = "is_active") private Boolean isActive = true;
 }

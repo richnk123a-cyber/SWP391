@@ -60,6 +60,8 @@ public class SecurityConfig {
                     "/api/dev/**",
                     "/api/jobs",
                     "/api/jobs/{id}",
+                    "/api/skills/**",
+                    "/api/roadmaps/**",
                     "/uploads/**",
                     "/swagger-ui/**",
                     "/swagger-ui.html",
@@ -67,7 +69,7 @@ public class SecurityConfig {
                     "/v3/api-docs.yaml"
                 ).permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/employer/**").hasRole("EMPLOYER")
+                .requestMatchers("/api/employer/**").hasAnyRole("EMPLOYER", "ADMIN")
                 .requestMatchers("/api/candidate/**").hasRole("CANDIDATE")
                 .anyRequest().authenticated()
             )

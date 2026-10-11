@@ -15,7 +15,7 @@ public class UpdateCandidateProfileRequest {
     private String fullName;
 
     @Pattern(
-        regexp = "^(03|05|07|08|09)\\d{8}$",
+        regexp = "^$|^[0-9\\s+\\-().]{8,20}$",
         message = "Số điện thoại không hợp lệ."
     )
     private String phone;
@@ -25,6 +25,10 @@ public class UpdateCandidateProfileRequest {
     private String major;
     private String graduationYear;
     private String skills;
+    private java.util.List<String> skillList;
     private String desiredRole;
     private String expectedSalary;
+    private String bio;
+    private String githubUrl;
+    private String portfolioUrl;
 }

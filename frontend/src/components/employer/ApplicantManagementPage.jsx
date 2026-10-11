@@ -362,18 +362,11 @@ export function ApplicantManagementPage() {
                       <td className="text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => setDrawerApplicant({ app, job, match })}
+                            onClick={() => setViewingCVModalCandidate({ ...app, match, job, candidateId: app.candidateId })}
                             className="btn btn-secondary btn-sm text-xs font-semibold"
-                            title="Xem chi tiết hồ sơ ứng viên"
+                            title="Xem chi tiết hồ sơ và CV ứng viên"
                           >
-                            <UserCheck size={13} /> Hồ sơ
-                          </button>
-                          <button
-                            onClick={() => setViewingCVModalCandidate(app)}
-                            className="btn btn-secondary btn-sm text-xs"
-                            title="Xem bản CV PDF"
-                          >
-                            <FileText size={13} /> CV
+                            <FileText size={13} /> Hồ sơ & CV
                           </button>
                           <button
                             onClick={() => setActiveInterviewAppId(app.id)}
@@ -495,45 +488,6 @@ export function ApplicantManagementPage() {
                   <Award size={14} /> Gửi Offer
                 </button>
               </div>
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {/* VIEW CV MODAL */}
-      {viewingCVModalCandidate && (
-        <Modal
-          isOpen={!!viewingCVModalCandidate}
-          onClose={() => setViewingCVModalCandidate(null)}
-          title={`Chi tiết Hồ sơ & CV - ${viewingCVModalCandidate.candidateName}`}
-        >
-          <div className="space-y-4 text-xs">
-            <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-blue-600 text-white font-black text-xl flex items-center justify-center border-2 border-white shadow-md overflow-hidden shrink-0">
-                {viewingCVModalCandidate.candidateName.charAt(0).toUpperCase()}
-              </div>
-              <div className="space-y-1">
-                <h4 className="font-bold text-slate-900 text-sm">{viewingCVModalCandidate.candidateName}</h4>
-                <p className="text-slate-600">Trường: {viewingCVModalCandidate.candidateUniversity || 'Đại học FPT'} • Email: {viewingCVModalCandidate.candidateEmail}</p>
-                <p className="text-slate-600">Kỹ năng: {(viewingCVModalCandidate.candidateSkills || candidateProfile.skills).join(', ')}</p>
-              </div>
-            </div>
-
-            <div className="border-2 border-slate-200 rounded-xl p-6 text-center bg-white space-y-3">
-              <FileText size={44} className="mx-auto text-blue-600" />
-              <h4 className="font-bold text-slate-800 text-sm">{candidateProfile.cvFileName || 'Nguyen_Van_A_CV_2026.pdf'}</h4>
-              <p className="text-slate-500 text-xs">Bản xem trước tài liệu PDF trực tuyến</p>
-              <div className="p-4 bg-slate-50 rounded-lg text-left font-mono text-[11px] text-slate-700 space-y-1 border border-slate-200">
-                <p className="font-bold text-blue-700">=== TÓM TẮT NỘI DUNG CV ===</p>
-                <p>- Họ tên: {viewingCVModalCandidate.candidateName}</p>
-                <p>- Mục tiêu: Thực tập / Fresher Backend Developer</p>
-                <p>- Dự án: REST API Spring Boot + MySQL + React</p>
-                <p>- Skill: Java Core, OOP, SQL, Git, RESTful API</p>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setViewingCVModalCandidate(null)} className="btn btn-secondary text-xs">Đóng</button>
             </div>
           </div>
         </Modal>

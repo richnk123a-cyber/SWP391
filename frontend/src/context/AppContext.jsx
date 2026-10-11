@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import {
   INITIAL_USERS_DB,
   INITIAL_CANDIDATE,
@@ -11,7 +11,7 @@ import {
   INITIAL_SKILLS_CATALOG,
   INITIAL_NOTIFICATIONS
 } from '../data/mockData';
-import { authApi, adminApi, candidateApi, employerApi, jobApi } from '../services/apiService';
+import { authApi, adminApi, candidateApi, employerApi, jobApi, catalogApi } from '../services/apiService';
 
 
 const AppContext = createContext();
@@ -208,9 +208,9 @@ export function AppProvider({ children }) {
             email: currentUser.email,
             phone: currentUser.phone || '',
             location: 'Thành phố Hồ Chí Minh',
-            university: 'Đại học FPT',
-            major: 'Công nghệ thông tin',
-            graduationYear: '2026',
+            university: '',
+            major: '',
+            graduationYear: '',
             skills: [],
             hasCV: false,
             cvFileName: '',
@@ -619,9 +619,9 @@ export function AppProvider({ children }) {
       email: cleanEmail,
       phone: phone || '',
       location: location || 'Thành phố Hồ Chí Minh',
-      university: 'Đại học FPT',
-      major: 'Công nghệ thông tin',
-      graduationYear: '2026',
+      university: '',
+      major: '',
+      graduationYear: '',
       skills: [],
       hasCV: false,
       cvFileName: '',
@@ -795,28 +795,42 @@ export function AppProvider({ children }) {
   const [customEmployerProfile, setCustomEmployerProfile] = useState(null);
 
   // Helper to resolve currently logged in employer's company record
-  const currentEmployerCompany = customEmployerProfile || (currentUser && currentUser.role === 'EMPLOYER'
-    ? (companies.find(c => c.ownerUserId === currentUser.id) ||
-       companies.find(c => c.email && c.email.toLowerCase() === currentUser.email.toLowerCase()) ||
-       (currentUser.email && currentUser.email.toLowerCase().includes('vonguyenkhanh') ? (companies.find(c => c.id === 'comp-55122454' || c.companyName === 'VNK Technology Solutions') || INITIAL_COMPANIES.find(c => c.id === 'comp-55122454')) : null) ||
-       (currentUser.email && currentUser.email.toLowerCase().includes('pending') ? INITIAL_COMPANIES[1] : null) ||
-       {
-         id: `comp-${currentUser.id || 'emp'}`,
-         ownerUserId: currentUser.id,
-         companyName: currentUser.fullName || currentUser.username || 'Doanh nghiệp mới',
-         recruiterName: currentUser.fullName || currentUser.username || '',
-         email: currentUser.email || '',
-         phone: currentUser.phone || '',
-         website: '',
-         industry: '',
-         size: '',
-         location: '',
-         taxId: '',
-         logo: '🏢',
-         verificationStatus: 'Pending',
-         description: ''
-       })
-    : (companies[0] || INITIAL_COMPANIES[0]));
+  const currentEmployerCompany = useMemo(() => {
+    let resolved = customEmployerProfile || (currentUser && currentUser.role === 'EMPLOYER'
+      ? (companies.find(c => c.ownerUserId === currentUser.id) ||
+         companies.find(c => c.email && c.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+         (currentUser.email && currentUser.email.toLowerCase().includes('vonguyenkhanh') ? (companies.find(c => c.id === 'comp-55122454' || c.companyName === 'VNK Technology Solutions') || INITIAL_COMPANIES.find(c => c.id === 'comp-55122454')) : null) ||
+         (currentUser.email && currentUser.email.toLowerCase().includes('pending') ? INITIAL_COMPANIES[1] : null) ||
+         {
+           id: `comp-${currentUser.id || 'emp'}`,
+           ownerUserId: currentUser.id,
+           companyName: currentUser.fullName || currentUser.username || 'Doanh nghiệp mới',
+           recruiterName: currentUser.fullName || currentUser.username || '',
+           email: currentUser.email || '',
+           phone: currentUser.phone || '',
+           website: '',
+           industry: '',
+           size: '',
+           location: '',
+           taxId: '',
+           logo: '🏢',
+           verificationStatus: 'Pending',
+           description: ''
+         })
+      : (companies[0] || INITIAL_COMPANIES[0]));
+
+    if (resolved && Array.isArray(employerVerifications)) {
+      const matchVerify = employerVerifications.find(v => 
+        (v.email && resolved.email && v.email.toLowerCase() === resolved.email.toLowerCase()) ||
+        (v.companyName && resolved.companyName && v.companyName.trim() === resolved.companyName.trim()) ||
+        (v.companyId && (v.companyId === resolved.id || v.companyId === resolved.ownerUserId))
+      );
+      if (matchVerify && (matchVerify.status === 'Verified' || matchVerify.status === 'Approved')) {
+        return { ...resolved, verificationStatus: 'Verified' };
+      }
+    }
+    return resolved;
+  }, [customEmployerProfile, currentUser, companies, employerVerifications]);
 
   // Automatically sync employer company profile from backend SQL Server & migrate local cache
   useEffect(() => {
@@ -826,6 +840,15 @@ export function AppProvider({ children }) {
         .then(res => {
           const comp = res?.data || res;
           if (comp && (comp.companyName || comp.id)) {
+            const isApproved = Array.isArray(employerVerifications) && employerVerifications.some(v =>
+              (v.status === 'Verified' || v.status === 'Approved') &&
+              ((v.email && comp.email && v.email.toLowerCase() === comp.email.toLowerCase()) ||
+               (v.companyName && comp.companyName && v.companyName.trim() === comp.companyName.trim()) ||
+               (v.companyId && (v.companyId === comp.id || v.companyId === comp.ownerUserId)))
+            );
+            if (isApproved || comp.verificationStatus === 'Verified') {
+              comp.verificationStatus = 'Verified';
+            }
             setCustomEmployerProfile(comp);
             setCompanies(cList => {
               const list = Array.isArray(cList) ? cList : [];
@@ -972,72 +995,113 @@ export function AppProvider({ children }) {
   }, [currentUser]);
 
   // Sync employer verifications from backend (for Admin to see newly submitted verifications)
+  const refreshEmployerVerifications = useCallback(() => {
+    return adminApi.getAllVerifications()
+      .then(res => {
+        const backendVerifications = res?.data || res;
+        if (Array.isArray(backendVerifications) && backendVerifications.length > 0) {
+          setEmployerVerifications(prev => {
+            const localList = Array.isArray(prev) ? prev : [];
+            const merged = [...localList];
+            backendVerifications.forEach(bv => {
+              const idx = merged.findIndex(lv =>
+                lv.companyId === bv.id ||
+                lv.id === bv.id
+              );
+              const mapped = {
+                id: bv.id || `ver-${Date.now()}-${Math.random().toString(36).substr(2,4)}`,
+                companyId: bv.id,
+                companyName: bv.companyName || '',
+                representative: bv.recruiterName || '',
+                recruiterName: bv.recruiterName || '',
+                email: bv.email || '',
+                phone: bv.phone || '',
+                taxId: bv.taxId || '',
+                location: bv.location || '',
+                industry: bv.industry || '',
+                website: bv.website || '',
+                submittedDate: new Date().toLocaleDateString('vi-VN'),
+                status: bv.verificationStatus || 'Pending',
+                documentName: bv.businessLicenseFile || '',
+                rejectReason: bv.rejectionReason || ''
+              };
+              if (idx >= 0) {
+                merged[idx] = { ...merged[idx], ...mapped };
+              } else {
+                merged.unshift(mapped);
+              }
+            });
+            return merged;
+          });
+        }
+      })
+      .catch(err => console.warn('Admin getAllVerifications sync note:', err));
+  }, []);
+
   useEffect(() => {
     if (currentUser?.role === 'ADMIN') {
-      adminApi.getAllVerifications()
-        .then(res => {
-          const backendVerifications = res?.data || res;
-          if (Array.isArray(backendVerifications) && backendVerifications.length > 0) {
-            setEmployerVerifications(prev => {
-              const localList = Array.isArray(prev) ? prev : [];
-              // Merge: add backend verifications not yet in local list
-              const merged = [...localList];
-              backendVerifications.forEach(bv => {
-                const exists = merged.some(lv =>
-                  lv.companyId === bv.id ||
-                  lv.id === bv.id ||
-                  (bv.email && lv.email && lv.email.toLowerCase() === bv.email.toLowerCase())
-                );
-                if (!exists) {
-                  merged.unshift({
-                    id: bv.id || `ver-${Date.now()}-${Math.random().toString(36).substr(2,4)}`,
-                    companyId: bv.id,
-                    companyName: bv.companyName || '',
-                    recruiterName: bv.recruiterName || '',
-                    email: bv.email || '',
-                    phone: bv.phone || '',
-                    taxId: bv.taxId || '',
-                    location: bv.location || '',
-                    industry: bv.industry || '',
-                    website: bv.website || '',
-                    submittedDate: new Date().toLocaleDateString('vi-VN'),
-                    status: bv.verificationStatus || 'Pending',
-                    documentName: bv.businessLicenseFile || '',
-                    rejectReason: bv.rejectionReason || ''
-                  });
-                } else {
-                  // Update status from backend (source of truth)
-                  const idx = merged.findIndex(lv =>
-                    lv.companyId === bv.id ||
-                    lv.id === bv.id ||
-                    (bv.email && lv.email && lv.email.toLowerCase() === bv.email.toLowerCase())
-                  );
-                  if (idx >= 0) {
-                    merged[idx] = {
-                      ...merged[idx],
-                      companyId: bv.id || merged[idx].companyId,
-                      companyName: bv.companyName || merged[idx].companyName,
-                      status: bv.verificationStatus || merged[idx].status,
-                      recruiterName: bv.recruiterName || merged[idx].recruiterName,
-                      email: bv.email || merged[idx].email,
-                      phone: bv.phone || merged[idx].phone,
-                      taxId: bv.taxId || merged[idx].taxId,
-                      location: bv.location || merged[idx].location,
-                      industry: bv.industry || merged[idx].industry,
-                      website: bv.website || merged[idx].website,
-                      documentName: bv.businessLicenseFile || merged[idx].documentName,
-                      rejectReason: bv.rejectionReason || merged[idx].rejectReason
-                    };
-                  }
-                }
-              });
-              return merged;
-            });
-          }
-        })
-        .catch(err => console.warn('Admin getPendingVerifications sync note:', err));
+      refreshEmployerVerifications();
+    }
+  }, [currentUser, refreshEmployerVerifications]);
+
+  // Sync Skills Catalog from backend
+  const refreshSkillsCatalog = useCallback(async () => {
+    try {
+      const res = currentUser?.role === 'ADMIN'
+        ? await adminApi.getAllSkills()
+        : await catalogApi.getSkills();
+      const list = res?.data || res;
+      if (Array.isArray(list) && list.length > 0) {
+        setSkillsCatalog(prev => {
+          const localList = Array.isArray(prev) ? prev : [];
+          const merged = [...localList];
+          list.forEach(bs => {
+            const idx = merged.findIndex(ls => ls.id === bs.id || ls.name.toLowerCase() === bs.name.toLowerCase());
+            if (idx >= 0) {
+              merged[idx] = { ...merged[idx], ...bs };
+            } else {
+              merged.push(bs);
+            }
+          });
+          return merged;
+        });
+      }
+    } catch (err) {
+      console.warn('Sync skills catalog note:', err);
     }
   }, [currentUser]);
+
+  // Sync Roadmaps from backend
+  const refreshRoadmaps = useCallback(async () => {
+    try {
+      const res = currentUser?.role === 'ADMIN'
+        ? await adminApi.getAllRoadmaps()
+        : await catalogApi.getRoadmaps();
+      const list = res?.data || res;
+      if (Array.isArray(list) && list.length > 0) {
+        setRoadmaps(prev => {
+          const localList = Array.isArray(prev) ? prev : [];
+          const merged = [...localList];
+          list.forEach(br => {
+            const idx = merged.findIndex(lr => lr.id === br.id || (br.skill && lr.skill && lr.skill.toLowerCase() === br.skill.toLowerCase()));
+            if (idx >= 0) {
+              merged[idx] = { ...merged[idx], ...br };
+            } else {
+              merged.push(br);
+            }
+          });
+          return merged;
+        });
+      }
+    } catch (err) {
+      console.warn('Sync roadmaps note:', err);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    refreshSkillsCatalog();
+    refreshRoadmaps();
+  }, [refreshSkillsCatalog, refreshRoadmaps]);
 
 
   const employerProfile = currentEmployerCompany;
@@ -1177,7 +1241,7 @@ export function AppProvider({ children }) {
       candidateId: candidateProfile.id || currentUser.id,
       candidateName: candidateProfile.name || currentUser.fullName || currentUser.username,
       candidateEmail: candidateProfile.email || currentUser.email,
-      candidateUniversity: candidateProfile.university || 'Đại học FPT',
+      candidateUniversity: candidateProfile.university || '',
       appliedDate: new Date().toLocaleDateString('vi-VN'),
       lastUpdate: new Date().toLocaleDateString('vi-VN'),
       status: 'Đã nộp'
@@ -1673,8 +1737,8 @@ export function AppProvider({ children }) {
     }
   };
 
-  // SKILL CATALOG CRUD
-  const addSkillToCatalog = (name, category, description = '') => {
+  // SKILL CATALOG CRUD (SCRUM-57, SCRUM-86, SCRUM-85)
+  const addSkillToCatalog = async (name, category, description = '') => {
     const trimmed = name.trim();
     if (!trimmed) return false;
     const exists = skillsCatalog.some(s => s.name.toLowerCase() === trimmed.toLowerCase());
@@ -1687,58 +1751,129 @@ export function AppProvider({ children }) {
       id: `sk-${Date.now()}`,
       name: trimmed,
       category: category || 'Backend',
-      description
+      description,
+      isActive: true
     };
     setSkillsCatalog(prev => [...prev, newSkill]);
+
+    if (currentUser?.role === 'ADMIN') {
+      try {
+        const res = await adminApi.createSkill({
+          name: trimmed,
+          category: category || 'Backend',
+          description,
+          isActive: true
+        });
+        const created = res?.data || res;
+        if (created?.id) {
+          setSkillsCatalog(prev => prev.map(s => s.id === newSkill.id ? { ...s, ...created } : s));
+        }
+      } catch (err) {
+        console.warn('Backend createSkill note:', err);
+      }
+    }
+
     showToast(`Đã thêm kỹ năng mới "${trimmed}" vào hệ thống.`, 'success');
     return true;
   };
 
-  const updateSkillCatalog = (skillId, updatedData) => {
+  const updateSkillCatalog = async (skillId, updatedData) => {
     setSkillsCatalog(prev =>
       prev.map(s => (s.id === skillId ? { ...s, ...updatedData } : s))
     );
+    if (currentUser?.role === 'ADMIN') {
+      try {
+        await adminApi.updateSkill(skillId, updatedData);
+      } catch (err) {
+        console.warn('Backend updateSkill note:', err);
+      }
+    }
     showToast('Đã cập nhật kỹ năng thành công!', 'success');
   };
 
-  const removeSkillFromCatalog = (skillId) => {
+  const removeSkillFromCatalog = async (skillId) => {
     setSkillsCatalog(prev => prev.filter(s => s.id !== skillId));
+    if (currentUser?.role === 'ADMIN') {
+      try {
+        await adminApi.deleteSkill(skillId);
+      } catch (err) {
+        console.warn('Backend deleteSkill note:', err);
+      }
+    }
     showToast('Đã xóa kỹ năng khỏi hệ thống.', 'info');
   };
 
-  // ROADMAP CRUD & TOPICS
-  const createRoadmap = ({ skill, targetRole, description }) => {
+  // ROADMAP CRUD & TOPICS (SCRUM-58, SCRUM-89, SCRUM-88)
+  const createRoadmap = async ({ skill, targetRole, description }) => {
     const newRoadmap = {
       id: `rd-${Date.now()}`,
       skill,
+      skillName: skill,
       targetRole,
       description,
       topics: []
     };
     setRoadmaps(prev => [...prev, newRoadmap]);
+
+    if (currentUser?.role === 'ADMIN') {
+      try {
+        const res = await adminApi.createRoadmap({
+          skill,
+          skillName: skill,
+          targetRole,
+          description,
+          topics: []
+        });
+        const created = res?.data || res;
+        if (created?.id) {
+          setRoadmaps(prev => prev.map(r => r.id === newRoadmap.id ? { ...r, ...created } : r));
+          showToast(`Đã tạo Roadmap mới cho vị trí "${targetRole}"!`, 'success');
+          return created;
+        }
+      } catch (err) {
+        console.warn('Backend createRoadmap note:', err);
+      }
+    }
+
     showToast(`Đã tạo Roadmap mới cho vị trí "${targetRole}"!`, 'success');
     return newRoadmap;
   };
 
-  const updateRoadmap = (roadmapId, data) => {
+  const updateRoadmap = async (roadmapId, data) => {
     setRoadmaps(prev =>
       prev.map(rm => (rm.id === roadmapId ? { ...rm, ...data } : rm))
     );
+    if (currentUser?.role === 'ADMIN') {
+      try {
+        await adminApi.updateRoadmap(roadmapId, data);
+      } catch (err) {
+        console.warn('Backend updateRoadmap note:', err);
+      }
+    }
     showToast('Đã cập nhật thông tin Roadmap!', 'success');
   };
 
-  const deleteRoadmap = (roadmapId) => {
+  const deleteRoadmap = async (roadmapId) => {
     setRoadmaps(prev => prev.filter(rm => rm.id !== roadmapId));
+    if (currentUser?.role === 'ADMIN') {
+      try {
+        await adminApi.deleteRoadmap(roadmapId);
+      } catch (err) {
+        console.warn('Backend deleteRoadmap note:', err);
+      }
+    }
     showToast('Đã xóa Roadmap khỏi hệ thống.', 'info');
   };
 
-  const addRoadmapTopic = (roadmapId, topicData) => {
+  const addRoadmapTopic = async (roadmapId, topicData) => {
     const newTopic = {
       id: `tp-${Date.now()}`,
+      roadmapId,
       title: topicData.title,
       completed: false,
       estimatedTime: topicData.estimatedTime || '5 giờ',
-      resource: topicData.resource || 'Tài liệu tham khảo',
+      resource: topicData.resource || topicData.resourceName || 'Tài liệu tham khảo',
+      resourceName: topicData.resource || topicData.resourceName || 'Tài liệu tham khảo',
       url: topicData.url || 'https://spring.io',
       resourceType: topicData.resourceType || 'Official Documentation'
     };
@@ -1748,63 +1883,129 @@ export function AppProvider({ children }) {
         if (rm.id === roadmapId) {
           return {
             ...rm,
-            topics: [...rm.topics, newTopic]
+            topics: [...(rm.topics || []), newTopic]
           };
         }
         return rm;
       })
     );
+
+    if (currentUser?.role === 'ADMIN') {
+      try {
+        const res = await adminApi.addRoadmapTopic(roadmapId, {
+          title: newTopic.title,
+          estimatedTime: newTopic.estimatedTime,
+          resourceName: newTopic.resourceName,
+          url: newTopic.url,
+          resourceType: newTopic.resourceType
+        });
+        const created = res?.data || res;
+        if (created?.id) {
+          setRoadmaps(prev =>
+            prev.map(rm => {
+              if (rm.id === roadmapId) {
+                return {
+                  ...rm,
+                  topics: (rm.topics || []).map(t => t.id === newTopic.id ? { ...t, ...created } : t)
+                };
+              }
+              return rm;
+            })
+          );
+        }
+      } catch (err) {
+        console.warn('Backend addRoadmapTopic note:', err);
+      }
+    }
+
     showToast('Đã thêm bài học mới vào Roadmap!', 'success');
   };
 
-  const updateRoadmapTopic = (roadmapId, topicId, updatedData) => {
+  const updateRoadmapTopic = async (roadmapId, topicId, updatedData) => {
     setRoadmaps(prev =>
       prev.map(rm => {
         if (rm.id === roadmapId) {
           return {
             ...rm,
-            topics: rm.topics.map(tp => (tp.id === topicId ? { ...tp, ...updatedData } : tp))
+            topics: (rm.topics || []).map(tp => (tp.id === topicId ? { ...tp, ...updatedData } : tp))
           };
         }
         return rm;
       })
     );
+
+    if (currentUser?.role === 'ADMIN') {
+      try {
+        await adminApi.updateRoadmapTopic(roadmapId, topicId, {
+          title: updatedData.title,
+          estimatedTime: updatedData.estimatedTime,
+          resourceName: updatedData.resource || updatedData.resourceName,
+          url: updatedData.url,
+          resourceType: updatedData.resourceType,
+          completed: updatedData.completed
+        });
+      } catch (err) {
+        console.warn('Backend updateRoadmapTopic note:', err);
+      }
+    }
+
     showToast('Đã cập nhật chủ đề Roadmap!', 'success');
   };
 
-  const deleteRoadmapTopic = (roadmapId, topicId) => {
+  const deleteRoadmapTopic = async (roadmapId, topicId) => {
     setRoadmaps(prev =>
       prev.map(rm => {
         if (rm.id === roadmapId) {
           return {
             ...rm,
-            topics: rm.topics.filter(tp => tp.id !== topicId)
+            topics: (rm.topics || []).filter(tp => tp.id !== topicId)
           };
         }
         return rm;
       })
     );
+
+    if (currentUser?.role === 'ADMIN') {
+      try {
+        await adminApi.deleteRoadmapTopic(roadmapId, topicId);
+      } catch (err) {
+        console.warn('Backend deleteRoadmapTopic note:', err);
+      }
+    }
+
     showToast('Đã xóa chủ đề khỏi Roadmap.', 'info');
   };
 
-  const reorderRoadmapTopic = (roadmapId, topicId, direction) => {
+  const reorderRoadmapTopic = async (roadmapId, topicId, direction) => {
+    let reorderedTopicIds = null;
     setRoadmaps(prev =>
       prev.map(rm => {
         if (rm.id === roadmapId) {
-          const index = rm.topics.findIndex(tp => tp.id === topicId);
+          const topics = rm.topics || [];
+          const index = topics.findIndex(tp => tp.id === topicId);
           if (index === -1) return rm;
           const targetIndex = direction === 'up' ? index - 1 : index + 1;
-          if (targetIndex < 0 || targetIndex >= rm.topics.length) return rm;
+          if (targetIndex < 0 || targetIndex >= topics.length) return rm;
 
-          const newTopics = [...rm.topics];
+          const newTopics = [...topics];
           const [moved] = newTopics.splice(index, 1);
           newTopics.splice(targetIndex, 0, moved);
+          reorderedTopicIds = newTopics.map(t => t.id);
 
           return { ...rm, topics: newTopics };
         }
         return rm;
       })
     );
+
+    if (currentUser?.role === 'ADMIN' && reorderedTopicIds) {
+      try {
+        await adminApi.reorderRoadmapTopics(roadmapId, reorderedTopicIds);
+      } catch (err) {
+        console.warn('Backend reorderRoadmapTopics note:', err);
+      }
+    }
+
     showToast('Đã thay đổi thứ tự chủ đề Roadmap!', 'info');
   };
 
@@ -1912,6 +2113,7 @@ export function AppProvider({ children }) {
         toggleLockUser,
         handleApproveVerification,
         handleRejectVerification,
+        refreshEmployerVerifications,
         handleApproveJobModeration,
         handleRejectJobModeration,
         handleRemoveApprovedJob,
@@ -1951,6 +2153,9 @@ export function AppProvider({ children }) {
         authApi,
         candidateApi,
         employerApi,
+        refreshSkillsCatalog,
+        refreshRoadmaps,
+        catalogApi,
         jobApi
       }}
     >

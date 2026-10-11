@@ -8,6 +8,7 @@ import {
   Trash2,
   CheckCircle2,
   AlertTriangle,
+  RotateCw,
   X
 } from 'lucide-react';
 
@@ -17,10 +18,13 @@ export function SkillManagementPage() {
     addSkillToCatalog,
     updateSkillCatalog,
     removeSkillFromCatalog,
+    refreshSkillsCatalog,
     jobs,
     candidateProfile,
     showToast
   } = useApp();
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -53,23 +57,23 @@ export function SkillManagementPage() {
     return candidateProfile.skills.some(s => s.toLowerCase() === skillName.toLowerCase()) ? 1 : 0;
   };
 
-  const handleCreateSkillSubmit = (e) => {
+  const handleCreateSkillSubmit = async (e) => {
     e.preventDefault();
     if (!newSkillForm.name.trim()) {
       showToast('Vui lòng nhập tên kỹ năng.', 'danger');
       return;
     }
-    const success = addSkillToCatalog(newSkillForm.name.trim(), newSkillForm.category, newSkillForm.description.trim());
+    const success = await addSkillToCatalog(newSkillForm.name.trim(), newSkillForm.category, newSkillForm.description.trim());
     if (success) {
       setIsAddModalOpen(false);
       setNewSkillForm({ name: '', category: 'Backend', description: '' });
     }
   };
 
-  const handleEditSkillSubmit = (e) => {
+  const handleEditSkillSubmit = async (e) => {
     e.preventDefault();
     if (!editingSkill || !editSkillForm.name.trim()) return;
-    updateSkillCatalog(editingSkill.id, {
+    await updateSkillCatalog(editingSkill.id, {
       name: editSkillForm.name.trim(),
       category: editSkillForm.category,
       description: editSkillForm.description.trim()
@@ -77,9 +81,9 @@ export function SkillManagementPage() {
     setEditingSkill(null);
   };
 
-  const handleDeleteSkillConfirm = () => {
+  const handleDeleteSkillConfirm = async () => {
     if (deletingSkill) {
-      removeSkillFromCatalog(deletingSkill.id);
+      await removeSkillFromCatalog(deletingSkill.id);
       setDeletingSkill(null);
     }
   };
@@ -97,12 +101,31 @@ export function SkillManagementPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="btn btn-primary text-sm font-semibold h-10 px-4 rounded-lg flex items-center gap-2 shadow-xs cursor-pointer self-start sm:self-auto shrink-0"
-        >
-          <Plus size={16} /> Thêm Kỹ năng mới
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+          <button
+            onClick={async () => {
+              setIsRefreshing(true);
+              try {
+                await refreshSkillsCatalog?.();
+                showToast('Đã làm mới danh mục kỹ năng!', 'success');
+              } finally {
+                setIsRefreshing(false);
+              }
+            }}
+            disabled={isRefreshing}
+            className="btn btn-secondary text-xs font-semibold h-10 px-3.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs flex items-center gap-1.5 cursor-pointer"
+            title="Đồng bộ danh mục kỹ năng từ máy chủ"
+          >
+            <RotateCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+            {isRefreshing ? 'Đang tải...' : 'Làm mới'}
+          </button>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="btn btn-primary text-sm font-semibold h-10 px-4 rounded-lg flex items-center gap-2 shadow-xs cursor-pointer"
+          >
+            <Plus size={16} /> Thêm Kỹ năng mới
+          </button>
+        </div>
       </div>
 
       {/* 2. Category Filter Tabs */}

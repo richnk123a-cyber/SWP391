@@ -125,6 +125,32 @@ export const adminApi = {
   getAllVerifications: () => api.get('/admin/verifications/all'),
   approveVerification: (companyId) => api.put(`/admin/verifications/${companyId}/approve`),
   rejectVerification: (companyId, reason) => api.put(`/admin/verifications/${companyId}/reject`, { reason }),
+
+  // Skills Catalog (SCRUM-57, SCRUM-86, SCRUM-85)
+  getAllSkills: () => api.get('/admin/skills'),
+  createSkill: (data) => api.post('/admin/skills', data),
+  updateSkill: (id, data) => api.put(`/admin/skills/${id}`, data),
+  deleteSkill: (id) => api.delete(`/admin/skills/${id}`),
+
+  // Roadmaps (SCRUM-58, SCRUM-89, SCRUM-88)
+  getAllRoadmaps: () => api.get('/admin/roadmaps'),
+  createRoadmap: (data) => api.post('/admin/roadmaps', data),
+  updateRoadmap: (id, data) => api.put(`/admin/roadmaps/${id}`, data),
+  deleteRoadmap: (id) => api.delete(`/admin/roadmaps/${id}`),
+  addRoadmapTopic: (roadmapId, data) => api.post(`/admin/roadmaps/${roadmapId}/topics`, data),
+  updateRoadmapTopic: (roadmapId, topicId, data) => api.put(`/admin/roadmaps/${roadmapId}/topics/${topicId}`, data),
+  deleteRoadmapTopic: (roadmapId, topicId) => api.delete(`/admin/roadmaps/${roadmapId}/topics/${topicId}`),
+  reorderRoadmapTopics: (roadmapId, topicIds) => api.put(`/admin/roadmaps/${roadmapId}/topics/reorder`, topicIds),
+};
+
+// ============================================================
+// PUBLIC CATALOG APIs (SKILLS & ROADMAPS)
+// ============================================================
+export const catalogApi = {
+  getSkills: () => api.get('/skills'),
+  getRoadmaps: () => api.get('/roadmaps'),
+  getRoadmapById: (id) => api.get(`/roadmaps/${id}`),
+  getRoadmapBySkill: (skillName) => api.get(`/roadmaps/skill/${encodeURIComponent(skillName)}`),
 };
 
 // ============================================================
@@ -140,6 +166,25 @@ export const employerApi = {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
+  // SCRUM-52: Xem chi tiết hồ sơ ứng viên
+  getCandidateProfile: (candidateId) => api.get(`/employer/candidates/${candidateId}`),
+
+  // SCRUM-52: Tải CV ứng viên thật từ server (kèm JWT Header)
+  downloadCandidateCv: async (candidateId) => {
+    const token = localStorage.getItem('careerfit_token');
+    const response = await fetch(`${BASE_URL}/employer/candidates/${candidateId}/cv/download`, {
+      method: 'GET',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`Không thể tải tệp từ máy chủ (Mã lỗi ${response.status})`);
+    }
+    return await response.blob();
+  },
+  getCandidateCvDownloadUrl: (candidateId) => `${BASE_URL}/employer/candidates/${candidateId}/cv/download`,
+
   // Endpoint dành cho employer đã có tài khoản (chuyển từ CANDIDATE → EMPLOYER trong DB)
   // nộp hồ sơ xác minh doanh nghiệp mà không cần tạo user mới
   submitVerification: (formData) => api.post('/employer/company/submit-verification', formData, {

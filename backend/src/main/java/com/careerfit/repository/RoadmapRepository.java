@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface RoadmapRepository extends JpaRepository<Roadmap, String> {
     Optional<Roadmap> findBySkillId(String skillId);
+    Optional<Roadmap> findBySkillNameIgnoreCase(String skillName);
 }

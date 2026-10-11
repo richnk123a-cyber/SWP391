@@ -30,7 +30,7 @@ const InputField = ({ label, name, type = 'text', placeholder, required = true, 
 );
 
 export function OAuthRegister() {
-  const { setActivePage, setCurrentUser, showToast, setCandidateProfile } = useApp();
+  const { setActivePage, setCurrentUser, showToast, setCandidateProfile, setEmployerVerifications } = useApp();
 
   const [tempToken, setTempToken] = useState(null);
   const [prefillEmail, setPrefillEmail] = useState('');
@@ -152,11 +152,6 @@ export function OAuthRegister() {
 
       if (!formData.level) newErrors.level = 'Vui lòng chọn trình độ hiện tại.';
     } else {
-      // --- Email Doanh nghiệp ---
-      const currentEmail = formData.email || prefillEmail;
-      if (currentEmail && (currentEmail.endsWith('@gmail.com') || currentEmail.endsWith('@outlook.com'))) {
-        newErrors.email = 'Chỉ sử dụng email công ty.';
-      }
 
       // --- Tên công ty ---
       if (!formData.companyName.trim()) {
@@ -225,7 +220,27 @@ export function OAuthRegister() {
       localStorage.setItem('careerfit_token', authData.token);
       localStorage.setItem('careerfit_current_user', JSON.stringify(authData));
       setCurrentUser(authData);
-      if (roleMode === 'candidate') setCandidateProfile(previous => ({ ...previous, name: formData.fullName.trim(), email: authData.email || prefillEmail, phone: formData.phone.replace(/\s/g, ''), location: resolvedLocation, skills: [], hasCV: false, cvFileName: '', cvUploadDate: '', preferences: { desiredRole: formData.targetRole.trim(), location: resolvedLocation, jobType: '', expectedSalary: '' } }));
+      if (roleMode === 'candidate') {
+        setCandidateProfile(previous => ({ ...previous, name: formData.fullName.trim(), email: authData.email || prefillEmail, phone: formData.phone.replace(/\s/g, ''), location: resolvedLocation, skills: [], hasCV: false, cvFileName: '', cvUploadDate: '', preferences: { desiredRole: formData.targetRole.trim(), location: resolvedLocation, jobType: '', expectedSalary: '' } }));
+      } else if (typeof setEmployerVerifications === 'function') {
+        const newVerification = {
+          id: `ver-${Date.now()}`,
+          companyId: authData.userId || `comp-${Date.now()}`,
+          companyName: formData.companyName.trim(),
+          representative: formData.fullName.trim(),
+          email: authData.email || prefillEmail,
+          phone: formData.phone.replace(/\s/g, ''),
+          submittedDate: new Date().toLocaleDateString('vi-VN'),
+          status: 'Pending',
+          documentName: licenseFile?.name || 'Giay_Phep_Kinh_Doanh_Mau.pdf',
+          website: formData.website || '',
+          industry: formData.industry || '',
+          location: resolvedLocation || '',
+          taxId: formData.taxId || '0312345678',
+          rejectReason: ''
+        };
+        setEmployerVerifications(prev => [newVerification, ...(Array.isArray(prev) ? prev : [])]);
+      }
       setActivePage(roleMode === 'employer' ? 'employer-dashboard' : 'candidate-dashboard');
       showToast('Tạo tài khoản thành công. Chào mừng bạn đến với CareerFit!', 'success');
     } catch (error) {
