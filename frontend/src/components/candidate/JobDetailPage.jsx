@@ -61,14 +61,10 @@ export function JobDetailPage() {
     : (typeof selectedJob.requiredSkills === 'string'
         ? selectedJob.requiredSkills.split(/[,;\n]/).map(s => s.trim()).filter(Boolean)
         : []);
-  const match = calculateSkillMatch(candidateSkills, safeRequiredSkills);
+  const match = calculateSkillMatch(candidateSkills, safeRequiredSkills, candidateProfile?.extractedCvText);
 
-  const matchedSkillsList = safeRequiredSkills.filter(sk =>
-    candidateSkills.map(s => String(s || '').toLowerCase()).includes(String(sk || '').toLowerCase())
-  );
-  const missingSkillsList = safeRequiredSkills.filter(sk =>
-    !candidateSkills.map(s => String(s || '').toLowerCase()).includes(String(sk || '').toLowerCase())
-  );
+  const matchedSkillsList = match.matchedSkills || [];
+  const missingSkillsList = match.missingSkills || [];
 
   const similarJobs = jobs
     .filter(j => j.id !== selectedJob.id && (j.category === selectedJob.category || j.company === selectedJob.company))
@@ -276,7 +272,7 @@ export function JobDetailPage() {
                       ? selectedJob.requiredSkills.split(/[,;\n]/).map(s => s.trim()).filter(Boolean)
                       : ['Java', 'SQL'])
                 ).map(sk => {
-                  const isMatch = candidateSkills.map(s => String(s || '').toLowerCase()).includes(String(sk || '').toLowerCase());
+                  const isMatch = matchedSkillsList.some(ms => ms.toLowerCase() === String(sk || '').toLowerCase());
                   return (
                     <span
                       key={sk}

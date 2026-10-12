@@ -21,7 +21,9 @@ import {
   ArrowUpDown,
   Lock,
   Building2,
-  FileText
+  FileText,
+  Plus,
+  Tag
 } from 'lucide-react';
 
 export function JobManagementPage() {
@@ -61,6 +63,14 @@ export function JobManagementPage() {
   const [editSalary, setEditSalary] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editDeadline, setEditDeadline] = useState('');
+  const [editRequiredSkills, setEditRequiredSkills] = useState([]);
+  const [editPreferredSkills, setEditPreferredSkills] = useState([]);
+  const [editResponsibilities, setEditResponsibilities] = useState([]);
+  const [editRequirements, setEditRequirements] = useState([]);
+  const [newEditReqSkill, setNewEditReqSkill] = useState('');
+  const [newEditPrefSkill, setNewEditPrefSkill] = useState('');
+  const [newEditResp, setNewEditResp] = useState('');
+  const [newEditReq, setNewEditReq] = useState('');
 
   // Filter employer's own jobs
   const employerJobs = useMemo(() => {
@@ -160,6 +170,28 @@ export function JobManagementPage() {
     setEditSalary(job.salary || '');
     setEditDescription(job.description || '');
     setEditDeadline(job.deadline || '30/10/2026');
+    // Populate skills
+    setEditRequiredSkills(Array.isArray(job.requiredSkills) ? [...job.requiredSkills] : []);
+    setEditPreferredSkills(Array.isArray(job.preferredSkills) ? [...job.preferredSkills] : []);
+    // Populate responsibilities
+    const respArr = Array.isArray(job.responsibilities)
+      ? job.responsibilities
+      : (typeof job.responsibilities === 'string' && job.responsibilities.trim()
+          ? job.responsibilities.split(/\n|;/).map(s => s.trim()).filter(Boolean)
+          : []);
+    setEditResponsibilities(respArr);
+    // Populate requirements
+    const reqArr = Array.isArray(job.requirements)
+      ? job.requirements
+      : (typeof job.requirements === 'string' && job.requirements.trim()
+          ? job.requirements.split(/\n|;/).map(s => s.trim()).filter(Boolean)
+          : []);
+    setEditRequirements(reqArr);
+    // Reset temporary inputs
+    setNewEditReqSkill('');
+    setNewEditPrefSkill('');
+    setNewEditResp('');
+    setNewEditReq('');
   };
 
   const handleSaveEditJob = async (e) => {
@@ -173,7 +205,11 @@ export function JobManagementPage() {
       location: editLocation,
       salary: editSalary,
       description: editDescription,
-      deadline: editDeadline
+      deadline: editDeadline,
+      requiredSkills: editRequiredSkills,
+      preferredSkills: editPreferredSkills,
+      responsibilities: editResponsibilities,
+      requirements: editRequirements,
     });
 
     if (viewingJob && viewingJob.id === editingJob.id) {
@@ -186,6 +222,10 @@ export function JobManagementPage() {
         salary: editSalary,
         description: editDescription,
         deadline: editDeadline,
+        requiredSkills: editRequiredSkills,
+        preferredSkills: editPreferredSkills,
+        responsibilities: editResponsibilities,
+        requirements: editRequirements,
         moderationStatus: prev.moderationStatus === 'REJECTED' ? 'PENDING' : prev.moderationStatus,
         verificationStatus: prev.moderationStatus === 'REJECTED' ? 'Pending' : prev.verificationStatus,
         rejectionReason: prev.moderationStatus === 'REJECTED' ? '' : prev.rejectionReason
@@ -602,7 +642,7 @@ export function JobManagementPage() {
           onClose={() => setEditingJob(null)}
           title={`Chỉnh sửa tin tuyển dụng: ${editingJob.title}`}
         >
-          <form onSubmit={handleSaveEditJob} className="space-y-3.5 text-xs">
+          <form onSubmit={handleSaveEditJob} className="space-y-4 text-xs">
             {editingJob.moderationStatus === 'REJECTED' && (
               <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-900 space-y-1">
                 <p className="font-bold flex items-center gap-1">
@@ -617,6 +657,7 @@ export function JobManagementPage() {
               </div>
             )}
 
+            {/* --- Tiêu đề --- */}
             <div className="form-group">
               <label className="block text-slate-800 font-bold mb-1">Tiêu đề vị trí tuyển dụng *</label>
               <input
@@ -696,6 +737,149 @@ export function JobManagementPage() {
               />
             </div>
 
+            {/* --- Kỹ năng bắt buộc --- */}
+            <div className="form-group">
+              <label className="block text-slate-800 font-bold mb-1.5 flex items-center gap-1.5">
+                <Tag size={13} className="text-indigo-600" /> Kỹ năng bắt buộc
+              </label>
+              <div className="flex flex-wrap gap-1.5 mb-2 min-h-[28px]">
+                {editRequiredSkills.map(skill => (
+                  <span key={skill} className="flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-800 border border-indigo-200 rounded-lg font-semibold">
+                    {skill}
+                    <button type="button" onClick={() => setEditRequiredSkills(prev => prev.filter(s => s !== skill))} className="ml-0.5 text-indigo-400 hover:text-rose-600 cursor-pointer">
+                      <X size={11} />
+                    </button>
+                  </span>
+                ))}
+                {editRequiredSkills.length === 0 && <span className="text-slate-400 text-[11px] italic">Chưa có kỹ năng nào. Thêm bên dưới.</span>}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  className="form-control text-xs h-8 flex-1"
+                  value={newEditReqSkill}
+                  onChange={e => setNewEditReqSkill(e.target.value)}
+                  placeholder="VD: Java, React, SQL..."
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { e.preventDefault(); if (newEditReqSkill.trim() && !editRequiredSkills.includes(newEditReqSkill.trim())) { setEditRequiredSkills(prev => [...prev, newEditReqSkill.trim()]); setNewEditReqSkill(''); } }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => { if (newEditReqSkill.trim() && !editRequiredSkills.includes(newEditReqSkill.trim())) { setEditRequiredSkills(prev => [...prev, newEditReqSkill.trim()]); setNewEditReqSkill(''); } }}
+                  className="btn btn-secondary text-xs h-8 px-3 flex items-center gap-1 font-bold"
+                >
+                  <Plus size={12} /> Thêm
+                </button>
+              </div>
+            </div>
+
+            {/* --- Kỹ năng ưu tiên --- */}
+            <div className="form-group">
+              <label className="block text-slate-800 font-bold mb-1.5 flex items-center gap-1.5">
+                <Tag size={13} className="text-emerald-600" /> Kỹ năng ưu tiên (nice-to-have)
+              </label>
+              <div className="flex flex-wrap gap-1.5 mb-2 min-h-[28px]">
+                {editPreferredSkills.map(skill => (
+                  <span key={skill} className="flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg font-semibold">
+                    {skill}
+                    <button type="button" onClick={() => setEditPreferredSkills(prev => prev.filter(s => s !== skill))} className="ml-0.5 text-emerald-400 hover:text-rose-600 cursor-pointer">
+                      <X size={11} />
+                    </button>
+                  </span>
+                ))}
+                {editPreferredSkills.length === 0 && <span className="text-slate-400 text-[11px] italic">Chưa có kỹ năng nào.</span>}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  className="form-control text-xs h-8 flex-1"
+                  value={newEditPrefSkill}
+                  onChange={e => setNewEditPrefSkill(e.target.value)}
+                  placeholder="VD: Docker, Kubernetes, Redis..."
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { e.preventDefault(); if (newEditPrefSkill.trim() && !editPreferredSkills.includes(newEditPrefSkill.trim())) { setEditPreferredSkills(prev => [...prev, newEditPrefSkill.trim()]); setNewEditPrefSkill(''); } }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => { if (newEditPrefSkill.trim() && !editPreferredSkills.includes(newEditPrefSkill.trim())) { setEditPreferredSkills(prev => [...prev, newEditPrefSkill.trim()]); setNewEditPrefSkill(''); } }}
+                  className="btn btn-secondary text-xs h-8 px-3 flex items-center gap-1 font-bold"
+                >
+                  <Plus size={12} /> Thêm
+                </button>
+              </div>
+            </div>
+
+            {/* --- Trách nhiệm công việc --- */}
+            <div className="form-group">
+              <label className="block text-slate-800 font-bold mb-1.5">Trách nhiệm công việc</label>
+              <div className="space-y-1.5 mb-2">
+                {editResponsibilities.map((resp, idx) => (
+                  <div key={idx} className="flex items-center gap-2 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                    <span className="flex-1 text-slate-700">{resp}</span>
+                    <button type="button" onClick={() => setEditResponsibilities(prev => prev.filter((_, i) => i !== idx))} className="text-slate-400 hover:text-rose-600 cursor-pointer shrink-0">
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+                {editResponsibilities.length === 0 && <p className="text-slate-400 italic text-[11px]">Chưa có trách nhiệm nào.</p>}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  className="form-control text-xs h-8 flex-1"
+                  value={newEditResp}
+                  onChange={e => setNewEditResp(e.target.value)}
+                  placeholder="VD: Phát triển RESTful API với Spring Boot..."
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (newEditResp.trim()) { setEditResponsibilities(prev => [...prev, newEditResp.trim()]); setNewEditResp(''); } } }}
+                />
+                <button
+                  type="button"
+                  onClick={() => { if (newEditResp.trim()) { setEditResponsibilities(prev => [...prev, newEditResp.trim()]); setNewEditResp(''); } }}
+                  className="btn btn-secondary text-xs h-8 px-3 flex items-center gap-1 font-bold"
+                >
+                  <Plus size={12} /> Thêm
+                </button>
+              </div>
+            </div>
+
+            {/* --- Yêu cầu ứng viên --- */}
+            <div className="form-group">
+              <label className="block text-slate-800 font-bold mb-1.5">Yêu cầu ứng viên</label>
+              <div className="space-y-1.5 mb-2">
+                {editRequirements.map((req, idx) => (
+                  <div key={idx} className="flex items-center gap-2 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                    <span className="flex-1 text-slate-700">{req}</span>
+                    <button type="button" onClick={() => setEditRequirements(prev => prev.filter((_, i) => i !== idx))} className="text-slate-400 hover:text-rose-600 cursor-pointer shrink-0">
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+                {editRequirements.length === 0 && <p className="text-slate-400 italic text-[11px]">Chưa có yêu cầu nào.</p>}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  className="form-control text-xs h-8 flex-1"
+                  value={newEditReq}
+                  onChange={e => setNewEditReq(e.target.value)}
+                  placeholder="VD: Tốt nghiệp chuyên ngành CNTT hoặc tương đương..."
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (newEditReq.trim()) { setEditRequirements(prev => [...prev, newEditReq.trim()]); setNewEditReq(''); } } }}
+                />
+                <button
+                  type="button"
+                  onClick={() => { if (newEditReq.trim()) { setEditRequirements(prev => [...prev, newEditReq.trim()]); setNewEditReq(''); } }}
+                  className="btn btn-secondary text-xs h-8 px-3 flex items-center gap-1 font-bold"
+                >
+                  <Plus size={12} /> Thêm
+                </button>
+              </div>
+            </div>
+
+            {/* --- Mô tả --- */}
             <div className="form-group">
               <label className="block text-slate-800 font-bold mb-1">Mô tả chi tiết công việc</label>
               <textarea

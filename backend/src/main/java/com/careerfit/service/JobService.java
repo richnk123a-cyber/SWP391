@@ -34,6 +34,7 @@ public class JobService {
     private final UserRepository userRepository;
     private final CandidateProfileRepository candidateProfileRepository;
     private final CompanyRepository companyRepository;
+    private final SkillRepository skillRepository;
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final String DEFAULT_SALARY_CURRENCY = "VNĐ";
@@ -160,6 +161,29 @@ public class JobService {
         return mapToJobResponse(job, userId);
     }
 
+    private List<Skill> resolveSkills(String skillsStr) {
+        if (skillsStr == null || skillsStr.isBlank()) {
+            return Collections.emptyList();
+        }
+        List<String> names = Arrays.stream(skillsStr.split("[,;\n]"))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .collect(Collectors.toList());
+        List<Skill> result = new ArrayList<>();
+        for (String name : names) {
+            Skill skill = skillRepository.findByNameIgnoreCase(name)
+                    .orElseGet(() -> skillRepository.save(Skill.builder()
+                            .id("skill-" + UUID.randomUUID().toString().substring(0, 8))
+                            .name(name)
+                            .category("Technical")
+                            .isActive(true)
+                            .build()));
+            result.add(skill);
+        }
+        return result;
+    }
+
     // ===== EMPLOYER: Đăng tin mới =====
     @Transactional
     public JobResponse postJob(String employerEmail, PostJobRequest request) {
@@ -179,6 +203,7 @@ public class JobService {
         }
 
         SalaryRange salaryRange = resolveSalaryRange(request);
+        List<Skill> jobSkills = resolveSkills(request.getRequiredSkills());
         Job newJob = Job.builder()
                 .id("job-" + UUID.randomUUID().toString().substring(0, 8))
                 .employerId(employer.getId())
@@ -194,6 +219,7 @@ public class JobService {
                 .description(request.getDescription())
                 .responsibilities(request.getResponsibilities())
                 .requirements(request.getRequirements())
+                .skills(jobSkills)
                 .deadline(request.getDeadline())
                 .verificationStatus("Pending") // Admin phải duyệt tin trước khi hiện
                 .isVisible(true)
@@ -269,6 +295,9 @@ public class JobService {
         job.setDescription(request.getDescription());
         job.setResponsibilities(request.getResponsibilities());
         job.setRequirements(request.getRequirements());
+        if (request.getRequiredSkills() != null) {
+            job.setSkills(resolveSkills(request.getRequiredSkills()));
+        }
         job.setDeadline(request.getDeadline());
         
         // Điều kiện 2: Khi sửa tin thì LUÔN LUÔN gửi lại cho Admin để xác nhận (chuyển về Pending)

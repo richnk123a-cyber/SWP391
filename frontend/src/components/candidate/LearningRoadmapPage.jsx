@@ -1,6 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Modal } from '../common/Modal';
+import { mergeMasterRoadmap, sanitizeRoadmapTopics } from '../../utils/matching';
 import {
   ArrowRight,
   Award,
@@ -14,7 +15,11 @@ import {
   Search,
   Target,
   Compass,
-  Layers
+  Layers,
+  Sparkles,
+  Briefcase,
+  Globe,
+  Database
 } from 'lucide-react';
 import './LearningRoadmapPage.css';
 
@@ -24,9 +29,27 @@ function resourceUrl(value) {
 function topicTime(topic) {
   return topic.estimatedTime || (Number(topic.estimatedHours) > 0 ? `${topic.estimatedHours} giờ` : 'Chưa có thời lượng');
 }
+function formatRoadmapSkillLabel(skillText) {
+  if (!skillText) return 'Chọn lộ trình';
+  const parts = skillText.split(/[•&,]/).map(s => s.trim()).filter(Boolean);
+  if (parts.length > 3) {
+    return `${parts.slice(0, 2).join(' • ')} + ${parts.length - 2} kỹ năng khác`;
+  }
+  return skillText;
+}
 
 export function LearningRoadmapPage() {
-  const { roadmaps = [], toggleRoadmapTopic, setActivePage } = useApp();
+  const {
+    roadmaps = [],
+    personalRoadmaps = [],
+    activeRoadmapType = 'ALL',
+    setActiveRoadmapType,
+    activePersonalJobId,
+    setActivePersonalJobId,
+    toggleRoadmapTopic,
+    setActivePage
+  } = useApp();
+
   const [selectedId, setSelectedId] = useState('');
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
@@ -34,9 +57,53 @@ export function LearningRoadmapPage() {
   const [isCatalogModalOpen, setIsCatalogModalOpen] = useState(false);
   const [catalogSearch, setCatalogSearch] = useState('');
 
-  const lessonRefs = useRef(new Map());
-  const roadmap = roadmaps.find(item => item.id === selectedId) || roadmaps[0];
-  const topics = roadmap?.topics || [];
+  // 1. Tạo hoặc cập nhật Roadmap Tổng Thể (Master Roadmap) từ các roadmap cá nhân đã tạo
+  const masterRoadmap = useMemo(() => {
+    if (personalRoadmaps && personalRoadmaps.length > 0) {
+      return mergeMasterRoadmap(personalRoadmaps);
+    }
+    // Fallback: nếu chưa tạo roadmap cá nhân nào thì dùng roadmap mặc định từ hệ thống
+    return roadmaps[0] || null;
+  }, [personalRoadmaps, roadmaps]);
+
+  // 2. Xác định Roadmap hiện tại đang được hiển thị theo chế độ
+  const currentViewMode = activeRoadmapType || 'ALL'; // 'ALL' = Tổng thể, 'PERSONAL' = Cá nhân
+
+  const allRoadmapsCatalog = useMemo(() => {
+    return [
+      ...(masterRoadmap ? [masterRoadmap] : []),
+      ...personalRoadmaps,
+      ...roadmaps
+    ];
+  }, [masterRoadmap, personalRoadmaps, roadmaps]);
+
+  const roadmap = useMemo(() => {
+    // Nếu người dùng đã chủ động bấm chọn 1 roadmap cụ thể từ Modal "Đổi lộ trình"
+    if (selectedId) {
+      if (selectedId === 'master-roadmap-candidate') {
+        return masterRoadmap || roadmaps[0];
+      }
+      const foundPersonal = personalRoadmaps.find(p => p.id === selectedId || p.jobId === selectedId);
+      if (foundPersonal) return foundPersonal;
+      const foundMain = roadmaps.find(item => item.id === selectedId);
+      if (foundMain) return foundMain;
+    }
+
+    if (currentViewMode === 'PERSONAL') {
+      if (activePersonalJobId) {
+        const found = personalRoadmaps.find(p => p.jobId === activePersonalJobId || p.id === activePersonalJobId);
+        if (found) return found;
+      }
+      return personalRoadmaps[0] || masterRoadmap || roadmaps[0];
+    }
+
+    // Chế độ 'ALL' (Roadmap Tổng thể)
+    return masterRoadmap || roadmaps[0];
+  }, [currentViewMode, activePersonalJobId, selectedId, personalRoadmaps, masterRoadmap, roadmaps]);
+
+  const topics = useMemo(() => {
+    return sanitizeRoadmapTopics(roadmap?.topics || []);
+  }, [roadmap?.topics]);
   const completed = topics.filter(topic => topic.completed).length;
   const progress = topics.length ? Math.round(completed / topics.length * 100) : 0;
   const next = topics.find(topic => !topic.completed);
@@ -45,6 +112,8 @@ export function LearningRoadmapPage() {
   const knownHours = remaining.map(topic => Number(topic.estimatedHours) > 0 ? Number(topic.estimatedHours) : (/^\s*\d+(?:[.,]\d+)?\s*(?:giờ|hours?|h)\s*$/i.test(topic.estimatedTime || '') ? parseFloat(topic.estimatedTime.replace(',', '.')) : null));
   const totalRemainingHours = knownHours.every(hours => hours !== null) ? knownHours.reduce((sum, hours) => sum + hours, 0) : null;
   const toggle = topic => toggleRoadmapTopic(roadmap.id, topic.id);
+  const lessonRefs = useRef(new Map());
+
   const continueLearning = () => {
     setFilter('all'); setQuery('');
     requestAnimationFrame(() => {
@@ -54,35 +123,123 @@ export function LearningRoadmapPage() {
     });
   };
 
-  const filteredCatalogRoadmaps = roadmaps.filter(rm => {
+  // Tổng hợp toàn bộ lộ trình có thể chuyển đổi: Master Roadmap + Các lộ trình cá nhân đã phân tích + Các lộ trình mẫu từ CSDL
+  const availableRoadmapsList = useMemo(() => {
+    const list = [];
+    if (masterRoadmap) {
+      list.push({ ...masterRoadmap, categoryType: 'MASTER' });
+    }
+    personalRoadmaps.forEach(p => {
+      list.push({ ...p, categoryType: 'PERSONAL' });
+    });
+    roadmaps.forEach(r => {
+      // Tránh trùng lặp nếu đã có trong list
+      if (!list.some(x => x.id === r.id)) {
+        list.push({ ...r, categoryType: 'STANDARD' });
+      }
+    });
+    return list;
+  }, [masterRoadmap, personalRoadmaps, roadmaps]);
+
+  const filteredCatalogRoadmaps = availableRoadmapsList.filter(rm => {
     const q = catalogSearch.toLowerCase().trim();
     if (!q) return true;
     const matchSkill = (rm.skill || rm.skillName || '').toLowerCase().includes(q);
-    const matchRole = (rm.targetRole || '').toLowerCase().includes(q);
+    const matchRole = (rm.targetRole || rm.jobTitle || '').toLowerCase().includes(q);
+    const matchCompany = (rm.company || '').toLowerCase().includes(q);
     const matchDesc = (rm.description || '').toLowerCase().includes(q);
-    return matchSkill || matchRole || matchDesc;
+    return matchSkill || matchRole || matchCompany || matchDesc;
   });
 
   return (
     <div className="learning-page">
+      {/* ROADMAP TYPE SELECTOR TABS (ẢNH 1: ROADMAP CÁ NHÂN vs ẢNH 2: ROADMAP TỔNG THỂ) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white border border-slate-200/80 rounded-2xl shadow-xs">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              if (setActiveRoadmapType) setActiveRoadmapType('ALL');
+              setSelectedId('');
+            }}
+            className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer ${
+              currentViewMode === 'ALL'
+                ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <Layers size={14} />
+            <span>Lộ trình Tổng thể (Master Roadmap)</span>
+            {personalRoadmaps.length > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                currentViewMode === 'ALL' ? 'bg-blue-700 text-blue-100' : 'bg-slate-200 text-slate-700'
+              }`}>
+                Tổng hợp {personalRoadmaps.length} vị trí
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => {
+              if (setActiveRoadmapType) setActiveRoadmapType('PERSONAL');
+              if (personalRoadmaps.length > 0 && !activePersonalJobId) {
+                if (setActivePersonalJobId) setActivePersonalJobId(personalRoadmaps[0].jobId);
+              }
+            }}
+            className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer ${
+              currentViewMode === 'PERSONAL'
+                ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/20'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <Sparkles size={14} />
+            <span>Lộ trình Cá nhân hóa ({personalRoadmaps.length})</span>
+          </button>
+        </div>
+
+        {/* Dropdown chọn nhanh job cá nhân nếu ở chế độ PERSONAL */}
+        {currentViewMode === 'PERSONAL' && personalRoadmaps.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500 font-bold hidden sm:inline">Vị trí:</span>
+            <select
+              value={activePersonalJobId || (personalRoadmaps[0] ? personalRoadmaps[0].jobId : '')}
+              onChange={(e) => {
+                if (setActivePersonalJobId) setActivePersonalJobId(e.target.value);
+                setSelectedId('');
+              }}
+              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-blue-500 cursor-pointer"
+            >
+              {personalRoadmaps.map(p => (
+                <option key={p.id} value={p.jobId || p.id}>
+                  {p.jobTitle || p.targetRole} ({p.company || 'Doanh nghiệp'})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
       <header className="learning-hero">
         <div className="learning-hero-copy">
-          <span className="learning-eyebrow">LEARNING ROADMAP</span>
-          <h1>Học từng bước.<br /><span>Tiến gần mục tiêu.</span></h1>
+          <span className="learning-eyebrow flex items-center gap-1.5 w-fit">
+            <Sparkles size={13} className="text-blue-300" />
+            {currentViewMode === 'PERSONAL' ? 'ROADMAP CÁ NHÂN HÓA THEO CÔNG VIỆC' : 'LEARNING ROADMAP TỔNG THỂ'}
+          </span>
+          <h1>{currentViewMode === 'PERSONAL' ? 'Lộ trình cá nhân.' : 'Học từng bước.'}<br /><span>Tiến gần mục tiêu tuyển dụng.</span></h1>
           <p>{roadmap?.targetRole || 'Lộ trình học tập của bạn'}</p>
           <div className="learning-hero-tags flex-wrap">
             <span><BookOpen size={14} />{roadmap?.skill || 'Phát triển kỹ năng'}</span>
             <span><GraduationCap size={15} />{topics.length} bài học</span>
-            {roadmaps.length > 1 && (
-              <button
-                type="button"
-                onClick={() => setIsCatalogModalOpen(true)}
-                className="text-xs font-semibold px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 text-blue-100 border border-white/20 flex items-center gap-1.5 transition-all cursor-pointer"
-                title="Khám phá và đổi lộ trình học tập"
-              >
-                <Compass size={13} className="text-blue-300" /> Đổi lộ trình ({roadmaps.length})
-              </button>
+            {roadmap?.company && (
+              <span><Briefcase size={14} />{roadmap.company}</span>
             )}
+            <button
+              type="button"
+              onClick={() => setIsCatalogModalOpen(true)}
+              className="text-xs font-semibold px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 text-blue-100 border border-white/20 flex items-center gap-1.5 transition-all cursor-pointer"
+              title="Khám phá và đổi lộ trình học tập"
+            >
+              <Compass size={13} className="text-blue-300" /> Đổi lộ trình
+            </button>
           </div>
         </div>
         <div className="learning-hero-progress">
@@ -102,24 +259,26 @@ export function LearningRoadmapPage() {
 
       <div className="learning-layout">
         <main className="learning-curriculum">
-          <div className="learning-section-header">
-            <div>
+          <div className="learning-section-header flex flex-wrap items-center justify-between gap-4">
+            <div className="shrink-0 min-w-[200px]">
               <span className="learning-kicker">KẾ HOẠCH PHÁT TRIỂN KỸ NĂNG</span>
               <h2>Lộ trình của bạn</h2>
               <p>Theo dõi những gì đã học, chọn bước tiếp theo.</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0 max-w-full sm:max-w-[60%]">
               <button
                 type="button"
                 onClick={() => setIsCatalogModalOpen(true)}
-                className="btn btn-secondary text-xs font-semibold h-9 px-3.5 rounded-lg border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100/70 text-indigo-700 shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all"
+                className="btn btn-secondary text-xs font-semibold h-9 px-3.5 rounded-lg border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100/70 text-indigo-700 shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all max-w-full"
                 title="Nhấn để xem và chọn lộ trình khác"
               >
-                <Compass size={14} className="text-indigo-600" />
-                <span>{roadmap?.skill || 'Chọn lộ trình'}</span>
-                {roadmaps.length > 1 && (
-                  <span className="text-[10px] bg-indigo-200/80 text-indigo-800 px-1.5 py-0.5 rounded-md font-bold">
-                    Đổi ({roadmaps.length})
+                <Compass size={14} className="text-indigo-600 shrink-0" />
+                <span className="truncate max-w-[200px] sm:max-w-[260px] md:max-w-[320px]">
+                  {formatRoadmapSkillLabel(roadmap?.skill)}
+                </span>
+                {availableRoadmapsList.length > 1 && (
+                  <span className="text-[10px] bg-indigo-200/80 text-indigo-800 px-1.5 py-0.5 rounded-md font-bold shrink-0">
+                    Đổi ({availableRoadmapsList.length})
                   </span>
                 )}
               </button>
@@ -173,6 +332,20 @@ export function LearningRoadmapPage() {
                   <div className="learning-lesson-content">
                     <div className="learning-lesson-meta">
                       <span>{topic.milestone || `Bài ${String(index + 1).padStart(2, '0')}`}</span>
+                      {topic.skillName && (
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-700 font-bold rounded-md text-[11px] border border-slate-200">
+                          {topic.skillName}
+                        </span>
+                      )}
+                      {topic.sourceType === 'DATABASE' || (topic.resource && topic.resource.includes('[CSDL]')) ? (
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 font-bold rounded-md text-[10px] border border-emerald-200 flex items-center gap-1">
+                          <Database size={10} /> Nguồn CSDL chuẩn hóa
+                        </span>
+                      ) : topic.sourceType === 'INTERNET_AI_SEARCH' || topic.sourceType === 'INTERNET_AI_VERIFIED' || (topic.resource && topic.resource.includes('[Web')) ? (
+                        <span className="px-2 py-0.5 bg-sky-50 text-sky-800 font-bold rounded-md text-[10px] border border-sky-200 flex items-center gap-1">
+                          <Globe size={10} /> AI xác thực Internet
+                        </span>
+                      ) : null}
                       {active && <span className="learning-next-label">Tiếp theo</span>}
                       {topic.completed && <span className="learning-completed-label">Đã hoàn thành</span>}
                     </div>
@@ -182,6 +355,16 @@ export function LearningRoadmapPage() {
                     </p>
                     {topic.description && (
                       <p className="learning-topic-description">{topic.description}</p>
+                    )}
+                    {topic.itDomainRole && (
+                      <div className="mt-2 text-[11px] bg-sky-50/90 text-sky-950 border border-sky-200/80 rounded-md px-3 py-1.5 flex items-start gap-2 shadow-xs">
+                        <Sparkles size={13} className="text-sky-600 mt-0.5 shrink-0" />
+                        <div>
+                          <span className="font-semibold text-sky-900">Phân tích chuyên ngành IT: </span>
+                          <span className="text-slate-700">{topic.itDomainRole}</span>
+                          {topic.aiConfidence && <span className="ml-1.5 font-bold text-sky-700">({topic.aiConfidence}% tin cậy)</span>}
+                        </div>
+                      </div>
                     )}
                     <div className="learning-lesson-actions">
                       {resourceUrl(topic.url) && (
@@ -297,7 +480,7 @@ export function LearningRoadmapPage() {
       <Modal
         isOpen={isCatalogModalOpen}
         onClose={() => { setIsCatalogModalOpen(false); setCatalogSearch(''); }}
-        title={`Khám phá & Chọn Lộ trình Học tập (${roadmaps.length})`}
+        title={`Khám phá & Chọn Lộ trình Học tập (${availableRoadmapsList.length})`}
       >
         <div className="space-y-4 text-xs">
           {/* Search box */}
@@ -326,6 +509,12 @@ export function LearningRoadmapPage() {
                   key={item.id}
                   onClick={() => {
                     setSelectedId(item.id);
+                    if (item.categoryType === 'PERSONAL' || item.isPersonal) {
+                      if (setActiveRoadmapType) setActiveRoadmapType('PERSONAL');
+                      if (setActivePersonalJobId && item.jobId) setActivePersonalJobId(item.jobId);
+                    } else if (item.categoryType === 'MASTER' || item.id === 'master-roadmap-candidate') {
+                      if (setActiveRoadmapType) setActiveRoadmapType('ALL');
+                    }
                     setIsCatalogModalOpen(false);
                     setCatalogSearch('');
                     setFilter('all');
@@ -338,13 +527,25 @@ export function LearningRoadmapPage() {
                   }`}
                 >
                   <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-bold text-[11px] px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200/60 flex items-center gap-1">
-                        <BookOpen size={11} /> {item.skill || item.skillName || 'Kỹ năng'}
-                      </span>
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-[11px] px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200/60 flex items-center gap-1">
+                          <BookOpen size={11} /> {item.skill || item.skillName || 'Kỹ năng'}
+                        </span>
+                        {item.categoryType === 'PERSONAL' && (
+                          <span className="font-bold text-[10px] px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
+                            <Sparkles size={10} /> Theo vị trí tuyển dụng
+                          </span>
+                        )}
+                        {item.categoryType === 'MASTER' && (
+                          <span className="font-bold text-[10px] px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1">
+                            <Layers size={10} /> Lộ trình Tổng thể
+                          </span>
+                        )}
+                      </div>
                       {isCurrent ? (
                         <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <Check size={11} /> Đang học
+                          <Check size={11} /> Đang chọn
                         </span>
                       ) : (
                         <span className="text-[11px] text-slate-500 font-medium">

@@ -85,6 +85,10 @@ public class AdminJobService {
                         .flatMap(u -> companyRepository.findFirstByEmail(u.getEmail().toLowerCase()))
                         .map(Company::getCompanyName))
                 .orElse("");
+        String requiredSkills = j.getSkills() == null ? "" : j.getSkills().stream()
+                .map(com.careerfit.model.Skill::getName)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.joining(", "));
         return JobResponse.builder()
                 .id(j.getId())
                 .companyName(compName)
@@ -97,6 +101,7 @@ public class AdminJobService {
                 .description(j.getDescription())
                 .responsibilities(j.getResponsibilities())
                 .requirements(j.getRequirements())
+                .requiredSkills(requiredSkills)
                 .deadline(j.getDeadline())
                 .verificationStatus(j.getVerificationStatus())
                 .rejectionReason(j.getRejectionReason())

@@ -56,6 +56,7 @@ export function JobSearchPage() {
   const {
     candidateProfile,
     companies = [],
+    jobs: appJobs = [],
     setSelectedJobId,
     setSelectedJobOverride,
     setActivePage,
@@ -191,8 +192,47 @@ export function JobSearchPage() {
   };
 
   const displayedJobs = useMemo(() => {
-    const result = jobs.map(job => {
-      const match = calculateSkillMatch(candidateSkills, job.requiredSkills || []);
+    // 1. Merge jobs from search API with local appJobs state
+    const mergedList = jobs.map(job => {
+      const localJob = appJobs.find(j => j.id === job.id);
+      if (localJob) {
+        // If localJob is still PENDING or REJECTED, candidate must NOT see it yet
+        if (localJob.moderationStatus === 'PENDING' || localJob.verificationStatus === 'Pending') return null;
+        if (localJob.moderationStatus === 'REJECTED' || localJob.verificationStatus === 'Rejected') return null;
+
+        // If approved, merge all latest edits (title, description, skills, responsibilities, requirements)
+        return {
+          ...job,
+          ...localJob,
+          title: localJob.title || job.title,
+          description: localJob.description || job.description,
+          requiredSkills: (localJob.requiredSkills && localJob.requiredSkills.length > 0)
+            ? localJob.requiredSkills
+            : (job.requiredSkills || []),
+          preferredSkills: (localJob.preferredSkills && localJob.preferredSkills.length > 0)
+            ? localJob.preferredSkills
+            : (job.preferredSkills || []),
+          responsibilities: (localJob.responsibilities && (Array.isArray(localJob.responsibilities) ? localJob.responsibilities.length > 0 : Boolean(localJob.responsibilities)))
+            ? localJob.responsibilities
+            : (job.responsibilities || []),
+          requirements: (localJob.requirements && (Array.isArray(localJob.requirements) ? localJob.requirements.length > 0 : Boolean(localJob.requirements)))
+            ? localJob.requirements
+            : (job.requirements || [])
+        };
+      }
+      return job;
+    }).filter(Boolean);
+
+    // 2. Also ensure any locally approved jobs appear if backend search didn't return them yet
+    appJobs.forEach(aj => {
+      if ((aj.moderationStatus === 'APPROVED' || aj.verificationStatus === 'Verified') &&
+          !mergedList.some(mj => mj.id === aj.id)) {
+        mergedList.push(aj);
+      }
+    });
+
+    const result = mergedList.map(job => {
+      const match = calculateSkillMatch(candidateSkills, job.requiredSkills || [], candidateProfile?.extractedCvText);
       return {
         ...job,
         match
@@ -204,7 +244,7 @@ export function JobSearchPage() {
     }
 
     return result;
-  }, [jobs, candidateSkills, sortBy]);
+  }, [jobs, appJobs, candidateSkills, sortBy, candidateProfile?.extractedCvText]);
 
   const activeFilterCount = (searchLocation ? 1 : 0) + (selectedCategory ? 1 : 0) +
     (selectedJobType ? 1 : 0) + (minSalary !== '' ? 1 : 0) + (maxSalary !== '' ? 1 : 0);
@@ -213,8 +253,10 @@ export function JobSearchPage() {
   const approvedCount = totalElements;
 
   const openJob = (job) => {
+    const localJob = appJobs.find(j => j.id === job.id);
+    const finalJob = localJob ? { ...job, ...localJob } : job;
     if (setSelectedJobOverride) {
-      setSelectedJobOverride(job);
+      setSelectedJobOverride(finalJob);
     }
     setSelectedJobId(job.id);
     setActivePage('job-detail');

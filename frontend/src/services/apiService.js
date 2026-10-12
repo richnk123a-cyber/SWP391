@@ -221,5 +221,6 @@ export const reportApi = {
 export const aiApi = {
   getModels: () => api.get('/ai/models'),
   execute: (requestData) => api.post('/ai/execute', requestData),
+  discoverSkill: (payload) => api.post('/ai/skill-discovery', payload),
 };
 

@@ -67,7 +67,9 @@ public class OpenRouterAiClient {
                 .primaryModelId("google/gemma-4-31b-it:free")
                 .fallbackModelIds(List.of(
                         "google/gemma-4-26b-a4b-it:free",
-                        "google/gemma-4-31b-it"
+                        "liquid/lfm-2.5-2.6b:free",
+                        "google/gemma-4-31b-it",
+                        "openrouter/free"
                 ))
                 .provider("Google")
                 .enabled(true)
@@ -79,9 +81,9 @@ public class OpenRouterAiClient {
                 .primaryModelId("openai/gpt-oss-20b")
                 .fallbackModelIds(List.of(
                         "openai/gpt-oss-20b:free",
-                        "openrouter/free",
                         "cohere/north-mini-code:free",
-                        "liquid/lfm-2.5-2.6b:free"
+                        "liquid/lfm-2.5-2.6b:free",
+                        "openrouter/free"
                 ))
                 .provider("OpenAI")
                 .enabled(true)
@@ -94,7 +96,8 @@ public class OpenRouterAiClient {
                 .fallbackModelIds(List.of(
                         "nvidia/nemotron-3.5-lightning:free",
                         "nvidia/nemotron-3-ultra-550b-a55b:free",
-                        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+                        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+                        "cohere/north-mini-code:free"
                 ))
                 .provider("NVIDIA")
                 .enabled(true)

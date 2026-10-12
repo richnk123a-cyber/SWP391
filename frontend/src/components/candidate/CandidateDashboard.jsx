@@ -22,8 +22,8 @@ export function CandidateDashboard() {
       return { ...item, jobTitle: item.jobTitle || job?.title || 'Vị trí đã ứng tuyển', companyName: item.companyName || job?.company || 'Doanh nghiệp' };
     });
   }, [applications, currentUser, jobs, profile.id]);
-  const recommended = useMemo(() => jobs.filter(job => !job.moderationStatus || job.moderationStatus === 'APPROVED').map(job => ({ ...job, match: calculateSkillMatch(skills, job.requiredSkills || []) }))
-    .sort((a, b) => b.match.percentage - a.match.percentage).slice(0, 4), [jobs, skills]);
+  const recommended = useMemo(() => jobs.filter(job => !job.moderationStatus || job.moderationStatus === 'APPROVED').map(job => ({ ...job, match: calculateSkillMatch(skills, job.requiredSkills || [], profile.extractedCvText) }))
+    .sort((a, b) => b.match.percentage - a.match.percentage).slice(0, 4), [jobs, skills, profile.extractedCvText]);
   const profileChecks = [
     { label: 'Thông tin cá nhân', done: Boolean(profile.name && profile.email && profile.phone) },
     { label: 'Kỹ năng chuyên môn', done: skills.length > 0 },

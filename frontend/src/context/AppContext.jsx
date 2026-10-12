@@ -12,8 +12,7 @@ import {
   INITIAL_NOTIFICATIONS
 } from '../data/mockData';
 import { authApi, adminApi, candidateApi, employerApi, jobApi, catalogApi, reportApi, notificationApi } from '../services/apiService';
-
-
+import { sanitizeRoadmapTopics } from '../utils/matching';
 
 const AppContext = createContext();
 
@@ -115,11 +114,26 @@ export function AppProvider({ children }) {
 
   const [applications, setApplications] = useState(() => safeGetLocalStorage('careerfit_applications', INITIAL_APPLICATIONS));
   const [roadmaps, setRoadmaps] = useState(() => safeGetLocalStorage('careerfit_roadmaps', INITIAL_ROADMAPS));
+  const [personalRoadmaps, setPersonalRoadmaps] = useState(() => {
+    const saved = safeGetLocalStorage('careerfit_personal_roadmaps', []);
+    return Array.isArray(saved)
+      ? saved.map(rm => ({
+          ...rm,
+          topics: sanitizeRoadmapTopics(rm.topics)
+        }))
+      : [];
+  });
+  const [activeRoadmapType, setActiveRoadmapType] = useState('ALL'); // 'ALL' = Tổng thể, 'PERSONAL' = Cá nhân
+  const [activePersonalJobId, setActivePersonalJobId] = useState(null);
   const [employerVerifications, setEmployerVerifications] = useState(() => safeGetLocalStorage('careerfit_employer_verifications', INITIAL_EMPLOYER_VERIFICATIONS));
   const [reportedJobs, setReportedJobs] = useState(() => safeGetLocalStorage('careerfit_reported_jobs', INITIAL_REPORTED_JOBS));
   const [skillsCatalog, setSkillsCatalog] = useState(() => safeGetLocalStorage('careerfit_skills_catalog', INITIAL_SKILLS_CATALOG));
   const [notifications, setNotifications] = useState(() => safeGetLocalStorage('careerfit_notifications', INITIAL_NOTIFICATIONS));
   const [savedJobIds, setSavedJobIds] = useState(() => safeGetLocalStorage('careerfit_saved_jobs', ['job-1', 'job-3']));
+
+  useEffect(() => {
+    localStorage.setItem('careerfit_personal_roadmaps', JSON.stringify(personalRoadmaps));
+  }, [personalRoadmaps]);
 
   useEffect(() => {
     localStorage.setItem('careerfit_saved_jobs', JSON.stringify(savedJobIds));
@@ -1004,6 +1018,12 @@ export function AppProvider({ children }) {
                   if (vs === 'Rejected') return 'REJECTED';
                   return 'PENDING';
                 };
+                // Chuyển đổi requiredSkills/preferredSkills từ backend (có thể là string hoặc array)
+                const parseSkills = (raw) => {
+                  if (Array.isArray(raw)) return raw.filter(Boolean);
+                  if (typeof raw === 'string' && raw.trim()) return raw.split(/[,;\n]/).map(s => s.trim()).filter(Boolean);
+                  return [];
+                };
                 const mapped = {
                   id: bj.id,
                   title: bj.title,
@@ -1014,8 +1034,10 @@ export function AppProvider({ children }) {
                   location: bj.location,
                   salary: bj.salary,
                   description: bj.description,
-                  responsibilities: Array.isArray(bj.responsibilities) ? bj.responsibilities : [bj.responsibilities || ''],
-                  requirements: Array.isArray(bj.requirements) ? bj.requirements : [bj.requirements || ''],
+                  responsibilities: Array.isArray(bj.responsibilities) ? bj.responsibilities : (bj.responsibilities ? [bj.responsibilities] : []),
+                  requirements: Array.isArray(bj.requirements) ? bj.requirements : (bj.requirements ? [bj.requirements] : []),
+                  requiredSkills: parseSkills(bj.requiredSkills),
+                  preferredSkills: parseSkills(bj.preferredSkills),
                   deadline: bj.deadline,
                   verificationStatus: bj.verificationStatus || 'Pending',
                   verifiedStatus: bj.verificationStatus || 'Pending',
@@ -1023,8 +1045,13 @@ export function AppProvider({ children }) {
                   rejectionReason: bj.rejectionReason || '',
                   isVerified: bj.verificationStatus === 'Verified'
                 };
-                if (idx >= 0) list[idx] = { ...list[idx], ...mapped };
-                else list.unshift(mapped);
+                // Ưu tiên giữ lại requiredSkills/preferredSkills local nếu backend không có
+                if (idx >= 0) {
+                  const local = list[idx];
+                  if (!mapped.requiredSkills.length && local.requiredSkills?.length) mapped.requiredSkills = local.requiredSkills;
+                  if (!mapped.preferredSkills.length && local.preferredSkills?.length) mapped.preferredSkills = local.preferredSkills;
+                  list[idx] = { ...local, ...mapped };
+                } else list.unshift(mapped);
               });
               return list;
             });
@@ -1089,6 +1116,11 @@ export function AppProvider({ children }) {
                   if (vs === 'Rejected') return 'REJECTED';
                   return 'PENDING';
                 };
+                const parseSkills = (raw) => {
+                  if (Array.isArray(raw)) return raw.filter(Boolean);
+                  if (typeof raw === 'string' && raw.trim()) return raw.split(/[,;\n]/).map(s => s.trim()).filter(Boolean);
+                  return [];
+                };
                 const mapped = {
                   id: bj.id,
                   title: bj.title,
@@ -1099,8 +1131,10 @@ export function AppProvider({ children }) {
                   location: bj.location,
                   salary: bj.salary,
                   description: bj.description,
-                  responsibilities: Array.isArray(bj.responsibilities) ? bj.responsibilities : [bj.responsibilities || ''],
-                  requirements: Array.isArray(bj.requirements) ? bj.requirements : [bj.requirements || ''],
+                  responsibilities: Array.isArray(bj.responsibilities) ? bj.responsibilities : (bj.responsibilities ? [bj.responsibilities] : []),
+                  requirements: Array.isArray(bj.requirements) ? bj.requirements : (bj.requirements ? [bj.requirements] : []),
+                  requiredSkills: parseSkills(bj.requiredSkills),
+                  preferredSkills: parseSkills(bj.preferredSkills),
                   deadline: bj.deadline,
                   verificationStatus: bj.verificationStatus || 'Pending',
                   verifiedStatus: bj.verificationStatus || 'Pending',
@@ -1108,8 +1142,19 @@ export function AppProvider({ children }) {
                   rejectionReason: bj.rejectionReason || '',
                   isVerified: bj.verificationStatus === 'Verified'
                 };
-                if (idx >= 0) list[idx] = { ...list[idx], ...mapped };
-                else list.unshift(mapped);
+                if (idx >= 0) {
+                  const local = list[idx];
+                  // Ưu tiên giữ lại skills local nếu backend chưa lưu được
+                  if (!mapped.requiredSkills.length && local.requiredSkills?.length) mapped.requiredSkills = local.requiredSkills;
+                  if (!mapped.preferredSkills.length && local.preferredSkills?.length) mapped.preferredSkills = local.preferredSkills;
+                  // Ưu tiên giữ moderationStatus local (PENDING) khi vừa chỉnh sửa
+                  if (local.moderationStatus === 'PENDING' && mapped.moderationStatus === 'APPROVED') {
+                    mapped.moderationStatus = local.moderationStatus;
+                    mapped.verificationStatus = local.verificationStatus;
+                    mapped.verifiedStatus = local.verifiedStatus;
+                  }
+                  list[idx] = { ...local, ...mapped };
+                } else list.unshift(mapped);
               });
               return list;
             });
@@ -1316,13 +1361,15 @@ export function AppProvider({ children }) {
     return updatedProf;
   };
 
+  // Cập nhật trạng thái hoàn thành bài học (Hoạt động liên tục & tức thì cho cả roadmap cá nhân và tổng thể)
   const toggleRoadmapTopic = (roadmapId, topicId) => {
+    // 1. Cập nhật trong danh sách roadmaps chính / tổng thể
     setRoadmaps(prev =>
       prev.map(rm => {
-        if (rm.id === roadmapId) {
+        if (rm.id === roadmapId || rm.id === 'master-roadmap-candidate') {
           return {
             ...rm,
-            topics: rm.topics.map(tp =>
+            topics: (rm.topics || []).map(tp =>
               tp.id === topicId ? { ...tp, completed: !tp.completed } : tp
             )
           };
@@ -1330,7 +1377,51 @@ export function AppProvider({ children }) {
         return rm;
       })
     );
-    showToast('Đã cập nhật tiến độ học tập trên Roadmap!', 'success');
+
+    // 2. Cập nhật đồng bộ trong personalRoadmaps
+    setPersonalRoadmaps(prev =>
+      prev.map(pRm => {
+        const hasTopic = (pRm.topics || []).some(t => t.id === topicId);
+        if (pRm.id === roadmapId || hasTopic) {
+          return {
+            ...pRm,
+            topics: (pRm.topics || []).map(tp =>
+              tp.id === topicId ? { ...tp, completed: !tp.completed } : tp
+            )
+          };
+        }
+        return pRm;
+      })
+    );
+
+    showToast('Đã cập nhật trạng thái tiến độ học tập trên Roadmap!', 'success');
+  };
+
+  // Lưu hoặc cập nhật Roadmap cá nhân do AI thiết kế riêng cho công việc
+  const savePersonalRoadmap = (newPersonalRoadmap) => {
+    if (!newPersonalRoadmap || !newPersonalRoadmap.id) return;
+
+    setPersonalRoadmaps(prev => {
+      const existingIndex = prev.findIndex(r => r.id === newPersonalRoadmap.id || (r.jobId && r.jobId === newPersonalRoadmap.jobId));
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = { ...updated[existingIndex], ...newPersonalRoadmap };
+        return updated;
+      } else {
+        return [newPersonalRoadmap, ...prev];
+      }
+    });
+
+    // Tự động thêm vào danh sách catalog roadmaps để người dùng có thể chuyển đổi linh hoạt
+    setRoadmaps(prev => {
+      const exists = prev.some(r => r.id === newPersonalRoadmap.id);
+      if (!exists) {
+        return [newPersonalRoadmap, ...prev];
+      }
+      return prev.map(r => r.id === newPersonalRoadmap.id ? { ...r, ...newPersonalRoadmap } : r);
+    });
+
+    showToast(`AI đã tạo và lưu lộ trình học tập cho vị trí "${newPersonalRoadmap.jobTitle || newPersonalRoadmap.targetRole}"!`, 'success');
   };
 
   const applyForJob = (jobId) => {
@@ -1525,6 +1616,8 @@ export function AppProvider({ children }) {
         description: newJobData.description,
         responsibilities: Array.isArray(newJobData.responsibilities) ? newJobData.responsibilities.join('\n') : (newJobData.responsibilities || ''),
         requirements: Array.isArray(newJobData.requirements) ? newJobData.requirements.join('\n') : (newJobData.requirements || ''),
+        requiredSkills: Array.isArray(newJobData.requiredSkills) ? newJobData.requiredSkills.join(', ') : (newJobData.requiredSkills || ''),
+        preferredSkills: Array.isArray(newJobData.preferredSkills) ? newJobData.preferredSkills.join(', ') : (newJobData.preferredSkills || ''),
         deadline: newJobData.deadline
       });
 
@@ -1584,6 +1677,8 @@ export function AppProvider({ children }) {
           description: updatedData.description,
           responsibilities: Array.isArray(updatedData.responsibilities) ? updatedData.responsibilities.join('\n') : (updatedData.responsibilities || ''),
           requirements: Array.isArray(updatedData.requirements) ? updatedData.requirements.join('\n') : (updatedData.requirements || ''),
+          requiredSkills: Array.isArray(updatedData.requiredSkills) ? updatedData.requiredSkills.join(', ') : (updatedData.requiredSkills || ''),
+          preferredSkills: Array.isArray(updatedData.preferredSkills) ? updatedData.preferredSkills.join(', ') : (updatedData.preferredSkills || ''),
           deadline: updatedData.deadline
         });
       }
@@ -2172,9 +2267,30 @@ export function AppProvider({ children }) {
     showToast('Đã đăng xuất khỏi hệ thống.', 'info');
   };
 
-  const selectedJob = selectedJobOverride?.id === selectedJobId
-    ? selectedJobOverride
-    : (jobs.find(j => j.id === selectedJobId) || jobs[0]);
+  const selectedJob = useMemo(() => {
+    const local = jobs.find(j => j.id === selectedJobId) || jobs[0];
+    if (selectedJobOverride && selectedJobOverride.id === selectedJobId) {
+      return {
+        ...selectedJobOverride,
+        ...(local || {}),
+        title: local?.title || selectedJobOverride.title,
+        description: local?.description || selectedJobOverride.description,
+        requiredSkills: (local?.requiredSkills && local.requiredSkills.length > 0)
+          ? local.requiredSkills
+          : (selectedJobOverride.requiredSkills || []),
+        preferredSkills: (local?.preferredSkills && local.preferredSkills.length > 0)
+          ? local.preferredSkills
+          : (selectedJobOverride.preferredSkills || []),
+        responsibilities: (local?.responsibilities && (Array.isArray(local.responsibilities) ? local.responsibilities.length > 0 : Boolean(local.responsibilities)))
+          ? local.responsibilities
+          : (selectedJobOverride.responsibilities || []),
+        requirements: (local?.requirements && (Array.isArray(local.requirements) ? local.requirements.length > 0 : Boolean(local.requirements)))
+          ? local.requirements
+          : (selectedJobOverride.requirements || [])
+      };
+    }
+    return local;
+  }, [selectedJobId, selectedJobOverride, jobs]);
 
   return (
     <AppContext.Provider
@@ -2219,6 +2335,13 @@ export function AppProvider({ children }) {
         toasts,
         showToast,
         updateCandidateSkills,
+        personalRoadmaps,
+        setPersonalRoadmaps,
+        activeRoadmapType,
+        setActiveRoadmapType,
+        activePersonalJobId,
+        setActivePersonalJobId,
+        savePersonalRoadmap,
         uploadCandidateCV,
         deleteCandidateCV,
         toggleRoadmapTopic,
