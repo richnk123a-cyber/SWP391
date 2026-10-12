@@ -14,9 +14,11 @@ import {
   Loader2,
   HelpCircle,
   Mail,
-  Shield
+  Shield,
+  Trash2
 } from 'lucide-react';
 import { Modal } from './Modal';
+import { DeleteAccountModal } from './DeleteAccountModal';
 import './SecuritySettingsPage.css';
 
 export function SecuritySettingsPage() {
@@ -26,6 +28,7 @@ export function SecuritySettingsPage() {
   const [hasPassword, setHasPassword] = useState(false);
   const [statusError, setStatusError] = useState(false);
   const [authProvider, setAuthProvider] = useState('LOCAL');
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   // Form State
   const [oldPassword, setOldPassword] = useState('');
@@ -460,6 +463,27 @@ export function SecuritySettingsPage() {
         </div>
       </div>
 
+      {/* Danger Zone: Xóa tài khoản */}
+      <div className="bg-rose-50/80 border border-rose-200 rounded-2xl p-6 sm:p-7 shadow-xs space-y-4 mb-6">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="space-y-1">
+            <h3 className="text-sm sm:text-base font-bold text-rose-950 flex items-center gap-2">
+              <Trash2 size={18} className="text-rose-600" /> Vùng nguy hiểm: Xóa tài khoản
+            </h3>
+            <p className="text-xs text-rose-800 leading-relaxed max-w-xl">
+              Nếu bạn lỡ tạo nhầm vai trò tài khoản (ứng viên hoặc doanh nghiệp) hoặc không còn nhu cầu sử dụng, bạn có thể xóa vĩnh viễn tài khoản này để giải phóng email và đăng ký lại đúng tài khoản.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsDeleteModalOpen(true)}
+            className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
+          >
+            <Trash2 size={14} /> Xóa tài khoản này
+          </button>
+        </div>
+      </div>
+
       {/* Forgot Password Modal */}
       <Modal
         isOpen={isForgotModalOpen}
@@ -503,6 +527,11 @@ export function SecuritySettingsPage() {
           </div>
         </form>
       </Modal>
+
+      <DeleteAccountModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+      />
     </div>
   );
 }

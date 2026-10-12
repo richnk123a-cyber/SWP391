@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { VerificationBadge } from '../common/Badge';
 import { LogoCropperModal } from '../common/LogoCropperModal';
+import { DeleteAccountModal } from '../common/DeleteAccountModal';
 import { employerApi } from '../../services/apiService';
 import { getCompanyLogoUrl, isImageLogo } from '../../utils/logoUtils';
 import {
@@ -29,6 +30,7 @@ export function CompanyProfilePage() {
   const { currentUser, employerProfile, setEmployerProfile, setCompanies, showToast, setActivePage } = useApp();
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     companyName: employerProfile?.companyName || (currentUser?.fullName ? currentUser.fullName : (currentUser?.username || '')),
     recruiterName: employerProfile?.recruiterName || currentUser?.fullName || currentUser?.username || '',
@@ -675,9 +677,34 @@ export function CompanyProfilePage() {
                 Trang quản lý Xác minh
               </button>
             </div>
+
+            {/* Danger Zone: Xóa tài khoản doanh nghiệp */}
+            <div className="bg-rose-50/70 p-5 rounded-2xl border border-rose-200 shadow-xs space-y-3 text-xs">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-rose-900 flex items-center gap-1.5">
+                  <Trash2 size={16} className="text-rose-600" /> Quản lý tài khoản
+                </h4>
+              </div>
+              <p className="text-rose-700 text-[11px] leading-relaxed">
+                Nếu bạn lỡ tạo nhầm tài khoản Doanh nghiệp thay vì Ứng viên, hãy xóa tài khoản này để giải phóng email và đăng ký lại đúng vai trò.
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsDeleteModalOpen(true)}
+                className="w-full py-2 px-3 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <Trash2 size={14} /> Xóa tài khoản này
+              </button>
+            </div>
           </div>
         </div>
       )}
+
+      {/* Modal Xóa tài khoản 2 bước xác minh */}
+      <DeleteAccountModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+      />
     </div>
   );
 }

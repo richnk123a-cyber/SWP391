@@ -11,12 +11,8 @@ import java.util.UUID;
 import com.careerfit.dto.*;
 import com.careerfit.exception.BadRequestException;
 import com.careerfit.exception.ConflictException;
-import com.careerfit.model.CandidateProfile;
-import com.careerfit.model.Company;
-import com.careerfit.model.User;
-import com.careerfit.repository.CandidateProfileRepository;
-import com.careerfit.repository.CompanyRepository;
-import com.careerfit.repository.UserRepository;
+import com.careerfit.model.*;
+import com.careerfit.repository.*;
 import com.careerfit.security.JwtUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +22,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -34,8 +34,14 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final CandidateProfileRepository candidateProfileRepository;
-
     private final CompanyRepository companyRepository;
+    private final JobRepository jobRepository;
+    private final ApplicationRepository applicationRepository;
+    private final NotificationRepository notificationRepository;
+    private final SavedJobRepository savedJobRepository;
+    private final ReportRepository reportRepository;
+    private final ReportStatusHistoryRepository reportStatusHistoryRepository;
+    private final AiAnalysisCacheRepository aiAnalysisCacheRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
     private final AuthenticationManager authenticationManager;
@@ -163,9 +169,9 @@ public class AuthService {
     public AuthResponse registerCandidate(RegisterCandidateRequest request) {
         String cleanEmail = request.getEmail().trim().toLowerCase();
         
-        // Kiểm tra định dạng Email cho Ứng viên (phải là gmail.com hoặc outlook.com, và trước @ có >=3 ký tự hợp lệ)
-        if (!cleanEmail.matches("^[a-zA-Z0-9._%+-]{3,}@(gmail\\.com|outlook\\.com)$")) {
-            throw new BadRequestException("Email ứng viên phải có đuôi @gmail.com hoặc @outlook.com, và trước @ phải có ít nhất 3 ký tự.", "email");
+        // Kiểm tra định dạng Email hợp lệ (bất kỳ email hợp lệ đều được chấp nhận)
+        if (!cleanEmail.matches("^[a-zA-Z0-9._%+\\-]{1,}@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$")) {
+            throw new BadRequestException("Email không hợp lệ. Vui lòng nhập đúng định dạng email.", "email");
         }
 
         String cleanPhone = request.getPhone() != null ? request.getPhone().replaceAll("\\s+", "") : "";
@@ -252,11 +258,8 @@ public class AuthService {
         
         // 2. CHECK EMAIL & PASSWORD
         String cleanEmail = request.getEmail().trim().toLowerCase();
-        if (cleanEmail.endsWith("@gmail.com") || cleanEmail.endsWith("@outlook.com")) {
-            throw new BadRequestException("Email doanh nghiệp phải sử dụng tên miền công ty (không sử dụng @gmail.com hoặc @outlook.com).", "email");
-        }
         if (userRepository.existsByEmailAndAuthProvider(cleanEmail, "LOCAL")) {
-            throw new ConflictException("Email doanh nghiệp này đã được đăng ký tài khoản trực tiếp. Vui lòng chọn email khác hoặc Đăng nhập.", "email");
+            throw new ConflictException("Email này đã được sử dụng để đăng ký tài khoản trực tiếp. Vui lòng chọn email khác hoặc Đăng nhập.", "email");
         }
         if (request.getPassword() != null && !request.getPassword().equals(request.getConfirmPassword())) {
             throw new BadRequestException("Mật khẩu xác nhận không khớp.", "confirmPassword");
@@ -368,15 +371,9 @@ public class AuthService {
 
         String selectedRole = (request.getRole() != null && request.getRole().equals("EMPLOYER")) ? "EMPLOYER" : "CANDIDATE";
         
-        if (selectedRole.equals("CANDIDATE")) {
-            if (!requestedEmail.matches("^[a-zA-Z0-9._%+-]{3,}@(gmail\\.com|outlook\\.com)$")) {
-                throw new BadRequestException("Email ứng viên phải có đuôi @gmail.com hoặc @outlook.com, và trước @ phải có ít nhất 3 ký tự.", "email");
-            }
-        } else {
-            // EMPLOYER: không được dùng gmail.com hoặc outlook.com
-            if (requestedEmail.endsWith("@gmail.com") || requestedEmail.endsWith("@outlook.com")) {
-                throw new BadRequestException("Email doanh nghiệp phải sử dụng tên miền công ty (không sử dụng @gmail.com hoặc @outlook.com).", "email");
-            }
+        // Kiểm tra định dạng email hợp lệ (không giới hạn domain)
+        if (!requestedEmail.matches("^[a-zA-Z0-9._%+\\-]{1,}@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$")) {
+            throw new BadRequestException("Email không hợp lệ. Vui lòng nhập đúng định dạng email.", "email");
         }
         
         // 6. Tạo User chung
@@ -513,5 +510,240 @@ public class AuthService {
         userRepository.save(user);
 
         log.info("User [{}] successfully set/changed their password.", user.getEmail());
+    }
+
+    // ==================== XÓA TÀI KHOẢN (FULL CASCADE) ====================
+    @Transactional
+    public void deleteAccount(String userIdentifier) {
+        User user = userRepository.findById(userIdentifier)
+                .or(() -> userRepository.findByUsername(userIdentifier))
+                .or(() -> userRepository.findFirstByEmail(userIdentifier.toLowerCase()))
+                .orElseThrow(() -> new BadRequestException("Không tìm thấy tài khoản cần xóa."));
+
+        String userId = user.getId();
+        String userEmail = user.getEmail();
+        String displayName = (user.getUsername() != null && !user.getUsername().isBlank()) ? user.getUsername() : userEmail;
+        String role = user.getRole() != null ? user.getRole().toUpperCase() : "CANDIDATE";
+
+        log.info("Bắt đầu quy trình xóa tài khoản: userId=[{}], email=[{}], role=[{}]", userId, userEmail, role);
+
+        // 1. NẾU LÀ EMPLOYER
+        if ("EMPLOYER".equals(role)) {
+            // Tìm công ty
+            Company company = companyRepository.findByOwnerUserId(userId)
+                    .or(() -> companyRepository.findFirstByEmail(userEmail))
+                    .orElse(null);
+
+            String companyName = (company != null && company.getCompanyName() != null) ? company.getCompanyName() : displayName;
+
+            // Tìm tất cả các tin tuyển dụng liên quan
+            Set<String> employerIds = new HashSet<>();
+            employerIds.add(userId);
+            if (company != null && company.getId() != null) {
+                employerIds.add(company.getId());
+            }
+            List<Job> employerJobs = jobRepository.findByEmployerIdIn(new ArrayList<>(employerIds));
+            if (employerJobs == null || employerJobs.isEmpty()) {
+                employerJobs = jobRepository.findByEmployerId(userId);
+            }
+
+            if (employerJobs != null && !employerJobs.isEmpty()) {
+                for (Job job : employerJobs) {
+                    // Lấy tất cả hồ sơ ứng tuyển của job này
+                    List<Application> applications = applicationRepository.findByJobId(job.getId());
+                    if (applications != null) {
+                        for (Application app : applications) {
+                            // Gửi thông báo cho từng ứng viên
+                            String candidateProfileId = app.getCandidateId();
+                            String candidateUserId = candidateProfileId;
+                            if (candidateProfileId != null) {
+                                Optional<CandidateProfile> candProfileOpt = candidateProfileRepository.findById(candidateProfileId);
+                                if (candProfileOpt.isPresent() && candProfileOpt.get().getUserId() != null) {
+                                    candidateUserId = candProfileOpt.get().getUserId();
+                                }
+                            }
+                            if (candidateUserId != null) {
+                                Notification candNotif = Notification.builder()
+                                        .id("notif-" + UUID.randomUUID().toString().substring(0, 8))
+                                        .userId(candidateUserId)
+                                        .applicationId(null)
+                                        .content("Tài khoản công ty " + companyName + " mà bạn ứng tuyển đã bị xóa. Tin tuyển dụng \"" + job.getTitle() + "\" đã bị gỡ bỏ.")
+                                        .isRead(false)
+                                        .createdAt(LocalDateTime.now())
+                                        .build();
+                                notificationRepository.save(candNotif);
+                            }
+                            // Xóa đơn ứng tuyển
+                            applicationRepository.delete(app);
+                        }
+                    }
+
+                    // Xóa ai_analysis_cache của job
+                    List<AiAnalysisCache> caches = aiAnalysisCacheRepository.findByJobId(job.getId());
+                    if (caches != null && !caches.isEmpty()) {
+                        aiAnalysisCacheRepository.deleteAll(caches);
+                    }
+
+                    // Xóa saved_jobs của job
+                    List<SavedJob> savedJobs = savedJobRepository.findByJobId(job.getId());
+                    if (savedJobs != null && !savedJobs.isEmpty()) {
+                        savedJobRepository.deleteAll(savedJobs);
+                    }
+
+                    // Xóa reports liên quan đến job
+                    List<Report> jobReports = reportRepository.findByJobId(job.getId());
+                    if (jobReports != null && !jobReports.isEmpty()) {
+                        for (Report r : jobReports) {
+                            List<ReportStatusHistory> histories = reportStatusHistoryRepository.findByReportIdOrderByCreatedAtAsc(r.getId());
+                            if (histories != null && !histories.isEmpty()) {
+                                reportStatusHistoryRepository.deleteAll(histories);
+                            }
+                            reportRepository.delete(r);
+                        }
+                    }
+
+                    // Xóa skills liên kết với job
+                    if (job.getSkills() != null) {
+                        job.getSkills().clear();
+                        jobRepository.save(job);
+                    }
+
+                    // Xóa job
+                    jobRepository.delete(job);
+                }
+            }
+
+            // Gửi thông báo cho ADMIN
+            List<User> adminList = userRepository.findAll().stream()
+                    .filter(u -> "ADMIN".equalsIgnoreCase(u.getRole()))
+                    .toList();
+            for (User admin : adminList) {
+                Notification adminNotif = Notification.builder()
+                        .id("notif-" + UUID.randomUUID().toString().substring(0, 8))
+                        .userId(admin.getId())
+                        .content("Người dùng " + displayName + " (Doanh nghiệp: " + companyName + " - " + userEmail + ") đã xóa tài khoản.")
+                        .isRead(false)
+                        .createdAt(LocalDateTime.now())
+                        .build();
+                notificationRepository.save(adminNotif);
+            }
+
+            // Xóa reports do chính user này tạo
+            List<Report> myReports = reportRepository.findByReporterId(userId);
+            if (myReports != null && !myReports.isEmpty()) {
+                for (Report r : myReports) {
+                    List<ReportStatusHistory> histories = reportStatusHistoryRepository.findByReportIdOrderByCreatedAtAsc(r.getId());
+                    if (histories != null && !histories.isEmpty()) {
+                        reportStatusHistoryRepository.deleteAll(histories);
+                    }
+                    reportRepository.delete(r);
+                }
+            }
+
+            // Xóa notifications của chính user này
+            List<Notification> userNotifications = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
+            if (userNotifications != null && !userNotifications.isEmpty()) {
+                notificationRepository.deleteAll(userNotifications);
+            }
+
+            // Xóa Company
+            if (company != null) {
+                companyRepository.delete(company);
+            }
+
+            // Xóa User
+            userRepository.delete(user);
+            log.info("Đã xóa hoàn toàn tài khoản EMPLOYER: userId=[{}]", userId);
+
+        } else if ("CANDIDATE".equals(role)) {
+            // 2. NẾU LÀ CANDIDATE
+            Optional<CandidateProfile> profileOpt = candidateProfileRepository.findByUserId(userId);
+            if (profileOpt.isPresent()) {
+                CandidateProfile profile = profileOpt.get();
+
+                // Xóa ai_analysis_cache
+                List<AiAnalysisCache> caches = aiAnalysisCacheRepository.findByCandidateId(profile.getId());
+                if (caches != null && !caches.isEmpty()) {
+                    aiAnalysisCacheRepository.deleteAll(caches);
+                }
+
+                // Xóa applications của candidate
+                List<Application> apps = applicationRepository.findByCandidateId(profile.getId());
+                if (apps != null && !apps.isEmpty()) {
+                    applicationRepository.deleteAll(apps);
+                }
+
+                // Xóa candidate skills
+                if (profile.getSkills() != null) {
+                    profile.getSkills().clear();
+                    candidateProfileRepository.save(profile);
+                }
+
+                // Xóa profile
+                candidateProfileRepository.delete(profile);
+            }
+
+            // Xóa saved_jobs
+            List<SavedJob> mySavedJobs = savedJobRepository.findByCandidateUserId(userId);
+            if (mySavedJobs != null && !mySavedJobs.isEmpty()) {
+                savedJobRepository.deleteAll(mySavedJobs);
+            }
+
+            // Xóa reports do user này tạo
+            List<Report> myReports = reportRepository.findByReporterId(userId);
+            if (myReports != null && !myReports.isEmpty()) {
+                for (Report r : myReports) {
+                    List<ReportStatusHistory> histories = reportStatusHistoryRepository.findByReportIdOrderByCreatedAtAsc(r.getId());
+                    if (histories != null && !histories.isEmpty()) {
+                        reportStatusHistoryRepository.deleteAll(histories);
+                    }
+                    reportRepository.delete(r);
+                }
+            }
+
+            // Xóa notifications của user
+            List<Notification> userNotifications = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
+            if (userNotifications != null && !userNotifications.isEmpty()) {
+                notificationRepository.deleteAll(userNotifications);
+            }
+
+            // Gửi thông báo cho ADMIN
+            List<User> adminList = userRepository.findAll().stream()
+                    .filter(u -> "ADMIN".equalsIgnoreCase(u.getRole()))
+                    .toList();
+            for (User admin : adminList) {
+                Notification adminNotif = Notification.builder()
+                        .id("notif-" + UUID.randomUUID().toString().substring(0, 8))
+                        .userId(admin.getId())
+                        .content("Người dùng " + displayName + " (" + userEmail + " - Ứng viên) đã xóa tài khoản.")
+                        .isRead(false)
+                        .createdAt(LocalDateTime.now())
+                        .build();
+                notificationRepository.save(adminNotif);
+            }
+
+            // Xóa User
+            userRepository.delete(user);
+            log.info("Đã xóa hoàn toàn tài khoản CANDIDATE: userId=[{}]", userId);
+
+        } else {
+            // 3. ADMIN HOẶC ROLE KHÁC
+            List<Report> myReports = reportRepository.findByReporterId(userId);
+            if (myReports != null && !myReports.isEmpty()) {
+                for (Report r : myReports) {
+                    List<ReportStatusHistory> histories = reportStatusHistoryRepository.findByReportIdOrderByCreatedAtAsc(r.getId());
+                    if (histories != null && !histories.isEmpty()) {
+                        reportStatusHistoryRepository.deleteAll(histories);
+                    }
+                    reportRepository.delete(r);
+                }
+            }
+            List<Notification> userNotifications = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
+            if (userNotifications != null && !userNotifications.isEmpty()) {
+                notificationRepository.deleteAll(userNotifications);
+            }
+            userRepository.delete(user);
+            log.info("Đã xóa tài khoản user: userId=[{}]", userId);
+        }
     }
 }

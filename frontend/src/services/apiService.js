@@ -53,6 +53,17 @@ export const authApi = {
   getPasswordStatus: () => api.get('/auth/password-status'),
 
   changePassword: (data) => api.post('/auth/change-password', data),
+
+  deleteAccount: () => api.delete('/auth/account'),
+};
+
+// ============================================================
+// NOTIFICATION APIs
+// ============================================================
+export const notificationApi = {
+  getMyNotifications: () => api.get('/notifications'),
+  markAllAsRead: () => api.put('/notifications/read-all'),
+  markAsRead: (id) => api.put(`/notifications/${id}/read`),
 };
 
 // ============================================================
@@ -203,3 +214,12 @@ export const reportApi = {
   getAdminDetail: (reportId) => api.get(`/admin/reports/${reportId}`),
   updateStatus: (reportId, data) => api.patch(`/admin/reports/${reportId}/status`, data),
 };
+
+// ============================================================
+// AI ORCHESTRATION APIs (OPENROUTER 3-AI ENGINE)
+// ============================================================
+export const aiApi = {
+  getModels: () => api.get('/ai/models'),
+  execute: (requestData) => api.post('/ai/execute', requestData),
+};
+

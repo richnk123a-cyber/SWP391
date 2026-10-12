@@ -9,4 +9,7 @@ import java.util.Optional;
 @Repository
 public interface AiAnalysisCacheRepository extends JpaRepository<AiAnalysisCache, String> {
     Optional<AiAnalysisCache> findByCandidateIdAndJobId(String candidateId, String jobId);
+    java.util.List<AiAnalysisCache> findByJobId(String jobId);
+    java.util.List<AiAnalysisCache> findByCandidateId(String candidateId);
 }
+

@@ -91,4 +91,15 @@ public class AuthController {
         authService.changePassword(userDetails.getUsername(), request);
         return ResponseEntity.ok(ApiResponse.success("Cập nhật mật khẩu thành công!"));
     }
+
+    // DELETE /api/auth/account
+    @DeleteMapping("/account")
+    public ResponseEntity<ApiResponse<Void>> deleteAccount(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        authService.deleteAccount(userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success("Tài khoản đã được xóa thành công."));
+    }
 }

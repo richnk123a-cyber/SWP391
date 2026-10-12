@@ -23,12 +23,21 @@ export function NotificationDropdown() {
     if (!currentUser) return [];
     const queryEmail = (currentUser.email || '').toLowerCase();
     const queryId = currentUser.id;
+    const isCurrentUserAdmin = currentUser.role === 'ADMIN';
 
     return (notifications || []).filter(n => {
-      const matchEmail = n.recipientEmail && n.recipientEmail.toLowerCase() === queryEmail;
-      const matchId = n.recipientId && n.recipientId === queryId;
-      const isAdminMatch = currentUser.role === 'ADMIN' && (n.recipientEmail?.toLowerCase() === 'trongtien6571@gmail.com' || n.recipientId === 'user-admin-1');
-      return matchEmail || matchId || isAdminMatch;
+      // 1. Khớp ID người nhận
+      if (n.recipientId && (n.recipientId === queryId || n.userId === queryId)) return true;
+      // 2. Khớp email người nhận
+      if (n.recipientEmail && n.recipientEmail.toLowerCase() === queryEmail) return true;
+      // 3. Nếu người dùng hiện tại là ADMIN: mở toàn quyền nhận thông báo hệ thống & thông báo admin
+      if (isCurrentUserAdmin) {
+        if (n.recipientRole === 'ADMIN') return true;
+        if (n.type === 'USER_DELETED_ACCOUNT' || n.type === 'SYSTEM_AUDIT' || n.type === 'ADMIN_NOTIFICATION') return true;
+        if (n.recipientEmail?.toLowerCase() === 'trongtien6571@gmail.com' || n.recipientId === 'user-admin-1') return true;
+        if (!n.recipientId && !n.recipientEmail) return true;
+      }
+      return false;
     });
   }, [notifications, currentUser]);
 
@@ -100,6 +109,8 @@ export function NotificationDropdown() {
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                     ) : item.type === 'NEW_APPLICATION' ? (
                       <FileText className="w-4 h-4 text-blue-600" />
+                    ) : item.type === 'COMPANY_ACCOUNT_DELETED' || item.type === 'USER_DELETED_ACCOUNT' ? (
+                      <ShieldAlert className="w-4 h-4 text-rose-600" />
                     ) : (
                       <Briefcase className="w-4 h-4 text-indigo-600" />
                     )}

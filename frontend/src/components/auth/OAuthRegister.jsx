@@ -219,6 +219,8 @@ export function OAuthRegister() {
       localStorage.removeItem('careerfit_register_token');
       localStorage.setItem('careerfit_token', authData.token);
       localStorage.setItem('careerfit_current_user', JSON.stringify(authData));
+      // Xóa thông báo cũ để tài khoản mới bắt đầu sạch
+      localStorage.removeItem('careerfit_notifications');
       setCurrentUser(authData);
       if (roleMode === 'candidate') {
         setCandidateProfile(previous => ({ ...previous, name: formData.fullName.trim(), email: authData.email || prefillEmail, phone: formData.phone.replace(/\s/g, ''), location: resolvedLocation, skills: [], hasCV: false, cvFileName: '', cvUploadDate: '', preferences: { desiredRole: formData.targetRole.trim(), location: resolvedLocation, jobType: '', expectedSalary: '' } }));

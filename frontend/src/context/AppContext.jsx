@@ -11,7 +11,7 @@ import {
   INITIAL_SKILLS_CATALOG,
   INITIAL_NOTIFICATIONS
 } from '../data/mockData';
-import { authApi, adminApi, candidateApi, employerApi, jobApi, catalogApi, reportApi } from '../services/apiService';
+import { authApi, adminApi, candidateApi, employerApi, jobApi, catalogApi, reportApi, notificationApi } from '../services/apiService';
 
 
 
@@ -139,11 +139,31 @@ export function AppProvider({ children }) {
     setNotifications(prev => [newNotif, ...prev]);
   };
 
-  const markAllNotificationsAsRead = () => {
+  const markAllNotificationsAsRead = async () => {
     if (!currentUser) return;
-    const queryEmail = currentUser.email.toLowerCase();
+    const queryEmail = (currentUser.email || '').toLowerCase();
+    const queryId = currentUser.id;
+    const isCurrentUserAdmin = currentUser.role === 'ADMIN';
+
+    try {
+      await notificationApi.markAllAsRead();
+    } catch {
+      // offline fallback
+    }
+
     setNotifications(prev => prev.map(n => {
-      if ((n.recipientEmail && n.recipientEmail.toLowerCase() === queryEmail) || n.recipientId === currentUser.id) {
+      const matchEmail = n.recipientEmail && n.recipientEmail.toLowerCase() === queryEmail;
+      const matchId = n.recipientId && (n.recipientId === queryId || n.userId === queryId);
+      const matchAdmin = isCurrentUserAdmin && (
+        n.recipientRole === 'ADMIN' ||
+        n.type === 'USER_DELETED_ACCOUNT' ||
+        n.type === 'SYSTEM_AUDIT' ||
+        n.recipientEmail?.toLowerCase() === 'trongtien6571@gmail.com' ||
+        n.recipientId === 'user-admin-1' ||
+        (!n.recipientId && !n.recipientEmail)
+      );
+
+      if (matchEmail || matchId || matchAdmin) {
         return { ...n, unread: false };
       }
       return n;
@@ -550,9 +570,106 @@ export function AppProvider({ children }) {
   };
 
   const logout = () => {
+    localStorage.removeItem('careerfit_token');
+    localStorage.removeItem('careerfit_current_user');
     setCurrentUser(null);
     setActivePage('home');
     showToast('Đã đăng xuất khỏi hệ thống.', 'info');
+  };
+
+  const deleteAccount = async () => {
+    if (!currentUser) return;
+
+    const userToDelete = { ...currentUser };
+    const userId = userToDelete.id;
+    const userEmail = (userToDelete.email || '').toLowerCase();
+    const userRole = userToDelete.role;
+    const displayName = userToDelete.fullName || userToDelete.username || userToDelete.name || userEmail;
+
+    // 1. Gọi backend API xóa tài khoản (xóa sạch toàn bộ trong CSDL)
+    try {
+      await authApi.deleteAccount();
+    } catch (apiErr) {
+      console.warn('Backend deleteAccount encountered an issue or offline, executing local cascade cleanup:', apiErr);
+    }
+
+    // 2. Cascade cleanup ở local state
+    if (userRole === 'EMPLOYER') {
+      const compName = currentEmployerCompany?.companyName || currentEmployerCompany?.name || displayName;
+
+      // Tìm tất cả các job của employer này
+      const employerJobs = jobs.filter(j => j.employerId === userId || j.employerEmail?.toLowerCase() === userEmail || j.company === compName);
+      const employerJobIds = employerJobs.map(j => j.id);
+
+      // Tìm tất cả ứng viên đang ứng tuyển vào các jobs của công ty này để gửi thông báo
+      const affectedApplications = applications.filter(a => employerJobIds.includes(a.jobId));
+      affectedApplications.forEach(app => {
+        const targetJob = employerJobs.find(j => j.id === app.jobId);
+        addNotification({
+          recipientEmail: app.candidateEmail,
+          recipientId: app.candidateId,
+          type: 'COMPANY_ACCOUNT_DELETED',
+          title: 'Công ty bạn ứng tuyển đã xóa tài khoản',
+          message: `Tài khoản công ty "${compName}" mà bạn đang ứng tuyển đã bị xóa khỏi hệ thống. Tin tuyển dụng "${targetJob?.title || 'đã ứng tuyển'}" đã bị gỡ bỏ.`,
+          time: 'Vừa xong',
+          page: 'application-kanban'
+        });
+      });
+
+      // Xóa các jobs và applications liên quan
+      setJobs(prev => prev.filter(j => !employerJobIds.includes(j.id) && j.employerId !== userId));
+      setApplications(prev => prev.filter(a => !employerJobIds.includes(a.jobId)));
+
+      // Xóa hồ sơ xác minh phía admin
+      setEmployerVerifications(prev => prev.filter(v => v.userId !== userId && v.email?.toLowerCase() !== userEmail && v.companyName !== compName));
+
+      // Gửi thông báo cho ADMIN
+      addNotification({
+        recipientRole: 'ADMIN',
+        type: 'USER_DELETED_ACCOUNT',
+        title: 'Người dùng đã xóa tài khoản',
+        message: `Người dùng ${displayName} (${userEmail} - Doanh nghiệp: "${compName}") đã xóa tài khoản khỏi hệ thống.`,
+        time: 'Vừa xong',
+        page: 'admin-user-management'
+      });
+
+    } else if (userRole === 'CANDIDATE') {
+      // Xóa applications của candidate
+      setApplications(prev => prev.filter(a => a.candidateId !== userId && a.candidateEmail?.toLowerCase() !== userEmail));
+      // Xóa saved jobs
+      setSavedJobIds([]);
+
+      // Gửi thông báo cho ADMIN
+      addNotification({
+        recipientRole: 'ADMIN',
+        type: 'USER_DELETED_ACCOUNT',
+        title: 'Người dùng đã xóa tài khoản',
+        message: `Ứng viên ${displayName} (${userEmail}) đã xóa tài khoản khỏi hệ thống.`,
+        time: 'Vừa xong',
+        page: 'admin-user-management'
+      });
+    }
+
+    // Xóa user khỏi usersDB
+    setUsersDB(prev => prev.filter(u => u.id !== userId && u.email?.toLowerCase() !== userEmail));
+
+    // Dọn dẹp storage
+    localStorage.removeItem('careerfit_token');
+    localStorage.removeItem('careerfit_current_user');
+    localStorage.removeItem('careerfit_candidate_profile');
+    localStorage.removeItem('careerfit_employer_company');
+    // Xóa toàn bộ thông báo của user này (tránh leak sang account mới cùng email)
+    localStorage.removeItem('careerfit_notifications');
+    setNotifications([]);
+    // Xóa profile localStorage theo email
+    const profileKey = `careerfit_cand_profile_${userEmail}`;
+    localStorage.removeItem(profileKey);
+    localStorage.removeItem('careerfit_active_page');
+
+    // Đăng xuất và điều hướng
+    setCurrentUser(null);
+    setActivePage('home');
+    showToast('Tài khoản của bạn đã được xóa thành công khỏi hệ thống.', 'success');
   };
 
   const resetPassword = (email) => {
@@ -639,6 +756,9 @@ export function AppProvider({ children }) {
     setCandidateProfile(newCandProf);
     const userKey = `careerfit_cand_profile_${cleanEmail.toLowerCase()}`;
     localStorage.setItem(userKey, JSON.stringify(newCandProf));
+    // Xóa thông báo cũ để tài khoản mới bắt đầu sạch
+    localStorage.removeItem('careerfit_notifications');
+    setNotifications([]);
 
     showToast('Tạo tài khoản Ứng viên CareerFit thành công! Vui lòng tải lên CV để bắt đầu ứng tuyển.', 'success');
     setActivePage('candidate-dashboard');
@@ -741,6 +861,9 @@ export function AppProvider({ children }) {
 
     setEmployerVerifications(prev => [newVerification, ...prev]);
     setCurrentUser(newUser);
+    // Xóa thông báo cũ để tài khoản mới bắt đầu sạch
+    localStorage.removeItem('careerfit_notifications');
+    setNotifications([]);
 
     showToast('Tạo tài khoản Doanh nghiệp thành công! Trạng thái xác minh: Pending.', 'success');
     setActivePage('employer-dashboard');
@@ -2061,6 +2184,7 @@ export function AppProvider({ children }) {
         setCurrentUser,
         login,
         logout,
+        deleteAccount,
         resetPassword,
         registerCandidate,
         registerEmployer,

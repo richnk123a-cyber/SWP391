@@ -5,6 +5,11 @@ spring:
   application:
     name: careerfit-backend
 
+  config:
+    import:
+      - optional:file:./.env[.properties]
+      - optional:classpath:application-local.yml
+
   # === THÊM MỚI BỘ CẤU HÌNH ĐỌC DATA.SQL ===
   sql:
     init:
@@ -60,6 +65,12 @@ careerfit:
 # CORS - Allow React frontend
   cors:
     allowed-origins: http://localhost:5173
+
+  # OpenRouter Multi-AI Configuration
+  ai:
+    openrouter:
+      api-key: ${OPENROUTER_API_KEY:}
+      api-url: ${OPENROUTER_API_URL:https://openrouter.ai/api/v1/chat/completions}
 
 logging:
   level:

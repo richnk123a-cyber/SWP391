@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { User, FileText, Settings, LogOut, ShieldCheck, MapPin, Building2, Map, LayoutDashboard, ChevronDown } from 'lucide-react';
+import { User, FileText, Settings, LogOut, ShieldCheck, MapPin, Building2, Map, LayoutDashboard, ChevronDown, Trash2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { getCompanyLogoUrl, isImageLogo } from '../../utils/logoUtils';
+import { DeleteAccountModal } from './DeleteAccountModal';
 
 export function ProfileDropdown() {
   const { currentUser, logout, setActivePage, candidateProfile, currentEmployerCompany, employerProfile } = useApp();
   const [isOpen, setIsOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const dropdownRef = useRef(null);
 
   const activeEmployerLogo = employerProfile?.logo || currentEmployerCompany?.logo;
@@ -178,8 +180,8 @@ export function ProfileDropdown() {
               <button
                 onClick={() => {
                   setIsOpen(false);
-                  if (currentUser.role === 'CANDIDATE') setActivePage('candidate-dashboard');
-                  else if (currentUser.role === 'EMPLOYER') setActivePage('employer-dashboard');
+                  if (currentUser.role === 'CANDIDATE') setActivePage('candidate-profile');
+                  else if (currentUser.role === 'EMPLOYER') setActivePage('company-profile');
                   else setActivePage('admin-dashboard');
                 }}
                 className="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-blue-600 flex items-center gap-2.5 transition-colors"
@@ -188,20 +190,35 @@ export function ProfileDropdown() {
               </button>
             </div>
 
-            <div className="py-1">
+            <div className="py-1 border-t border-slate-100">
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  setIsDeleteModalOpen(true);
+                }}
+                className="w-full text-left px-3 py-2 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2.5 transition-colors"
+              >
+                <Trash2 size={15} className="text-rose-600" /> Xóa tài khoản
+              </button>
               <button
                 onClick={() => {
                   setIsOpen(false);
                   logout();
                 }}
-                className="w-full text-left px-3 py-2 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2.5 transition-colors"
+                className="w-full text-left px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center gap-2.5 transition-colors"
               >
-                <LogOut size={15} className="text-rose-600" /> Đăng xuất
+                <LogOut size={15} className="text-slate-500" /> Đăng xuất
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Modal Xóa tài khoản 2 bước xác minh */}
+      <DeleteAccountModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+      />
     </div>
   );
 }
