@@ -234,6 +234,28 @@ public class AuthServiceTest {
     }
 
     @Test
+    void testRegisterEmployer_GmailDomainRestricted() {
+        RegisterEmployerRequest request = new RegisterEmployerRequest();
+        request.setPhone("0901234567");
+        request.setEmail("company@gmail.com");
+        MockMultipartFile file = new MockMultipartFile("file", "test.pdf", "application/pdf", "content".getBytes());
+
+        BadRequestException exception = assertThrows(BadRequestException.class, () -> authService.registerEmployer(request, file));
+        assertTrue(exception.getMessage().contains("Email doanh nghiệp phải sử dụng tên miền công ty"));
+    }
+
+    @Test
+    void testRegisterEmployer_OutlookDomainRestricted() {
+        RegisterEmployerRequest request = new RegisterEmployerRequest();
+        request.setPhone("0901234567");
+        request.setEmail("company@outlook.com");
+        MockMultipartFile file = new MockMultipartFile("file", "test.pdf", "application/pdf", "content".getBytes());
+
+        BadRequestException exception = assertThrows(BadRequestException.class, () -> authService.registerEmployer(request, file));
+        assertTrue(exception.getMessage().contains("Email doanh nghiệp phải sử dụng tên miền công ty"));
+    }
+
+    @Test
     void testRegisterEmployer_Success() {
         RegisterEmployerRequest request = new RegisterEmployerRequest();
         request.setUsername("recruiter1");
@@ -272,6 +294,25 @@ public class AuthServiceTest {
     void testOauthComplete_MissingLicenseForEmployer() {
         OAuthRegisterRequest request = new OAuthRegisterRequest();
         request.setTempToken("valid-token");
+        request.setEmail("hr@company.com"); // Dùng email công ty hợp lệ
+        request.setRole("EMPLOYER");
+        request.setPhone("0901234567");
+
+        when(jwtUtils.validateToken(anyString())).thenReturn(true);
+        when(jwtUtils.extractClaim(anyString(), eq("type"))).thenReturn("TEMP_REGISTER");
+        when(jwtUtils.extractSubject(anyString())).thenReturn("hr@company.com");
+        when(jwtUtils.extractClaim(anyString(), eq("name"))).thenReturn("HR Name");
+        when(jwtUtils.extractClaim(anyString(), eq("provider"))).thenReturn("GOOGLE");
+        when(userRepository.existsByEmailAndAuthProvider(anyString(), anyString())).thenReturn(false);
+
+        BadRequestException exception = assertThrows(BadRequestException.class, () -> authService.oauthCompleteRegistration(request, null));
+        assertTrue(exception.getMessage().contains("Vui lòng tải lên Giấy phép kinh doanh"));
+    }
+
+    @Test
+    void testOauthComplete_EmployerGmailDomainRestricted() {
+        OAuthRegisterRequest request = new OAuthRegisterRequest();
+        request.setTempToken("valid-token");
         request.setEmail("hr@gmail.com");
         request.setRole("EMPLOYER");
         request.setPhone("0901234567");
@@ -284,6 +325,6 @@ public class AuthServiceTest {
         when(userRepository.existsByEmailAndAuthProvider(anyString(), anyString())).thenReturn(false);
 
         BadRequestException exception = assertThrows(BadRequestException.class, () -> authService.oauthCompleteRegistration(request, null));
-        assertTrue(exception.getMessage().contains("Vui lòng tải lên Giấy phép kinh doanh"));
+        assertTrue(exception.getMessage().contains("Email doanh nghiệp phải sử dụng tên miền công ty"));
     }
 }

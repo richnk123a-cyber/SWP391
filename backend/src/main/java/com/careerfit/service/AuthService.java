@@ -252,6 +252,9 @@ public class AuthService {
         
         // 2. CHECK EMAIL & PASSWORD
         String cleanEmail = request.getEmail().trim().toLowerCase();
+        if (cleanEmail.endsWith("@gmail.com") || cleanEmail.endsWith("@outlook.com")) {
+            throw new BadRequestException("Email doanh nghiệp phải sử dụng tên miền công ty (không sử dụng @gmail.com hoặc @outlook.com).", "email");
+        }
         if (userRepository.existsByEmailAndAuthProvider(cleanEmail, "LOCAL")) {
             throw new ConflictException("Email doanh nghiệp này đã được đăng ký tài khoản trực tiếp. Vui lòng chọn email khác hoặc Đăng nhập.", "email");
         }
@@ -368,6 +371,11 @@ public class AuthService {
         if (selectedRole.equals("CANDIDATE")) {
             if (!requestedEmail.matches("^[a-zA-Z0-9._%+-]{3,}@(gmail\\.com|outlook\\.com)$")) {
                 throw new BadRequestException("Email ứng viên phải có đuôi @gmail.com hoặc @outlook.com, và trước @ phải có ít nhất 3 ký tự.", "email");
+            }
+        } else {
+            // EMPLOYER: không được dùng gmail.com hoặc outlook.com
+            if (requestedEmail.endsWith("@gmail.com") || requestedEmail.endsWith("@outlook.com")) {
+                throw new BadRequestException("Email doanh nghiệp phải sử dụng tên miền công ty (không sử dụng @gmail.com hoặc @outlook.com).", "email");
             }
         }
         

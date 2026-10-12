@@ -109,7 +109,11 @@ export function EmployerRegister() {
     const nextErrors = {};
     if (formData.recruiterName.trim().length < 2) nextErrors.recruiterName = 'Vui lòng nhập họ và tên (ít nhất 2 ký tự).';
     if (!isEmployerUser) {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) nextErrors.email = 'Vui lòng nhập email công việc hợp lệ.';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+        nextErrors.email = 'Vui lòng nhập email công việc hợp lệ.';
+      } else if (cleanEmail.endsWith('@gmail.com') || cleanEmail.endsWith('@outlook.com')) {
+        nextErrors.email = 'Email doanh nghiệp phải sử dụng tên miền công ty (không dùng @gmail.com hoặc @outlook.com).';
+      }
       nextErrors.password = getPasswordError(formData.password);
       if (!formData.confirmPassword) nextErrors.confirmPassword = 'Vui lòng nhập lại mật khẩu.';
       else if (formData.password !== formData.confirmPassword) nextErrors.confirmPassword = 'Mật khẩu xác nhận không khớp.';
