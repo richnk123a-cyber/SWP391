@@ -2268,28 +2268,33 @@ export function AppProvider({ children }) {
   };
 
   const selectedJob = useMemo(() => {
-    const local = jobs.find(j => j.id === selectedJobId) || jobs[0];
-    if (selectedJobOverride && selectedJobOverride.id === selectedJobId) {
+    // 1. Ưu tiên selectedJobOverride nếu trùng ID (hỗ trợ cả kiểu String và Number)
+    if (selectedJobOverride && String(selectedJobOverride.id) === String(selectedJobId)) {
+      const local = jobs.find(j => String(j.id) === String(selectedJobId));
       return {
         ...selectedJobOverride,
         ...(local || {}),
-        title: local?.title || selectedJobOverride.title,
-        description: local?.description || selectedJobOverride.description,
-        requiredSkills: (local?.requiredSkills && local.requiredSkills.length > 0)
-          ? local.requiredSkills
-          : (selectedJobOverride.requiredSkills || []),
-        preferredSkills: (local?.preferredSkills && local.preferredSkills.length > 0)
-          ? local.preferredSkills
-          : (selectedJobOverride.preferredSkills || []),
-        responsibilities: (local?.responsibilities && (Array.isArray(local.responsibilities) ? local.responsibilities.length > 0 : Boolean(local.responsibilities)))
-          ? local.responsibilities
-          : (selectedJobOverride.responsibilities || []),
-        requirements: (local?.requirements && (Array.isArray(local.requirements) ? local.requirements.length > 0 : Boolean(local.requirements)))
-          ? local.requirements
-          : (selectedJobOverride.requirements || [])
+        title: selectedJobOverride.title || local?.title,
+        description: selectedJobOverride.description || local?.description,
+        requiredSkills: (Array.isArray(selectedJobOverride.requiredSkills) && selectedJobOverride.requiredSkills.length > 0)
+          ? selectedJobOverride.requiredSkills
+          : ((local?.requiredSkills && local.requiredSkills.length > 0) ? local.requiredSkills : []),
+        preferredSkills: (Array.isArray(selectedJobOverride.preferredSkills) && selectedJobOverride.preferredSkills.length > 0)
+          ? selectedJobOverride.preferredSkills
+          : (local?.preferredSkills || []),
+        responsibilities: selectedJobOverride.responsibilities || local?.responsibilities || [],
+        requirements: selectedJobOverride.requirements || local?.requirements || []
       };
     }
-    return local;
+
+    // 2. Tra cứu trong danh sách jobs theo String(id)
+    const local = jobs.find(j => String(j.id) === String(selectedJobId));
+    if (local) return local;
+
+    // 3. Nếu có selectedJobOverride nhưng không khớp selectedJobId, vẫn ưu tiên override hơn jobs[0]
+    if (selectedJobOverride) return selectedJobOverride;
+
+    return jobs[0];
   }, [selectedJobId, selectedJobOverride, jobs]);
 
   return (

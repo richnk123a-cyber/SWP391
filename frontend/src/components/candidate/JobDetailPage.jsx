@@ -26,6 +26,7 @@ export function JobDetailPage() {
     setIsAIModalOpen,
     setIsReportModalOpen,
     setSelectedJobId,
+    setSelectedJobOverride,
     companies = [],
     setActivePage,
     showToast
@@ -378,7 +379,17 @@ export function JobDetailPage() {
 
             {/* Deep AI Analysis Action */}
             <button
-              onClick={() => setIsAIModalOpen && setIsAIModalOpen(true)}
+              onClick={() => {
+                if (setSelectedJobOverride && selectedJob) {
+                  setSelectedJobOverride(selectedJob);
+                }
+                if (setSelectedJobId && selectedJob?.id) {
+                  setSelectedJobId(selectedJob.id);
+                }
+                if (setIsAIModalOpen) {
+                  setIsAIModalOpen(true);
+                }
+              }}
               className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-2xl text-xs transition-all shadow-md shadow-blue-500/20 cursor-pointer"
             >
               Phân tích CV chuyên sâu bằng AI

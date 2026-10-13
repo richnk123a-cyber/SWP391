@@ -705,11 +705,17 @@ export function generatePersonalJobRoadmap(candidate = {}, job = {}) {
 
       // Khớp ranh giới từ (Word Boundary) - Chỉ áp dụng với từ khóa từ 3 ký tự trở lên để tránh 'c', 'go' khớp lung tung
       if (normDbKey.length >= 3) {
-        const wordRegex = new RegExp(`(^|[^a-z0-9])${normDbKey}([^a-z0-9]|$)`, 'i');
-        const stripWordRegex = new RegExp(`(^|[^a-z0-9])${stripDbKey}([^a-z0-9]|$)`, 'i');
-        if (wordRegex.test(normalizedKey) || stripWordRegex.test(strippedKey)) {
-          matchedResourceList = items;
-          break;
+        try {
+          const escapedNorm = normDbKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const escapedStrip = stripDbKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const wordRegex = new RegExp(`(^|[^a-z0-9])${escapedNorm}([^a-z0-9]|$)`, 'i');
+          const stripWordRegex = new RegExp(`(^|[^a-z0-9])${escapedStrip}([^a-z0-9]|$)`, 'i');
+          if (wordRegex.test(normalizedKey) || stripWordRegex.test(strippedKey)) {
+            matchedResourceList = items;
+            break;
+          }
+        } catch {
+          // Nếu regex lỗi (ký tự đặc biệt), bỏ qua và tiếp tục vòng lặp
         }
       }
     }

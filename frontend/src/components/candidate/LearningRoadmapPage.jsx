@@ -83,15 +83,15 @@ export function LearningRoadmapPage() {
       if (selectedId === 'master-roadmap-candidate') {
         return masterRoadmap || roadmaps[0];
       }
-      const foundPersonal = personalRoadmaps.find(p => p.id === selectedId || p.jobId === selectedId);
+      const foundPersonal = personalRoadmaps.find(p => String(p.id) === String(selectedId) || String(p.jobId) === String(selectedId));
       if (foundPersonal) return foundPersonal;
-      const foundMain = roadmaps.find(item => item.id === selectedId);
+      const foundMain = roadmaps.find(item => String(item.id) === String(selectedId));
       if (foundMain) return foundMain;
     }
 
     if (currentViewMode === 'PERSONAL') {
       if (activePersonalJobId) {
-        const found = personalRoadmaps.find(p => p.jobId === activePersonalJobId || p.id === activePersonalJobId);
+        const found = personalRoadmaps.find(p => String(p.jobId) === String(activePersonalJobId) || String(p.id) === String(activePersonalJobId));
         if (found) return found;
       }
       return personalRoadmaps[0] || masterRoadmap || roadmaps[0];

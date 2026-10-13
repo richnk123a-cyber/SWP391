@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.*;
 
 /**
  * CLASS 3: AiOrchestratorService
@@ -84,159 +85,209 @@ public class AiOrchestratorService {
     }
 
     // =========================================================================
-    // LUỒNG 1: ĐÁP ÁN ĐÃ CÓ TRONG CSDL (FAILOVER 2 VÒNG)
+    // LUỒNG 1: ĐÁP ÁN ĐÃ CÓ TRONG CSDL — AI1 & AI2 RACE SONG SONG (timeout 50s)
+    // Ai trả lời trước → lấy kết quả ngay, không cần chờ AI còn lại
+    // Nếu cả 2 fail → fallback AI3 tuần tự
     // =========================================================================
     private AiExecutionResponse executeFlow1DbResolved(
             AiExecutionRequest request,
             List<AiExecutionResponse.AiStepLog> stepLogs
     ) {
-        log.info("==> [LUỒNG 1] Khởi chạy xử lý dữ liệu CSDL có sẵn...");
+        log.info("==> [LUỒNG 1] Khởi chạy race song song AI1 & AI2 (timeout 50s mỗi call)...");
+        final int FLOW1_TIMEOUT = 50; // CSDL: chỉ đọc data có sẵn, không cần 60s
         String userMessage = integrationService.buildUserMessageForAi(request, null);
         String systemPrompt = request.getPrompt();
 
-        int modelCount = aiClient.getModelCount();
-        int totalAttempts = MAX_ROUNDS * modelCount;
+        AiModelDescriptor ai1 = aiClient.getModelByIndex(0);
+        AiModelDescriptor ai2 = aiClient.getModelByIndex(1);
 
-        Exception lastException = null;
+        // Gọi AI1 và AI2 bất đồng bộ cùng lúc
+        CompletableFuture<String> future1 = aiClient.callAiAsync(ai1, systemPrompt, userMessage, FLOW1_TIMEOUT);
+        CompletableFuture<String> future2 = aiClient.callAiAsync(ai2, systemPrompt, userMessage, FLOW1_TIMEOUT);
 
-        for (int attempt = 0; attempt < totalAttempts; attempt++) {
-            int round = (attempt / modelCount) + 1;
-            int aiIndex = attempt % modelCount;
-            AiModelDescriptor currentAi = aiClient.getModelByIndex(aiIndex);
+        // Race: lấy kết quả của future nào hoàn thành trước (thành công)
+        // anyOf trả về kết quả đầu tiên kể cả lỗi, nên ta dùng cách thủ công hơn
+        CompletableFuture<String> race = new CompletableFuture<>();
+        future1.whenComplete((res, ex) -> {
+            if (ex == null && res != null) race.complete(res);
+        });
+        future2.whenComplete((res, ex) -> {
+            if (ex == null && res != null) race.complete(res);
+        });
+        // Nếu cả 2 đều fail → race complete với null
+        future1.exceptionally(e -> null).thenCombine(future2.exceptionally(e -> null), (r1, r2) -> {
+            if (!race.isDone()) race.complete(null); // cả 2 fail
+            return null;
+        });
 
-            log.info("[LUỒNG 1 - Vòng {}/{}] Đang gọi AI [{}]: {}",
-                    round, MAX_ROUNDS, currentAi.getDisplayName(), currentAi.getPrimaryModelId());
+        try {
+            String rawResponse = race.get(FLOW1_TIMEOUT + 5L, TimeUnit.SECONDS);
 
-            long start = System.currentTimeMillis();
-            try {
-                String rawResponse = aiClient.callAi(currentAi, systemPrompt, userMessage);
-                long duration = System.currentTimeMillis() - start;
+            if (rawResponse != null) {
+                // Xác định AI nào thắng race
+                boolean ai1Won = future1.isDone() && !future1.isCompletedExceptionally();
+                AiModelDescriptor winner = ai1Won ? ai1 : ai2;
 
                 Map<String, Object> parsed = integrationService.parseAiStructuredResponse(rawResponse);
                 String answer = String.valueOf(parsed.getOrDefault("answer", rawResponse));
                 String reasoning = String.valueOf(parsed.getOrDefault("reasoning", ""));
                 double confidence = parseConfidence(parsed.get("confidence"));
 
+                log.info("[LUỒNG 1] {} thắng race, trả về kết quả.", winner.getDisplayName());
                 stepLogs.add(AiExecutionResponse.AiStepLog.builder()
                         .stepNumber(stepLogs.size() + 1)
-                        .aiName(currentAi.getDisplayName())
-                        .modelId(currentAi.getPrimaryModelId())
-                        .role("PRIMARY_PROCESSOR")
-                        .action("Xử lý thành công yêu cầu từ CSDL (Vòng " + round + ")")
+                        .aiName(winner.getDisplayName())
+                        .modelId(winner.getPrimaryModelId())
+                        .role("PRIMARY_PROCESSOR (Race Winner)")
+                        .action("Thắng race song song — trả về kết quả CSDL")
                         .reasoning(reasoning)
                         .answer(answer)
                         .confidenceScore(confidence)
                         .isAgreementWithPrevious(true)
                         .success(true)
-                        .executionTimeMs(duration)
                         .build());
 
                 return AiExecutionResponse.builder()
                         .success(true)
                         .featureCode(request.getFeatureCode())
                         .finalAnswer(answer)
-                        .decisiveAiName(currentAi.getDisplayName())
-                        .decisiveModelId(currentAi.getPrimaryModelId())
+                        .decisiveAiName(winner.getDisplayName())
+                        .decisiveModelId(winner.getPrimaryModelId())
                         .flowType(1)
                         .confidenceScore(confidence)
                         .reasoningChain(reasoning)
                         .executionLogs(stepLogs)
                         .build();
-
-            } catch (Exception ex) {
-                long duration = System.currentTimeMillis() - start;
-                log.warn("[LUỒNG 1] AI [{}] gặp sự cố: {}. Chuyển sang AI tiếp theo...",
-                        currentAi.getDisplayName(), ex.getMessage());
-                lastException = ex;
-
-                stepLogs.add(AiExecutionResponse.AiStepLog.builder()
-                        .stepNumber(stepLogs.size() + 1)
-                        .aiName(currentAi.getDisplayName())
-                        .modelId(currentAi.getPrimaryModelId())
-                        .role("PRIMARY_PROCESSOR")
-                        .action("Thất bại khi gọi AI")
-                        .success(false)
-                        .errorDetails(ex.getMessage())
-                        .executionTimeMs(duration)
-                        .build());
             }
+        } catch (Exception ex) {
+            log.warn("[LUỒNG 1] Race AI1 & AI2 hết thời gian / thất bại: {}. Fallback sang AI3...", ex.getMessage());
         }
 
-        // Đã qua 2 vòng mà cả 3 AI đều thất bại
-        String errMsg = "Sau 2 vòng thử lại (tổng cộng " + totalAttempts + " lần gọi), không có mô hình AI nào hoạt động.";
-        log.error("[LUỒNG 1 THẤT BẠI] {}", errMsg);
+        // Fallback: cả AI1 và AI2 đều fail → thử AI3 tuần tự
+        log.info("[LUỒNG 1 - FALLBACK] Cả AI1 & AI2 đều thất bại, thử AI3...");
+        AiModelDescriptor ai3 = aiClient.getModelByIndex(2);
+        long start = System.currentTimeMillis();
+        try {
+            String rawResponse = aiClient.callAi(ai3, systemPrompt, userMessage, FLOW1_TIMEOUT);
+            long duration = System.currentTimeMillis() - start;
 
+            Map<String, Object> parsed = integrationService.parseAiStructuredResponse(rawResponse);
+            String answer = String.valueOf(parsed.getOrDefault("answer", rawResponse));
+            String reasoning = String.valueOf(parsed.getOrDefault("reasoning", ""));
+            double confidence = parseConfidence(parsed.get("confidence"));
+
+            stepLogs.add(AiExecutionResponse.AiStepLog.builder()
+                    .stepNumber(stepLogs.size() + 1)
+                    .aiName(ai3.getDisplayName())
+                    .modelId(ai3.getPrimaryModelId())
+                    .role("FALLBACK_PROCESSOR")
+                    .action("AI3 fallback thành công sau khi AI1 & AI2 thất bại")
+                    .reasoning(reasoning)
+                    .answer(answer)
+                    .confidenceScore(confidence)
+                    .isAgreementWithPrevious(true)
+                    .success(true)
+                    .executionTimeMs(duration)
+                    .build());
+
+            return AiExecutionResponse.builder()
+                    .success(true)
+                    .featureCode(request.getFeatureCode())
+                    .finalAnswer(answer)
+                    .decisiveAiName(ai3.getDisplayName() + " (Fallback)")
+                    .decisiveModelId(ai3.getPrimaryModelId())
+                    .flowType(1)
+                    .confidenceScore(confidence)
+                    .reasoningChain(reasoning)
+                    .executionLogs(stepLogs)
+                    .build();
+        } catch (Exception ex) {
+            log.error("[LUỒNG 1 THẤT BẠI HOÀN TOÀN] Cả 3 AI đều không phản hồi.");
+        }
+
+        String errMsg = "Cả AI1, AI2 race song song và AI3 fallback đều thất bại.";
         return AiExecutionResponse.builder()
                 .success(false)
                 .featureCode(request.getFeatureCode())
                 .flowType(1)
-                .errorMessage(errMsg + " Chi tiết lỗi gần nhất: " + (lastException != null ? lastException.getMessage() : "N/A"))
+                .errorMessage(errMsg)
                 .executionLogs(stepLogs)
                 .build();
     }
 
     // =========================================================================
-    // LUỒNG 2: THẨM ĐỊNH CHÉO & TÌM KIẾM BÊN NGOÀI
+    // LUỒNG 2: THẨM ĐỊNH SONG SONG — AI1 & AI2 giải độc lập cùng lúc (timeout 60s)
+    // Nếu kết quả trùng khớp → trả về ngay. Khác nhau → AI3 trọng tài.
     // =========================================================================
     private AiExecutionResponse executeFlow2ConsensusAndSearch(
             AiExecutionRequest request,
             List<AiExecutionResponse.AiStepLog> stepLogs
     ) {
-        log.info("==> [LUỒNG 2] Khởi chạy thẩm định chéo (Cross-Evaluation) & tra cứu bên ngoài...");
+        log.info("==> [LUỒNG 2] Khởi chạy thẩm định song song AI1 & AI2 (timeout 60s mỗi call)...");
+        final int FLOW2_TIMEOUT = 60; // Tra cứu internet: cần thêm thời gian
 
-        // BƯỚC 1: AI 1 (Google: Gemma 4 31B) nhận yêu cầu và tra cứu internet nếu thiếu csdl
         AiModelDescriptor ai1 = aiClient.getModelByIndex(0);
-        AiExecutionResult ai1Result = callWithFailover(
-                0,
-                request.getPrompt(),
-                integrationService.buildUserMessageForAi(request, "(Kích hoạt chế độ tra cứu Internet cho thông tin chưa có trong CSDL)"),
-                "AI1_INITIAL_GENERATOR",
-                stepLogs
+        AiModelDescriptor ai2 = aiClient.getModelByIndex(1);
+        AiModelDescriptor ai3 = aiClient.getModelByIndex(2);
+
+        String internetHint = "(Kích hoạt chế độ tra cứu Internet cho thông tin chưa có trong CSDL)";
+        String userMessage = integrationService.buildUserMessageForAi(request, internetHint);
+        String systemPrompt = request.getPrompt();
+
+        // BƯỚC 1+2 SONG SONG: AI1 và AI2 giải quyết độc lập cùng lúc
+        CompletableFuture<AiExecutionResult> f1 = CompletableFuture.supplyAsync(() ->
+                callWithFailover(0, systemPrompt, userMessage, "AI1_PARALLEL_SOLVER", stepLogs, FLOW2_TIMEOUT)
+        );
+        CompletableFuture<AiExecutionResult> f2 = CompletableFuture.supplyAsync(() ->
+                callWithFailover(1, "Bạn là chuyên gia phân tích độc lập.", userMessage, "AI2_PARALLEL_SOLVER", stepLogs, FLOW2_TIMEOUT)
         );
 
-        if (!ai1Result.success) {
-            return buildFailureResponse(request, 2, "AI1 gặp sự cố và không thể khởi tạo câu trả lời ban đầu.", stepLogs);
+        AiExecutionResult ai1Result;
+        AiExecutionResult ai2Result;
+        try {
+            CompletableFuture.allOf(f1, f2).get(FLOW2_TIMEOUT + 5L, TimeUnit.SECONDS);
+            ai1Result = f1.get();
+            ai2Result = f2.get();
+        } catch (Exception ex) {
+            log.warn("[LUỒNG 2] Gọi song song AI1 & AI2 gặp sự cố: {}. Thử lấy kết quả từng future...", ex.getMessage());
+            ai1Result = f1.isDone() && !f1.isCompletedExceptionally() ? safeGet(f1) : new AiExecutionResult(false, null, null, 0, false, false, false, "Timeout");
+            ai2Result = f2.isDone() && !f2.isCompletedExceptionally() ? safeGet(f2) : new AiExecutionResult(false, null, null, 0, false, false, false, "Timeout");
         }
 
-        log.info("[LUỒNG 2 - BƯỚC 1] AI1 hoàn thành. Kết luận: {}", ai1Result.answer);
+        if (!ai1Result.success && !ai2Result.success) {
+            return buildFailureResponse(request, 2, "Cả AI1 và AI2 đều thất bại ở bước song song.", stepLogs);
+        }
 
-        // BƯỚC 2: Gửi sang AI 2 (OpenAI: gpt-oss-20b) để đánh giá chéo
-        AiModelDescriptor ai2 = aiClient.getModelByIndex(1);
-        String crossPromptAi2 = integrationService.buildCrossEvaluationPrompt(
-                request,
-                ai1Result.reasoning,
-                ai1Result.answer,
-                ai1.getDisplayName()
-        );
+        // Nếu chỉ 1 AI thành công → dùng kết quả đó luôn
+        if (ai1Result.success && !ai2Result.success) {
+            log.info("[LUỒNG 2] Chỉ AI1 thành công, dùng kết quả AI1.");
+            return buildFlow2Response(request, ai1Result, ai1, "AI1 (AI2 thất bại)", stepLogs);
+        }
+        if (ai2Result.success && !ai1Result.success) {
+            log.info("[LUỒNG 2] Chỉ AI2 thành công, dùng kết quả AI2.");
+            return buildFlow2Response(request, ai2Result, ai2, "AI2 (AI1 thất bại)", stepLogs);
+        }
 
-        AiExecutionResult ai2Result = callWithFailover(
-                1,
-                "Bạn là thẩm định viên chuyên nghiệp.",
-                crossPromptAi2,
-                "AI2_CROSS_EVALUATOR",
-                stepLogs
-        );
-
-        if (ai2Result.success && ai2Result.isAgreement) {
-            // AI 2 đồng ý với AI 1 -> Kết quả chính xác -> Trả về ngay
-            log.info("[LUỒNG 2 - BƯỚC 2] AI2 ĐỒNG THUẬN với AI1! Trả về kết quả.");
+        // Cả 2 thành công — so sánh độ tương đồng kết quả
+        boolean resultsMatch = answersAreSimilar(ai1Result.answer, ai2Result.answer);
+        if (resultsMatch) {
+            log.info("[LUỒNG 2] AI1 & AI2 ĐỒNG THUẬN kết quả song song! Trả về kết quả ngay.");
             return AiExecutionResponse.builder()
                     .success(true)
                     .featureCode(request.getFeatureCode())
                     .finalAnswer(ai1Result.answer)
-                    .decisiveAiName(ai2.getDisplayName() + " (Đồng thuận cùng " + ai1.getDisplayName() + ")")
-                    .decisiveModelId(ai2.getPrimaryModelId())
+                    .decisiveAiName(ai1.getDisplayName() + " & " + ai2.getDisplayName() + " (Đồng thuận song song)")
+                    .decisiveModelId(ai1.getPrimaryModelId())
                     .flowType(2)
                     .confidenceScore(Math.max(ai1Result.confidence, ai2Result.confidence))
-                    .reasoningChain("AI1: " + ai1Result.reasoning + "\n\nAI2 Đánh giá: " + ai2Result.reasoning)
+                    .reasoningChain("AI1: " + ai1Result.reasoning + "\n\nAI2: " + ai2Result.reasoning)
                     .executionLogs(stepLogs)
                     .build();
         }
 
-        log.info("[LUỒNG 2 - BƯỚC 2] AI2 cho ra kết quả KHÁC hoặc bất đồng với AI1. Chuyển sang AI3...");
+        log.info("[LUỒNG 2] AI1 & AI2 cho kết quả KHÁC NHAU. Chuyển sang AI3 trọng tài...");
 
         // BƯỚC 3: AI 2 khác AI 1 -> Chuyển sang AI 3 (NVIDIA: Nemotron 3 Super) nhận xét
-        AiModelDescriptor ai3 = aiClient.getModelByIndex(2);
         String arbitrationPromptAi3 = buildArbitrationPrompt(request, ai1, ai1Result, ai2, ai2Result);
 
         AiExecutionResult ai3Result = callWithFailover(
@@ -380,6 +431,17 @@ public class AiOrchestratorService {
             String role,
             List<AiExecutionResponse.AiStepLog> stepLogs
     ) {
+        return callWithFailover(preferredStartIndex, systemPrompt, userMessage, role, stepLogs, 60);
+    }
+
+    private AiExecutionResult callWithFailover(
+            int preferredStartIndex,
+            String systemPrompt,
+            String userMessage,
+            String role,
+            List<AiExecutionResponse.AiStepLog> stepLogs,
+            int timeoutSeconds
+    ) {
         int modelCount = aiClient.getModelCount();
         int totalAttempts = MAX_ROUNDS * modelCount;
 
@@ -391,7 +453,7 @@ public class AiOrchestratorService {
 
             long start = System.currentTimeMillis();
             try {
-                String rawResponse = aiClient.callAi(currentAi, systemPrompt, userMessage);
+                String rawResponse = aiClient.callAi(currentAi, systemPrompt, userMessage, timeoutSeconds);
                 long duration = System.currentTimeMillis() - start;
 
                 Map<String, Object> parsed = integrationService.parseAiStructuredResponse(rawResponse);
@@ -417,7 +479,7 @@ public class AiOrchestratorService {
                         .aiName(currentAi.getDisplayName())
                         .modelId(currentAi.getPrimaryModelId())
                         .role(role)
-                        .action("Gọi AI thành công (Vòng " + round + ")")
+                        .action("Gọi AI thành công (Vòng " + round + ", timeout " + timeoutSeconds + "s)")
                         .reasoning(reasoning)
                         .answer(answer)
                         .confidenceScore(confidence)
@@ -447,6 +509,56 @@ public class AiOrchestratorService {
         }
 
         return new AiExecutionResult(false, null, null, 0.0, false, false, false, "Cả 3 AI đều không phản hồi sau 2 vòng.");
+    }
+
+    /** Lấy kết quả từ CompletableFuture an toàn (không throw) */
+    private AiExecutionResult safeGet(CompletableFuture<AiExecutionResult> future) {
+        try {
+            return future.get(1, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            return new AiExecutionResult(false, null, null, 0, false, false, false, e.getMessage());
+        }
+    }
+
+    /**
+     * So sánh 2 câu trả lời AI xem có tương đồng không.
+     * Dùng để phát hiện đồng thuận trong Flow 2 parallel.
+     * Chiến lược: so sánh % ký tự chung (Jaccard similarity trên words).
+     */
+    private boolean answersAreSimilar(String a, String b) {
+        if (a == null || b == null) return false;
+        String[] wordsA = a.toLowerCase().replaceAll("[^a-z0-9\\s]", " ").trim().split("\\s+");
+        String[] wordsB = b.toLowerCase().replaceAll("[^a-z0-9\\s]", " ").trim().split("\\s+");
+        Set<String> setA = new HashSet<>(Arrays.asList(wordsA));
+        Set<String> setB = new HashSet<>(Arrays.asList(wordsB));
+        Set<String> intersection = new HashSet<>(setA);
+        intersection.retainAll(setB);
+        Set<String> union = new HashSet<>(setA);
+        union.addAll(setB);
+        if (union.isEmpty()) return false;
+        double similarity = (double) intersection.size() / union.size();
+        return similarity >= 0.45; // ≥ 45% từ chung → coi là đồng thuận
+    }
+
+    /** Build response thành công cho Flow 2 khi chỉ 1 AI thành công */
+    private AiExecutionResponse buildFlow2Response(
+            AiExecutionRequest request,
+            AiExecutionResult result,
+            AiModelDescriptor ai,
+            String aiLabel,
+            List<AiExecutionResponse.AiStepLog> stepLogs
+    ) {
+        return AiExecutionResponse.builder()
+                .success(true)
+                .featureCode(request.getFeatureCode())
+                .finalAnswer(result.answer)
+                .decisiveAiName(ai.getDisplayName() + " (" + aiLabel + ")")
+                .decisiveModelId(ai.getPrimaryModelId())
+                .flowType(2)
+                .confidenceScore(result.confidence)
+                .reasoningChain(result.reasoning)
+                .executionLogs(stepLogs)
+                .build();
     }
 
     private String buildArbitrationPrompt(

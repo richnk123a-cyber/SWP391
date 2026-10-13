@@ -13,6 +13,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.*;
 
 /**
  * CLASS 1: OpenRouterAiClient
@@ -47,7 +48,7 @@ public class OpenRouterAiClient {
         this.apiKey = (apiKey != null) ? apiKey.trim() : "";
         this.apiUrl = (apiUrl != null && !apiUrl.isBlank()) ? apiUrl.trim() : DEFAULT_OPENROUTER_URL;
         this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(30))
+                .connectTimeout(Duration.ofSeconds(10))
                 .build();
         this.objectMapper = new ObjectMapper();
 
@@ -112,15 +113,23 @@ public class OpenRouterAiClient {
     }
 
     /**
-     * Gọi một AI cụ thể bằng AiModelDescriptor
+     * Gọi một AI cụ thể bằng AiModelDescriptor (timeout mặc định 60s)
+     */
+    public String callAi(AiModelDescriptor modelDescriptor, String systemPrompt, String userMessage) throws Exception {
+        return callAi(modelDescriptor, systemPrompt, userMessage, 60);
+    }
+
+    /**
+     * Gọi một AI cụ thể bằng AiModelDescriptor với timeout tuỳ chỉnh
      *
      * @param modelDescriptor Thông tin mô hình AI
      * @param systemPrompt    Prompt hệ thống / ngữ cảnh
      * @param userMessage     Nội dung câu hỏi / dữ liệu yêu cầu
+     * @param timeoutSeconds  Timeout tổng cho mỗi model (giây): 50s cho CSDL, 60s cho internet
      * @return Raw text kết quả trả về từ AI
      * @throws Exception khi gặp lỗi mạng, rate-limit (429), timeout hoặc response không hợp lệ
      */
-    public String callAi(AiModelDescriptor modelDescriptor, String systemPrompt, String userMessage) throws Exception {
+    public String callAi(AiModelDescriptor modelDescriptor, String systemPrompt, String userMessage, int timeoutSeconds) throws Exception {
         List<String> candidateModelIds = new ArrayList<>();
         candidateModelIds.add(modelDescriptor.getPrimaryModelId());
         if (modelDescriptor.getFallbackModelIds() != null) {
@@ -130,7 +139,7 @@ public class OpenRouterAiClient {
         Exception lastException = null;
         for (String modelId : candidateModelIds) {
             try {
-                return executeOpenRouterRequest(modelId, systemPrompt, userMessage);
+                return executeOpenRouterRequest(modelId, systemPrompt, userMessage, timeoutSeconds);
             } catch (Exception ex) {
                 log.warn("Failed calling model [{}] of AI [{}]: {}. Trying fallback model if available...",
                         modelId, modelDescriptor.getDisplayName(), ex.getMessage());
@@ -143,9 +152,29 @@ public class OpenRouterAiClient {
     }
 
     /**
+     * Gọi AI bất đồng bộ — dùng cho race/parallel pattern trong Flow 1 và Flow 2
+     */
+    public CompletableFuture<String> callAiAsync(AiModelDescriptor modelDescriptor,
+                                                  String systemPrompt,
+                                                  String userMessage,
+                                                  int timeoutSeconds) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return callAi(modelDescriptor, systemPrompt, userMessage, timeoutSeconds);
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+        });
+    }
+
+    /**
      * Thực hiện gửi HTTP POST request đến OpenRouter Chat Completions endpoint
      */
     private String executeOpenRouterRequest(String modelId, String systemPrompt, String userMessage) throws Exception {
+        return executeOpenRouterRequest(modelId, systemPrompt, userMessage, 60);
+    }
+
+    private String executeOpenRouterRequest(String modelId, String systemPrompt, String userMessage, int timeoutSeconds) throws Exception {
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException("OpenRouter API Key chưa được cấu hình. Vui lòng thiết lập biến môi trường OPENROUTER_API_KEY hoặc cấu hình trong application-local.yml / backend/.env.");
         }
@@ -165,7 +194,7 @@ public class OpenRouterAiClient {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(apiUrl))
-                .timeout(Duration.ofSeconds(60))
+                .timeout(Duration.ofSeconds(timeoutSeconds))
                 .header("Content-Type", "application/json")
                 .header("Authorization", "Bearer " + apiKey)
                 .header("HTTP-Referer", "http://localhost:5173")
