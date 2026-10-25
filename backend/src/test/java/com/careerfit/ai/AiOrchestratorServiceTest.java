@@ -9,6 +9,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -39,11 +40,15 @@ class AiOrchestratorServiceTest {
     @DisplayName("Luồng 1: Đáp án có sẵn trong CSDL - AI1 xử lý thành công ngay vòng 1")
     void testFlow1_SuccessOnFirstTry() throws Exception {
         AiModelDescriptor ai1 = createMockModel("Google: Gemma 4 31B (free)", "google/gemma-4-31b-it:free");
-        when(aiClient.getModelCount()).thenReturn(3);
+        AiModelDescriptor ai2 = createMockModel("OpenAI: gpt-oss-20b (free)", "openai/gpt-oss-20b:free");
         when(aiClient.getModelByIndex(0)).thenReturn(ai1);
+        when(aiClient.getModelByIndex(1)).thenReturn(ai2);
 
         when(integrationService.buildUserMessageForAi(any(), any())).thenReturn("User message");
-        when(aiClient.callAi(eq(ai1), any(), any())).thenReturn("{\"answer\":\"Ket qua tim thay trong DB\",\"confidence\":95}");
+        when(aiClient.callAiAsync(eq(ai1), any(), any(), anyInt()))
+                .thenReturn(CompletableFuture.completedFuture("{\"answer\":\"Ket qua tim thay trong DB\",\"confidence\":95}"));
+        when(aiClient.callAiAsync(eq(ai2), any(), any(), anyInt()))
+                .thenReturn(new CompletableFuture<>());
 
         Map<String, Object> parsed = new HashMap<>();
         parsed.put("answer", "Ket qua tim thay trong DB");
@@ -64,7 +69,7 @@ class AiOrchestratorServiceTest {
         assertEquals(1, response.getFlowType());
         assertEquals("Ket qua tim thay trong DB", response.getFinalAnswer());
         assertEquals("Google: Gemma 4 31B (free)", response.getDecisiveAiName());
-        verify(aiClient, times(1)).callAi(eq(ai1), any(), any());
+        verify(aiClient, times(1)).callAiAsync(eq(ai1), any(), any(), anyInt());
     }
 
     @Test
@@ -73,15 +78,15 @@ class AiOrchestratorServiceTest {
         AiModelDescriptor ai1 = createMockModel("Google: Gemma 4 31B (free)", "google/gemma-4-31b-it:free");
         AiModelDescriptor ai2 = createMockModel("OpenAI: gpt-oss-20b (free)", "openai/gpt-oss-20b:free");
 
-        when(aiClient.getModelCount()).thenReturn(3);
         when(aiClient.getModelByIndex(0)).thenReturn(ai1);
         when(aiClient.getModelByIndex(1)).thenReturn(ai2);
 
         when(integrationService.buildUserMessageForAi(any(), any())).thenReturn("User message");
-        // AI1 lỗi
-        when(aiClient.callAi(eq(ai1), any(), any())).thenThrow(new RuntimeException("OpenRouter 429 Rate limit"));
-        // AI2 thành công
-        when(aiClient.callAi(eq(ai2), any(), any())).thenReturn("{\"answer\":\"Ket qua tu AI2\",\"confidence\":92}");
+        CompletableFuture<String> failedF1 = new CompletableFuture<>();
+        failedF1.completeExceptionally(new RuntimeException("OpenRouter 429 Rate limit"));
+        when(aiClient.callAiAsync(eq(ai1), any(), any(), anyInt())).thenReturn(failedF1);
+        when(aiClient.callAiAsync(eq(ai2), any(), any(), anyInt()))
+                .thenReturn(CompletableFuture.completedFuture("{\"answer\":\"Ket qua tu AI2\",\"confidence\":92}"));
 
         Map<String, Object> parsed = new HashMap<>();
         parsed.put("answer", "Ket qua tu AI2");
@@ -106,23 +111,24 @@ class AiOrchestratorServiceTest {
     void testFlow2_Ai2AgreesWithAi1() throws Exception {
         AiModelDescriptor ai1 = createMockModel("Google: Gemma 4 31B (free)", "google/gemma-4-31b-it:free");
         AiModelDescriptor ai2 = createMockModel("OpenAI: gpt-oss-20b (free)", "openai/gpt-oss-20b:free");
+        AiModelDescriptor ai3 = createMockModel("NVIDIA: Nemotron 3 Super (free)", "nvidia/nemotron-3-super:free");
 
         when(aiClient.getModelCount()).thenReturn(3);
         when(aiClient.getModelByIndex(0)).thenReturn(ai1);
         when(aiClient.getModelByIndex(1)).thenReturn(ai2);
+        when(aiClient.getModelByIndex(2)).thenReturn(ai3);
 
         when(integrationService.buildUserMessageForAi(any(), any())).thenReturn("User msg search");
-        when(integrationService.buildCrossEvaluationPrompt(any(), any(), any(), any())).thenReturn("Cross prompt");
 
         // AI1 call
-        when(aiClient.callAi(eq(ai1), any(), any())).thenReturn("raw1");
+        when(aiClient.callAi(eq(ai1), any(), any(), anyInt())).thenReturn("raw1");
         Map<String, Object> parsed1 = new HashMap<>();
         parsed1.put("answer", "Tra loi AI1 sau khi tra cuu web");
         parsed1.put("reasoning", "Ly luan AI1");
         parsed1.put("confidence", 88.0);
 
         // AI2 call (đồng thuận)
-        when(aiClient.callAi(eq(ai2), any(), any())).thenReturn("raw2");
+        when(aiClient.callAi(eq(ai2), any(), any(), anyInt())).thenReturn("raw2");
         Map<String, Object> parsed2 = new HashMap<>();
         parsed2.put("answer", "Tra loi AI1 sau khi tra cuu web");
         parsed2.put("reasoning", "AI2 dong y voi AI1");

@@ -23,15 +23,15 @@ if errorlevel 1 (
     if exist "C:\Program Files\Microsoft SQL Server\130\Tools\Binn\sqlcmd.exe" set "PATH=C:\Program Files\Microsoft SQL Server\130\Tools\Binn;%PATH%"
 )
 
-:: Xac dinh instance SQL Server (mac dinh localhost hoac .\SQLEXPRESS)
+:: Xac dinh instance SQL Server (mac dinh localhost hoac .\SQLEXPRESS, kem tham so -C tin cay chung chi)
 set "SQL_SERVER_INSTANCE=localhost"
-sqlcmd -E -S localhost -Q "SELECT 1" >nul 2>&1
+sqlcmd -E -C -S localhost -Q "SELECT 1" >nul 2>&1
 if errorlevel 1 (
-    sqlcmd -E -S .\SQLEXPRESS -Q "SELECT 1" >nul 2>&1
+    sqlcmd -E -C -S .\SQLEXPRESS -Q "SELECT 1" >nul 2>&1
     if not errorlevel 1 (
         set "SQL_SERVER_INSTANCE=.\SQLEXPRESS"
     ) else (
-        sqlcmd -E -S localhost\SQLEXPRESS -Q "SELECT 1" >nul 2>&1
+        sqlcmd -E -C -S localhost\SQLEXPRESS -Q "SELECT 1" >nul 2>&1
         if not errorlevel 1 (
             set "SQL_SERVER_INSTANCE=localhost\SQLEXPRESS"
         )
@@ -39,14 +39,14 @@ if errorlevel 1 (
 )
 
 :: 1. Dam bao Database careerfit_db da ton tai
-sqlcmd -E -S %SQL_SERVER_INSTANCE% -Q "IF db_id('careerfit_db') IS NULL CREATE DATABASE careerfit_db;" >nul 2>&1
+sqlcmd -E -C -S %SQL_SERVER_INSTANCE% -Q "IF db_id('careerfit_db') IS NULL CREATE DATABASE careerfit_db;" >nul 2>&1
 
 :: 2. Kiem tra xem da co bang du lieu (vi du dbo.users) trong careerfit_db chua
-sqlcmd -b -E -S %SQL_SERVER_INSTANCE% -d careerfit_db -Q "IF OBJECT_ID('dbo.users', 'U') IS NULL THROW 50000, 'NO_TABLES', 1;" >nul 2>&1
+sqlcmd -b -E -C -S %SQL_SERVER_INSTANCE% -d careerfit_db -Q "IF OBJECT_ID('dbo.users', 'U') IS NULL THROW 50000, 'NO_TABLES', 1;" >nul 2>&1
 if errorlevel 1 (
     echo  ^=^> Phat hien Database trong [chua co cac bang table].
     echo  ^=^> Dang tu dong tao bang va nap du lieu goc tu database\careerfit_db.sql tren %SQL_SERVER_INSTANCE%...
-    sqlcmd -f 65001 -E -S %SQL_SERVER_INSTANCE% -i "%ROOT_DIR%\database\careerfit_db.sql" >nul 2>&1
+    sqlcmd -f 65001 -E -C -S %SQL_SERVER_INSTANCE% -i "%ROOT_DIR%\database\careerfit_db.sql" >nul 2>&1
     if errorlevel 1 (
         echo  ^=^> [CANH BAO] Khong the chay tu dong qua sqlcmd tren may nay.
         echo  ^=^> Backend Spring Boot se tu dong khoi tao bang qua Hibernate khi bat len!
@@ -55,25 +55,28 @@ if errorlevel 1 (
         echo  ^=^> Khoi tao thanh cong toan bo 13 bang table va du lieu mau cho CareerFit!
     )
 ) else (
-    echo  ^=^> SQL Server [%SQL_SERVER_INSTANCE%] va Database careerfit_db da san sang [day du 13 bang table].
+    echo  ^=^> SQL Server [%SQL_SERVER_INSTANCE%] va Database careerfit_db da san sang [day du cac bang table].
 )
 
 :: Set Java SDK
 if "%JAVA_HOME%"=="" (
+    if exist "C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot" set "JAVA_HOME=C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot"
     if exist "C:\Program Files\Java\jdk-22" set "JAVA_HOME=C:\Program Files\Java\jdk-22"
     if exist "C:\Program Files\Java\jdk-21" set "JAVA_HOME=C:\Program Files\Java\jdk-21"
     if exist "C:\Program Files\Java\jdk-17" set "JAVA_HOME=C:\Program Files\Java\jdk-17"
 )
 if not "%JAVA_HOME%"=="" (
+    if "%JAVA_HOME:~-1%"=="\" set "JAVA_HOME=%JAVA_HOME:~0,-1%"
     set "PATH=%JAVA_HOME%\bin;%PATH%"
 )
+
 :: Don dep tien trinh cu dang chay ngam tren cong 8080 va 5173
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8080 ^| findstr LISTENING') do taskkill /f /pid %%a >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr :5173 ^| findstr LISTENING') do taskkill /f /pid %%a >nul 2>&1
 
 echo.
 echo [2/4] Khoi dong Backend Spring Boot (Port 8080)...
-start "CareerFit Backend (Port 8080)" cmd /k "cd /d "%ROOT_DIR%\backend" && title CareerFit Backend [Port 8080] && mvnw.cmd spring-boot:run"
+start "CareerFit Backend (Port 8080)" /D "%ROOT_DIR%\backend" cmd /k "title CareerFit Backend [Port 8080] && mvnw.cmd spring-boot:run"
 
 echo.
 echo [3/4] Khoi dong Frontend React Web (Port 5173)...
@@ -82,7 +85,7 @@ if not exist "%ROOT_DIR%\frontend\node_modules" (
     echo  ^=^> Dang tu dong chay npm install...
     cd /d "%ROOT_DIR%\frontend" && call npm install && cd /d "%ROOT_DIR%"
 )
-start "CareerFit Frontend (Port 5173)" cmd /k "cd /d "%ROOT_DIR%\frontend" && title CareerFit Frontend [Port 5173] && npm run dev"
+start "CareerFit Frontend (Port 5173)" /D "%ROOT_DIR%\frontend" cmd /k "title CareerFit Frontend [Port 5173] && npm run dev"
 
 echo.
 echo [4/4] Dang cho Backend Spring Boot (Port 8080) khoi dong hoan tat...
@@ -91,7 +94,7 @@ set /a _wait_count=0
 set /a _wait_count+=1
 netstat -ano | findstr :8080 | findstr LISTENING >nul 2>&1
 if errorlevel 1 (
-    if %_wait_count% lss 35 (
+    if %_wait_count% lss 45 (
         ping -n 2 127.0.0.1 >nul
         <nul set /p=". "
         goto WAIT_BACKEND_READY

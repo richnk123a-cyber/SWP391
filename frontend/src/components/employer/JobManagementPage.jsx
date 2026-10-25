@@ -1,30 +1,10 @@
+import { EmployerPageHeader } from './EmployerPageHeader';
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { VerificationBadge } from '../common/Badge';
 import { Modal } from '../common/Modal';
 import { SegmentedControl } from '../common/SegmentedControl';
 import { JobApplicantsModal } from './JobApplicantsModal';
-import {
-  Briefcase,
-  PlusCircle,
-  Search,
-  Filter,
-  Eye,
-  Edit3,
-  Users,
-  Trash2,
-  XCircle,
-  CheckCircle2,
-  AlertCircle,
-  X,
-  RotateCcw,
-  ArrowUpDown,
-  Lock,
-  Building2,
-  FileText,
-  Plus,
-  Tag
-} from 'lucide-react';
+import { Search, Filter, Eye, Edit3, Users, Trash2, XCircle, CheckCircle2, AlertCircle, X, RotateCcw, ArrowUpDown, Plus, Tag } from 'lucide-react';
 
 export function JobManagementPage() {
   const {
@@ -250,32 +230,22 @@ export function JobManagementPage() {
   };
 
   return (
-    <div className="employer-workspace employer-jobmanagementpage space-y-6 mx-auto">
-      {/* 1. PAGE HEADER */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
-              <Briefcase size={18} />
-            </div>
-            <h1 className="text-xl font-bold text-slate-900">Đăng & Quản lý tin tuyển dụng IT</h1>
-          </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Tạo bài đăng tuyển dụng, theo dõi trạng thái kiểm duyệt Admin và quản lý hồ sơ ứng viên.
-          </p>
-        </div>
-
-        <button
-          onClick={() => setActivePage('create-job')}
-          disabled={!isVerified}
-          className="btn btn-primary text-xs font-bold shadow-xs flex items-center gap-1.5 shrink-0"
-        >
-          <PlusCircle size={16} /> + Tạo tin mới
+    <div className="employer-page hiring-jobs-page space-y-6 mx-auto">
+      <EmployerPageHeader eyebrow="CƠ HỘI DÀNH CHO NHÂN TÀI" title="Tin tuyển dụng" description="Tạo bài đăng tuyển dụng, theo dõi trạng thái kiểm duyệt Admin và quản lý hồ sơ ứng viên."
+        actions={<button onClick={() => setActivePage('create-job')} disabled={!isVerified} className="btn btn-primary">Tạo tin mới</button>} />
+      <div className="employer-metrics-grid" aria-label="Trạng thái tin tuyển dụng">
+        <button type="button" className="employer-metric-total" aria-pressed={statusFilter === 'ALL'} onClick={() => setStatusFilter('ALL')}>
+          <span>Tổng tin tuyển dụng</span><strong>{employerJobs.length.toString().padStart(2, '0')}</strong>
         </button>
+        {[['APPROVED', 'Đã duyệt'], ['PENDING', 'Chờ kiểm duyệt'], ['REJECTED', 'Cần điều chỉnh']].map(([status, label]) => (
+          <button type="button" key={status} aria-pressed={statusFilter === status} onClick={() => setStatusFilter(statusFilter === status ? 'ALL' : status)}>
+            <span>{label}</span><strong>{employerJobs.filter(job => job.moderationStatus === status).length.toString().padStart(2, '0')}</strong>
+          </button>
+        ))}
       </div>
 
       {/* 2. SEARCH & FILTER TOOLBAR */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+      <div className="employer-filter-panel bg-white p-5 rounded-2xl border border-slate-200 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
           {/* Search Input */}
           <div className="md:col-span-6 relative">
@@ -363,7 +333,7 @@ export function JobManagementPage() {
       </div>
 
       {/* 3. JOB MANAGEMENT TABLE */}
-      <div className="card p-5 bg-white border border-slate-200 rounded-2xl shadow-xs">
+      <div className="employer-results-panel">
         <div className="table-container">
           <table className="table">
             <thead>
@@ -394,7 +364,7 @@ export function JobManagementPage() {
 
                   return (
                     <tr key={job.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td>
+                      <td data-label="Vị trí tuyển dụng">
                         <div className="space-y-0.5">
                           <p
                             onClick={() => setViewingJob(job)}
@@ -405,14 +375,14 @@ export function JobManagementPage() {
                           <p className="text-[10px] text-slate-400 font-mono">ID: {job.id}</p>
                         </div>
                       </td>
-                      <td className="text-xs font-medium text-slate-700">{job.category}</td>
-                      <td>
+                      <td data-label="Chuyên môn" className="text-xs font-medium text-slate-700">{job.category}</td>
+                      <td data-label="Hình thức">
                         <span className="text-[11px] font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                           {job.jobType}
                         </span>
                       </td>
-                      <td className="text-xs font-bold text-blue-600">{job.salary}</td>
-                      <td>
+                      <td data-label="Mức lương" className="text-xs font-bold text-blue-600">{job.salary}</td>
+                      <td data-label="Hồ sơ ứng tuyển">
                         <button
                           onClick={() => setViewingApplicantsJob(job)}
                           className="inline-flex items-center gap-1 text-xs font-bold text-slate-900 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 px-2.5 py-1 rounded-lg border border-slate-200 transition-colors cursor-pointer"
@@ -422,7 +392,7 @@ export function JobManagementPage() {
                           <span>{appsCount} hồ sơ</span>
                         </button>
                       </td>
-                      <td>
+                      <td data-label="Kiểm duyệt">
                         <span
                           onClick={() => isRejected && setViewingJob(job)}
                           className={`px-2.5 py-1 rounded-md text-[10px] font-bold border inline-flex items-center gap-1 ${
@@ -447,8 +417,8 @@ export function JobManagementPage() {
                           </div>
                         )}
                       </td>
-                      <td className="text-xs text-slate-500 whitespace-nowrap">{job.deadline || '30/04/2026'}</td>
-                      <td className="text-right whitespace-nowrap">
+                      <td data-label="Hạn nộp" className="text-xs text-slate-500 whitespace-nowrap">{job.deadline || '30/04/2026'}</td>
+                      <td data-label="Thao tác" className="text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => setViewingJob(job)}

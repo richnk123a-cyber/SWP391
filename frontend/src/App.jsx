@@ -1,49 +1,56 @@
-import React, { useEffect } from 'react';
+import React, { lazy, Suspense, useEffect } from 'react';
 import { useApp } from './context/AppContext';
 import { Navbar } from './components/common/Navbar';
-import { Sidebar } from './components/common/Sidebar';
 import { ToastContainer } from './components/common/ToastContainer';
-import { CandidateDetailModal } from './components/common/CandidateDetailModal';
+import { PageLoading } from './components/common/PageLoading';
+import { AppBackground } from './components/common/AppBackground';
+import { canAccessPage, dashboardForRole, ROUTES } from './routing/routes';
 
-// Public & Auth Pages
-import { HomePage } from './components/public/HomePage';
-import { CareerFitLanding } from './components/public/designs/CareerFitLanding';
-import { CareerFitHome } from './components/public/designs/CareerFitHome';
-import { CareerFitJobs } from './components/public/designs/CareerFitJobs';
-import { LoginPage } from './components/auth/LoginPage';
-import { CandidateOnboarding } from './components/auth/CandidateOnboarding';
-import { EmployerRegister } from './components/auth/EmployerRegister';
-import { OAuthRegister } from './components/auth/OAuthRegister';
-
-// Candidate Pages
-import { CandidateDashboard } from './components/candidate/CandidateDashboard';
-import { JobSearchPage } from './components/candidate/JobSearchPage';
-import { JobDetailPage } from './components/candidate/JobDetailPage';
-import { AIAnalysisModal } from './components/candidate/AIAnalysisModal';
-import { LearningRoadmapPage } from './components/candidate/LearningRoadmapPage';
-import { ApplicationKanban } from './components/candidate/ApplicationKanban';
-import { ReportJobModal } from './components/candidate/ReportJobModal';
-import { CandidateProfilePage } from './components/candidate/CandidateProfilePage';
-
-// Employer Pages
-import { EmployerDashboard } from './components/employer/EmployerDashboard';
-import { CreateJobPage } from './components/employer/CreateJobPage';
-import { JobManagementPage } from './components/employer/JobManagementPage';
-import { ApplicantManagementPage } from './components/employer/ApplicantManagementPage';
-import { RecruitmentPipeline } from './components/employer/RecruitmentPipeline';
-import { CompanyProfilePage } from './components/employer/CompanyProfilePage';
-
-// Admin Pages
-import { AdminDashboard } from './components/admin/AdminDashboard';
-import { EmployerVerificationPage } from './components/admin/EmployerVerificationPage';
-import { JobModerationPage } from './components/admin/JobModerationPage';
-import { ReportManagementApiPage } from './components/admin/ReportManagementApiPage';
-import { UserManagementPage } from './components/admin/UserManagementPage';
-import { SkillManagementPage } from './components/admin/SkillManagementPage';
-import { RoadmapManagementPage } from './components/admin/RoadmapManagementPage';
+const lazyPage = (load, name) => lazy(() => load().then(module => ({ default: module[name] })));
+const Sidebar = lazyPage(() => import('./components/common/Sidebar'), 'Sidebar');
+const CandidateDetailModal = lazyPage(() => import('./components/common/CandidateDetailModal'), 'CandidateDetailModal');
+const AIAnalysisModal = lazyPage(() => import('./components/candidate/AIAnalysisModal'), 'AIAnalysisModal');
+const ReportJobModal = lazyPage(() => import('./components/candidate/ReportJobModal'), 'ReportJobModal');
+const CandidateProfilePage = lazyPage(() => import('./components/candidate/CandidateProfilePage'), 'CandidateProfilePage');
+const AccountSettingsPage = lazyPage(() => import('./components/common/AccountSettingsPage'), 'AccountSettingsPage');
+const CareerFitChatbot = lazyPage(() => import('./components/common/CareerFitChatbot'), 'CareerFitChatbot');
+const PAGES = {
+  home: lazyPage(() => import('./components/public/HomePage'), 'HomePage'),
+  login: lazyPage(() => import('./components/auth/LoginPage'), 'LoginPage'),
+  'register-entry': lazyPage(() => import('./components/auth/OAuthRegister'), 'OAuthRegister'),
+  'candidate-onboarding': lazyPage(() => import('./components/auth/CandidateOnboarding'), 'CandidateOnboarding'),
+  'employer-register': lazyPage(() => import('./components/auth/EmployerRegister'), 'EmployerRegister'),
+  'job-search': lazyPage(() => import('./components/candidate/JobSearchPage'), 'JobSearchPage'),
+  'job-detail': lazyPage(() => import('./components/candidate/JobDetailRoute'), 'JobDetailRoute'),
+  'candidate-dashboard': lazyPage(() => import('./components/candidate/CandidateDashboard'), 'CandidateDashboard'),
+  'candidate-profile': CandidateProfilePage,
+  'learning-roadmap': lazyPage(() => import('./components/candidate/LearningRoadmapPage'), 'LearningRoadmapPage'),
+  'application-kanban': lazyPage(() => import('./components/candidate/ApplicationKanban'), 'ApplicationKanban'),
+  'employer-dashboard': lazyPage(() => import('./components/employer/EmployerDashboard'), 'EmployerDashboard'),
+  'job-management': lazyPage(() => import('./components/employer/JobManagementPage'), 'JobManagementPage'),
+  'create-job': lazyPage(() => import('./components/employer/CreateJobPage'), 'CreateJobPage'),
+  'applicant-management': lazyPage(() => import('./components/employer/ApplicantManagementPage'), 'ApplicantManagementPage'),
+  'recruitment-pipeline': lazyPage(() => import('./components/employer/RecruitmentPipeline'), 'RecruitmentPipeline'),
+  'company-profile': lazyPage(() => import('./components/employer/CompanyProfilePage'), 'CompanyProfilePage'),
+  'admin-dashboard': lazyPage(() => import('./components/admin/AdminDashboard'), 'AdminDashboard'),
+  'admin-verifications': lazyPage(() => import('./components/admin/EmployerVerificationPage'), 'EmployerVerificationPage'),
+  'admin-job-moderation': lazyPage(() => import('./components/admin/JobModerationPage'), 'JobModerationPage'),
+  'admin-reports': lazyPage(() => import('./components/admin/ReportManagementApiPage'), 'ReportManagementApiPage'),
+  'admin-user-management': lazyPage(() => import('./components/admin/UserManagementPage'), 'UserManagementPage'),
+  'admin-skills': lazyPage(() => import('./components/admin/SkillManagementPage'), 'SkillManagementPage'),
+  'admin-roadmaps': lazyPage(() => import('./components/admin/RoadmapManagementPage'), 'RoadmapManagementPage'),
+  'candidate-security': AccountSettingsPage,
+  'employer-security': AccountSettingsPage,
+  'admin-security': AccountSettingsPage,
+};
+const DESIGN_PREVIEWS = {
+  landing: lazyPage(() => import('./components/public/designs/CareerFitLanding'), 'CareerFitLanding'),
+  home: lazyPage(() => import('./components/public/designs/CareerFitHome'), 'CareerFitHome'),
+  jobs: lazyPage(() => import('./components/public/designs/CareerFitJobs'), 'CareerFitJobs'),
+};
 
 export default function App() {
-  const { currentUser, activePage, isMobileDrawerOpen, setIsMobileDrawerOpen, viewingCVModalCandidate, setViewingCVModalCandidate } = useApp();
+  const { currentUser, isAuthLoading, activePage, setActivePage, selectedJobId, isMobileDrawerOpen, setIsMobileDrawerOpen, isReportModalOpen, viewingCVModalCandidate, setViewingCVModalCandidate } = useApp();
 
   useEffect(() => {
     if (!isMobileDrawerOpen) return;
@@ -75,165 +82,72 @@ export default function App() {
     };
   }, [isMobileDrawerOpen, setIsMobileDrawerOpen]);
 
-  // Preview the converted React designs through the same Vite entry point.
-  const design = new URLSearchParams(window.location.search).get('design');
-  const DesignPreview = { landing: CareerFitLanding, home: CareerFitHome, jobs: CareerFitJobs }[design];
+  useEffect(() => {
+    if (isAuthLoading) return;
+    if (!currentUser && !ROUTES[activePage].public) {
+      setActivePage('login', { replace: true });
+    } else if (currentUser && ['login', 'oauth-callback'].includes(activePage)) {
+      setActivePage(dashboardForRole(currentUser.role), { replace: true });
+    }
+  }, [activePage, currentUser, isAuthLoading, setActivePage]);
+
+  const DesignPreview = DESIGN_PREVIEWS[new URLSearchParams(window.location.search).get('design')];
   if (!currentUser && activePage === 'home' && DesignPreview) {
-    return <><DesignPreview /><ToastContainer /></>;
+    return <Suspense fallback={<PageLoading />}><DesignPreview /><ToastContainer /></Suspense>;
   }
 
-  // Pages that don't need the dashboard sidebar layout
-  const isPublicPage = !currentUser || ['home', 'login', 'oauth-register', 'register-entry'].includes(activePage);
-
+  const isPublicPage = !currentUser || ['home', 'login', 'register-entry', 'oauth-callback', 'not-found'].includes(activePage);
+  const isCandidateWorkspace = ['candidate-dashboard', 'job-search', 'job-detail', 'application-kanban', 'learning-roadmap', 'candidate-profile', 'candidate-security'].includes(activePage) && (!currentUser || currentUser.role === 'CANDIDATE');
+  const isEmployerWorkspace = currentUser?.role === 'EMPLOYER' && ROUTES[activePage]?.role === 'EMPLOYER';
+  const hasWorkspaceBackground = !isPublicPage || isCandidateWorkspace;
   const renderCurrentView = () => {
-    // Permission Guard: 403 Forbidden for non-Admin trying to access admin pages
-    if (activePage.startsWith('admin-') && (!currentUser || currentUser.role !== 'ADMIN')) {
-      return (
-        <div className="max-w-2xl mx-auto my-12 p-8 bg-rose-50 border-2 border-rose-300 rounded-2xl text-center space-y-4 text-rose-900 shadow-lg">
-          <div className="w-16 h-16 rounded-full bg-rose-200 text-rose-800 font-extrabold text-2xl flex items-center justify-center mx-auto">
-            403
-          </div>
-          <h2 className="text-2xl font-black">403 Forbidden - Access Denied</h2>
-          <p className="text-xs leading-relaxed text-rose-800 max-w-md mx-auto">
-            Bạn không có quyền truy cập vào Phân hệ Quản trị viên (Admin Module). Vui lòng đăng nhập bằng tài khoản Administrator để tiếp tục.
-          </p>
-        </div>
-      );
+    if (activePage === 'oauth-callback' || (isAuthLoading && !ROUTES[activePage].public)) {
+      return <PageLoading label="Đang hoàn tất xác thực..." />;
     }
-
-    // Public / Unauthenticated Route Handling
-    if (!currentUser) {
-      switch (activePage) {
-        case 'home':
-          return <HomePage />;
-        case 'login':
-          return <LoginPage />;
-        case 'oauth-register':
-        case 'register-entry':
-          return <OAuthRegister />;
-        case 'candidate-onboarding':
-          return <CandidateOnboarding />;
-        case 'employer-register':
-          return <EmployerRegister />;
-        case 'job-search':
-          return <JobSearchPage />;
-        case 'job-detail':
-          return <JobDetailPage />;
-        default:
-          return <HomePage />;
-      }
+    if (!canAccessPage(activePage, currentUser?.role)) {
+      if (!currentUser) return <PageLoading label="Đang chuyển đến trang đăng nhập..." />;
+      return <div className="max-w-2xl mx-auto my-12 p-8 bg-rose-50 border border-rose-200 rounded-2xl text-center text-rose-900"><h1 className="text-2xl font-semibold mb-4">403 — Không có quyền truy cập</h1><p>Bạn không có quyền truy cập trang này.</p><button className="mt-6 underline" onClick={() => setActivePage(dashboardForRole(currentUser.role))}>Về trang tổng quan</button></div>;
     }
-
-    // Role-based Router Guarding
-    if (currentUser.role === 'CANDIDATE') {
-      switch (activePage) {
-        case 'candidate-dashboard':
-          return <CandidateDashboard />;
-        case 'job-search':
-          return <JobSearchPage />;
-        case 'job-detail':
-          return <JobDetailPage />;
-        case 'candidate-onboarding':
-        case 'candidate-profile':
-          return <CandidateProfilePage />;
-        case 'learning-roadmap':
-          return <LearningRoadmapPage />;
-        case 'application-kanban':
-          return <ApplicationKanban />;
-        default:
-          return <CandidateDashboard />;
-      }
+    if (activePage === 'not-found') {
+      return <div className="px-6 py-16 text-center"><h1 className="text-2xl font-semibold mb-4">404 — Không tìm thấy trang</h1><button className="btn btn-primary" onClick={() => setActivePage(currentUser ? dashboardForRole(currentUser.role) : 'home')}>Về trang chủ</button></div>;
     }
-
-    if (currentUser.role === 'EMPLOYER') {
-      switch (activePage) {
-        case 'employer-dashboard':
-          return <EmployerDashboard />;
-        case 'job-management':
-          return <JobManagementPage />;
-        case 'create-job':
-          return <CreateJobPage />;
-        case 'applicant-management':
-          return <ApplicantManagementPage />;
-        case 'recruitment-pipeline':
-          return <RecruitmentPipeline />;
-        case 'company-profile':
-          return <CompanyProfilePage />;
-        case 'employer-register':
-          return <EmployerRegister />;
-        default:
-          return <EmployerDashboard />;
-      }
-    }
-
-    if (currentUser.role === 'ADMIN') {
-      switch (activePage) {
-        case 'admin-dashboard':
-          return <AdminDashboard />;
-        case 'admin-verifications':
-          return <EmployerVerificationPage />;
-        case 'admin-job-moderation':
-          return <JobModerationPage />;
-        case 'admin-reports':
-          return <ReportManagementApiPage />;
-        case 'admin-user-management':
-          return <UserManagementPage />;
-        case 'admin-skills':
-          return <SkillManagementPage />;
-        case 'admin-roadmaps':
-          return <RoadmapManagementPage />;
-        default:
-          return <AdminDashboard />;
-      }
-    }
-
-    return <HomePage />;
+    if (activePage === 'login' && currentUser) return <PageLoading />;
+    const Page = activePage === 'candidate-onboarding' && currentUser?.role === 'CANDIDATE'
+      ? CandidateProfilePage : PAGES[activePage];
+    return Page ? <Page /> : <PageLoading />;
   };
 
   return (
-    <div className={`min-h-screen ${['home', 'login'].includes(activePage) && !currentUser ? 'bg-white' : 'bg-slate-50'} text-slate-800 flex flex-col font-sans antialiased`}>
-      {/* Top Header Navbar */}
+    <>
+    {hasWorkspaceBackground && <AppBackground employer={isEmployerWorkspace} />}
+    <div className={`${hasWorkspaceBackground ? 'landscape-workspace' : ''} min-h-screen ${!isPublicPage || isCandidateWorkspace ? 'workspace-shell' : ''} ${isCandidateWorkspace ? 'candidate-workspace-shell' : ''} ${activePage === 'candidate-dashboard' && currentUser?.role === 'CANDIDATE' ? 'candidate-studio-shell' : ''} ${isEmployerWorkspace ? 'employer-studio-shell' : ''} ${['home', 'login'].includes(activePage) && !currentUser ? 'login-shell bg-white' : 'bg-slate-50'} text-slate-800 flex flex-col font-sans antialiased`}>
       <Navbar />
-
-      {/* Main Layout Area */}
       {isPublicPage ? (
         <main className={`flex-1 w-full ${['home', 'login'].includes(activePage) ? 'bg-white p-0' : 'max-w-[1440px] mx-auto px-4 sm:px-5 md:px-6 lg:px-8 py-6'}`}>
-          {renderCurrentView()}
+          <Suspense key={`${activePage}:${activePage === 'job-detail' ? selectedJobId : ''}`} fallback={<PageLoading />}>{renderCurrentView()}</Suspense>
         </main>
       ) : (
         <div className="flex-1 flex w-full relative">
-          {/* Desktop Sidebar (hidden on mobile, sticky on desktop scroll) */}
-          <div className="hidden lg:block shrink-0 sticky top-16 h-[calc(100vh-64px)] z-30">
-            <Sidebar />
-          </div>
-
-          {/* Mobile Slide-Over Drawer Overlay */}
-          <div className={`workspace-mobile-menu ${isMobileDrawerOpen ? 'is-open' : ''}`} aria-hidden={!isMobileDrawerOpen} inert={!isMobileDrawerOpen}>
-            <button className="workspace-mobile-backdrop" onClick={() => setIsMobileDrawerOpen(false)} aria-label="Đóng menu" tabIndex={-1} />
-            <div className="workspace-mobile-panel" role="dialog" aria-modal="true" aria-label="Menu điều hướng">
-              <Sidebar mobile />
+          <Suspense fallback={null}>
+            <div className="workspace-desktop-sidebar hidden lg:block shrink-0 sticky top-16 h-[calc(100vh-64px)] z-30"><Sidebar /></div>
+            <div className={`workspace-mobile-menu ${isMobileDrawerOpen ? 'is-open' : ''}`} aria-hidden={!isMobileDrawerOpen} inert={!isMobileDrawerOpen}>
+              <button className="workspace-mobile-backdrop" onClick={() => setIsMobileDrawerOpen(false)} aria-label="Đóng menu" tabIndex={-1} />
+              <div className="workspace-mobile-panel" role="dialog" aria-modal="true" aria-label="Menu điều hướng">{isMobileDrawerOpen && <Sidebar mobile />}</div>
             </div>
-          </div>
-
-          {/* Main Dashboard Content Offset Area - Centered Max-Width SaaS Layout */}
-          <main className="workspace-content flex-1 min-w-0">
-            <div className="max-w-[1440px] mx-auto w-full">
-              {renderCurrentView()}
-            </div>
-          </main>
+          </Suspense>
+          <main className="workspace-content flex-1 min-w-0"><div className="max-w-[1440px] mx-auto w-full">
+            <Suspense key={`${activePage}:${activePage === 'job-detail' ? selectedJobId : ''}`} fallback={<PageLoading />}>{renderCurrentView()}</Suspense>
+          </div></main>
         </div>
       )}
-
-      {/* Modals & Toasts */}
-      <AIAnalysisModal />
-      <ReportJobModal />
-      <CandidateDetailModal
-        isOpen={Boolean(viewingCVModalCandidate)}
-        onClose={() => setViewingCVModalCandidate(null)}
-        candidateData={viewingCVModalCandidate}
-      />
+      <Suspense fallback={null}>
+        <AIAnalysisModal />
+        {isReportModalOpen && <ReportJobModal />}
+        {viewingCVModalCandidate && <CandidateDetailModal isOpen onClose={() => setViewingCVModalCandidate(null)} candidateData={viewingCVModalCandidate} />}
+        {currentUser && ['CANDIDATE', 'EMPLOYER'].includes(currentUser.role) && <CareerFitChatbot />}
+      </Suspense>
       <ToastContainer />
     </div>
+    </>
   );
 }
-

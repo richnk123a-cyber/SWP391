@@ -1,474 +1,82 @@
-import React, { useState, useMemo } from 'react';
+import React, { lazy, Suspense, useMemo, useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { VerificationBadge } from '../common/Badge';
-import { JobApplicantsModal } from './JobApplicantsModal';
-import { Modal } from '../common/Modal';
-import {
-  Briefcase,
-  Users,
-  Calendar,
-  Layers,
-  PlusCircle,
-  AlertTriangle,
-  Building2,
-  Camera,
-  CheckCircle2,
-  ChevronRight,
-  Eye,
-  Search,
-  Check,
-  Award,
-  Video,
-  ExternalLink,
-  FileText
-} from 'lucide-react';
+import { TechnologyBackdrop } from '../common/TechnologyBackdrop';
 import { getCompanyLogoUrl, isImageLogo } from '../../utils/logoUtils';
+import './EmployerDashboard.css';
 
-export function EmployerDashboard() {
-  const {
-    currentUser,
-    employerProfile,
-    candidateProfile,
-    companies,
-    jobs,
-    applications,
-    setActivePage,
-    setSelectedJobId,
-    viewingCVModalCandidate,
-    setViewingCVModalCandidate
-  } = useApp();
-  const [viewingApplicantsJob, setViewingApplicantsJob] = useState(null);
-
-  const isVerified = employerProfile.verificationStatus === 'Verified';
-
-  // Employer's jobs list
-  const employerJobs = useMemo(() => {
-    if (!employerProfile && !currentUser) return [];
-    const validIds = new Set();
-    if (currentUser?.id) validIds.add(currentUser.id);
-    if (employerProfile?.ownerUserId) validIds.add(employerProfile.ownerUserId);
-    if (employerProfile?.id) validIds.add(employerProfile.id);
-
-    const validNames = new Set();
-    if (employerProfile?.companyName) validNames.add(employerProfile.companyName.toLowerCase().trim());
-    if (currentUser?.username) validNames.add(currentUser.username.toLowerCase().trim());
-    if (currentUser?.fullName) validNames.add(currentUser.fullName.toLowerCase().trim());
-
-    if (Array.isArray(companies)) {
-      companies.forEach(c => {
-        const matchesUser = (currentUser?.id && c.ownerUserId === currentUser.id) ||
-                            (currentUser?.email && c.email?.toLowerCase() === currentUser.email.toLowerCase());
-        if (matchesUser) {
-          if (c.id) validIds.add(c.id);
-          if (c.ownerUserId) validIds.add(c.ownerUserId);
-          if (c.companyName) validNames.add(c.companyName.toLowerCase().trim());
-        }
-      });
-    }
-
-    return jobs.filter(j => 
-      (j.employerId && validIds.has(j.employerId)) ||
-      (j.company && validNames.has(j.company.toLowerCase().trim()))
-    );
-  }, [jobs, employerProfile, currentUser, companies]);
-
-  // Employer's job IDs
-  const employerJobIds = useMemo(() => employerJobs.map(j => j.id), [employerJobs]);
-
-  // Employer's applications list
-  const employerApplications = useMemo(() => {
-    return applications.filter(app => employerJobIds.includes(app.jobId));
-  }, [applications, employerJobIds]);
-
-  // DERIVED METRICS FROM REAL DATABASE STATE
-  const activeJobsCount = useMemo(() => {
-    return employerJobs.filter(j => (j.moderationStatus === 'APPROVED' || (!j.moderationStatus && j.verifiedStatus === 'Verified')) && j.publishStatus !== 'CLOSED').length;
-  }, [employerJobs]);
-
-  const totalAppsCount = employerApplications.length;
-
-  const upcomingInterviewsCount = useMemo(() => {
-    return employerApplications.filter(a => a.status === 'Phỏng vấn').length;
-  }, [employerApplications]);
-
-  const filledPositionsCount = useMemo(() => {
-    return employerApplications.filter(a => a.status === 'Offer').length;
-  }, [employerApplications]);
-
-  // Recent 4 Applicants
-  const recentApplicants = useMemo(() => {
-    return [...employerApplications].slice(0, 4);
-  }, [employerApplications]);
-
-  // Active Jobs List
-  const activeJobs = useMemo(() => {
-    return employerJobs.filter(j => j.publishStatus !== 'CLOSED');
-  }, [employerJobs]);
-
-  return (
-    <div className="employer-workspace employer-employerdashboard space-y-6 mx-auto">
-      {/* 1. TOP WELCOME & COMPANY SUMMARY CARD */}
-      <div className="employer-dashboard-welcome bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-center gap-4 sm:gap-5 min-w-0 flex-1">
-          <div
-            onClick={() => setActivePage('company-profile')}
-            className="employer-dashboard-logo relative group cursor-pointer shrink-0 w-[76px] h-[76px] rounded-2xl bg-white p-2 flex items-center justify-center shadow-md border border-white/30 overflow-hidden transition-all hover:scale-105"
-            title="Logo công ty - Nhấn để chuyển đến trang chỉnh sửa hồ sơ & cập nhật logo"
-          >
-            {isImageLogo(employerProfile?.logo) ? (
-              <img
-                src={getCompanyLogoUrl(employerProfile.logo)}
-                alt={employerProfile?.companyName || 'Logo công ty'}
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  if (e.currentTarget.nextSibling) e.currentTarget.nextSibling.style.display = 'flex';
-                }}
-              />
-            ) : null}
-            <div
-              style={{ display: isImageLogo(employerProfile?.logo) ? 'none' : 'flex' }}
-              className="w-full h-full items-center justify-center bg-blue-50 text-2xl font-black text-blue-700 rounded-xl"
-            >
-              {employerProfile?.logo || '🏢'}
-            </div>
-            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[1px] text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold gap-0.5 rounded-2xl">
-              <Camera size={14} className="text-blue-300" />
-              <span>Đổi logo</span>
-            </div>
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="employer-welcome-eyebrow">KHÔNG GIAN TUYỂN DỤNG</p>
-            <div className="flex items-center gap-2.5 flex-wrap mt-0.5">
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">
-                {employerProfile?.companyName || 'Doanh nghiệp'}
-              </h1>
-              <VerificationBadge status={employerProfile?.verificationStatus} />
-            </div>
-            <p className="text-xs sm:text-sm font-semibold text-slate-600 mt-1 flex items-center flex-wrap gap-x-2 gap-y-1">
-              <span>HR Recruiter: <strong>{employerProfile?.recruiterName}</strong></span>
-              {employerProfile?.email && <span>({employerProfile.email})</span>}
-              {employerProfile?.industry && <><span>•</span><span>{employerProfile.industry}</span></>}
-              {employerProfile?.location && <><span>•</span><span>{employerProfile.location}</span></>}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          <button
-            onClick={() => setActivePage('create-job')}
-            disabled={!isVerified}
-            className="btn btn-primary shadow-xs text-xs font-bold py-2.5 px-4 flex items-center gap-2 whitespace-nowrap"
-          >
-            <PlusCircle size={16} /> Đăng tin tuyển dụng mới
-          </button>
-        </div>
-      </div>
-
-      {/* 2. UNVERIFIED WARNING BANNER IF PENDING / REJECTED */}
-      {!isVerified && (
-        <div className="card bg-amber-50/90 border-2 border-amber-300 p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-start sm:items-center gap-3">
-            <AlertTriangle className="text-amber-600 shrink-0 mt-0.5 sm:mt-0" size={24} />
-            <div>
-              <h4 className="font-bold text-amber-950 text-sm">Tài khoản Doanh nghiệp Chưa Xác Minh (Pending Verification)</h4>
-              <p className="text-xs text-amber-900 mt-0.5">
-                Chức năng Đăng tin tuyển dụng công khai hiện đang được tạm khóa. Ban Quản trị sẽ xem xét Giấy phép kinh doanh để cấp quyền tuyển dụng.
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => setActivePage('employer-register')}
-            className="btn btn-secondary text-xs border-amber-400 text-amber-950 bg-white hover:bg-amber-100 font-bold shrink-0"
-          >
-            Cập nhật Giấy phép kinh doanh
-          </button>
-        </div>
-      )}
-
-      {/* 3. DYNAMIC 4 METRIC CARDS DERIVED FROM DATABASE */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="card p-4 space-y-2 border-l-4 border-l-blue-600 bg-white rounded-2xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold uppercase tracking-wider">TIN ĐANG HOẠT ĐỘNG</span>
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-              <Briefcase size={16} />
-            </div>
-          </div>
-          <p className="text-2xl font-black text-slate-900">{activeJobsCount}</p>
-        </div>
-
-        <div className="card p-4 space-y-2 border-l-4 border-l-indigo-600 bg-white rounded-2xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold uppercase tracking-wider">TỔNG HỒ SƠ ỨNG TUYỂN</span>
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-              <Users size={16} />
-            </div>
-          </div>
-          <p className="text-2xl font-black text-slate-900">{totalAppsCount}</p>
-        </div>
-
-        <div className="card p-4 space-y-2 border-l-4 border-l-amber-500 bg-white rounded-2xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold uppercase tracking-wider">LỊCH PHỎNG VẤN SẮP TỚI</span>
-            <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
-              <Calendar size={16} />
-            </div>
-          </div>
-          <p className="text-2xl font-black text-slate-900">{upcomingInterviewsCount}</p>
-        </div>
-
-        <div className="card p-4 space-y-2 border-l-4 border-l-emerald-600 bg-white rounded-2xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold uppercase tracking-wider">VỊ TRÍ ĐÃ TUYỂN THÀNH CÔNG</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-              <Award size={16} />
-            </div>
-          </div>
-          <p className="text-2xl font-black text-slate-900">{filledPositionsCount}</p>
-        </div>
-      </div>
-
-      {/* 4. MAIN DASHBOARD GRID: LEFT 70% + RIGHT 30% */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* LEFT 70%: ACTIVE JOBS TABLE */}
-        <div className="lg:col-span-8 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div>
-              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                <Briefcase className="text-blue-600" size={18} /> Tin tuyển dụng đang hoạt động
-              </h3>
-              <p className="text-[11px] text-slate-500">Danh sách các vị trí đang mở tiếp nhận ứng viên nộp CV</p>
-            </div>
-            <button
-              onClick={() => setActivePage('job-management')}
-              className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1"
-            >
-              Quản lý tất cả tin <ChevronRight size={14} />
-            </button>
-          </div>
-
-          {activeJobs.length === 0 ? (
-            /* SECTION 22: EMPTY STATE */
-            <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-300 space-y-3">
-              <Briefcase size={36} className="mx-auto text-slate-300" />
-              <p className="font-bold text-slate-800 text-sm">Bạn chưa có tin tuyển dụng nào đang mở.</p>
-              <p className="text-xs text-slate-500 max-w-md mx-auto">
-                Tạo bài đăng tuyển dụng mới để tiếp cận hàng nghìn ứng viên IT tài năng trên CareerFit.
-              </p>
-              <button
-                onClick={() => setActivePage('create-job')}
-                disabled={!isVerified}
-                className="btn btn-primary text-xs font-bold py-2 px-4 inline-flex items-center gap-1.5"
-              >
-                + Tạo tin tuyển dụng đầu tiên
-              </button>
-            </div>
-          ) : (
-            <div className="employer-dashboard-jobs">
-  {activeJobs.map(job => {
-    const appsCount = applications.filter(a => a.jobId === job.id).length;
-    const isApproved = job.moderationStatus === 'APPROVED' || (!job.moderationStatus && job.verifiedStatus === 'Verified');
-    const isRejected = job.moderationStatus === 'REJECTED';
-    return (
-      <article key={job.id} className="employer-job-summary">
-        <div className="employer-job-summary-top">
-          <span className="employer-job-icon"><Briefcase size={20} /></span>
-          <div>
-            <h3>{job.title}</h3>
-            <p>{job.category} <span>·</span> {job.jobType}</p>
-          </div>
-          <div className="text-right">
-            <span
-              onClick={() => setActivePage('job-management')}
-              className={`employer-job-status text-[11px] font-bold px-2.5 py-1 rounded-md border inline-flex items-center gap-1 cursor-pointer ${
-                isApproved
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                  : isRejected
-                  ? 'bg-rose-50 text-rose-700 border-rose-300'
-                  : 'bg-amber-50 text-amber-700 border-amber-300'
-              }`}
-              title={isRejected && job.rejectionReason ? `Lý do: ${job.rejectionReason}` : ''}
-            >
-              {isApproved ? 'Đã duyệt' : isRejected ? 'Bị từ chối' : 'Chờ kiểm duyệt'}
-            </span>
-            {isRejected && job.rejectionReason && (
-              <div
-                onClick={() => setActivePage('job-management')}
-                className="text-[10px] text-rose-600 hover:text-rose-800 underline cursor-pointer mt-1 font-medium truncate max-w-[130px]"
-                title={`Lý do: ${job.rejectionReason}`}
-              >
-                Lý do: {job.rejectionReason}
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="employer-job-summary-bottom">
-          <strong>{job.salary}</strong>
-          <span
-            onClick={() => setViewingApplicantsJob(job)}
-            className="employer-applicant-count cursor-pointer hover:text-blue-600 transition-colors"
-            title="Bấm để xem danh sách ứng viên của tin này"
-          >
-            <Users size={15} />{appsCount} hồ sơ
-          </span>
-          <button
-            onClick={() => setViewingApplicantsJob(job)}
-            className="btn btn-secondary btn-sm"
-            title="Xem danh sách ứng viên chỉ nộp vào tin này"
-          >
-            <Users size={15} />Ứng viên<ChevronRight size={14} />
-          </button>
-        </div>
-      </article>
-    );
-  })}
-</div>
-          )}
-        </div>
-
-        {/* RIGHT 30%: RECENT APPLICANTS + UPCOMING INTERVIEWS */}
-        <div className="lg:col-span-4 space-y-6">
-          {/* RECENT APPLICANTS CARD */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                <Users className="text-indigo-600" size={18} /> Ứng viên mới nhất
-              </h3>
-              <button
-                onClick={() => setActivePage('applicant-management')}
-                className="text-xs font-semibold text-blue-600 hover:underline"
-              >
-                Xem tất cả
-              </button>
-            </div>
-
-            {recentApplicants.length === 0 ? (
-              <div className="p-6 text-center text-xs text-slate-400">
-                Chưa có ứng viên nộp hồ sơ.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {recentApplicants.map(app => {
-                  const job = jobs.find(j => j.id === app.jobId) || { title: 'Tin tuyển dụng', requiredSkills: [] };
-
-                  return (
-                    <div
-                      key={app.id}
-                      onClick={() => setViewingCVModalCandidate(app)}
-                      className="p-3 bg-slate-50 hover:bg-blue-50/50 rounded-xl border border-slate-200 cursor-pointer transition-colors space-y-1.5"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-slate-900 text-xs">{app.candidateName}</span>
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          app.status === 'Offer'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : app.status === 'Phỏng vấn'
-                            ? 'bg-indigo-100 text-indigo-800'
-                            : app.status === 'Từ chối'
-                            ? 'bg-rose-100 text-rose-800'
-                            : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {app.status}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-600 truncate">{job.title}</p>
-                      <div className="flex items-center justify-between text-[10px] text-slate-400">
-                        <span>{app.candidateUniversity || app.candidateEmail}</span>
-                        <span>{app.appliedDate}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* UPCOMING INTERVIEWS WIDGET */}
-          <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-5 rounded-2xl border border-amber-200 shadow-xs space-y-3">
-            <h3 className="font-bold text-amber-950 text-sm flex items-center gap-2">
-              <Calendar className="text-amber-600" size={18} /> Lịch phỏng vấn đã lên
-            </h3>
-
-            {employerApplications.filter(a => a.status === 'Phỏng vấn').length === 0 ? (
-              <p className="text-xs text-amber-800">Chưa có lịch phỏng vấn nào được xếp trong tuần này.</p>
-            ) : (
-              <div className="space-y-2">
-                {employerApplications.filter(a => a.status === 'Phỏng vấn').map(app => (
-                  <div key={app.id} className="p-3 bg-white rounded-xl border border-amber-200 text-xs space-y-1 shadow-2xs">
-                    <div className="flex items-center justify-between">
-                      <strong className="text-slate-900">{app.candidateName}</strong>
-                      <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
-                        {app.interviewDetails?.time || '14:00'}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-600">{app.interviewDetails?.date || 'Thứ 5, 27/03/2026'}</p>
-                    {app.interviewDetails?.meetingLink && (
-                      <a
-                        href={app.interviewDetails.meetingLink}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-[10px] text-blue-600 font-bold hover:underline pt-0.5"
-                      >
-                        <Video size={12} /> Google Meet Link
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* MODAL XEM DANH SÁCH ỨNG VIÊN CỦA VỊ TRÍ ĐƯỢC CHỌN */}
-      {viewingApplicantsJob && (
-        <JobApplicantsModal
-          job={viewingApplicantsJob}
-          isOpen={!!viewingApplicantsJob}
-          onClose={() => setViewingApplicantsJob(null)}
-        />
-      )}
-
-      {/* VIEW CV MODAL CHO ỨNG VIÊN MỚI NHẤT */}
-      {viewingCVModalCandidate && (
-        <Modal
-          isOpen={!!viewingCVModalCandidate}
-          onClose={() => setViewingCVModalCandidate(null)}
-          title={`Chi tiết Hồ sơ & CV - ${viewingCVModalCandidate.candidateName}`}
-        >
-          <div className="space-y-4 text-xs">
-            <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-blue-600 text-white font-black text-xl flex items-center justify-center border-2 border-white shadow-md shrink-0">
-                {viewingCVModalCandidate.candidateName.charAt(0).toUpperCase()}
-              </div>
-              <div className="space-y-1">
-                <h4 className="font-bold text-slate-900 text-sm">{viewingCVModalCandidate.candidateName}</h4>
-                <p className="text-slate-600">Trường: {viewingCVModalCandidate.candidateUniversity || 'Đại học FPT'} • Email: {viewingCVModalCandidate.candidateEmail}</p>
-                <p className="text-slate-600">Kỹ năng: {(viewingCVModalCandidate.candidateSkills || candidateProfile?.skills || []).join(', ')}</p>
-              </div>
-            </div>
-
-            <div className="border-2 border-slate-200 rounded-xl p-6 text-center bg-white space-y-3">
-              <FileText size={44} className="mx-auto text-blue-600" />
-              <h4 className="font-bold text-slate-800 text-sm">{candidateProfile?.cvFileName || 'Nguyen_Van_A_CV_2026.pdf'}</h4>
-              <p className="text-slate-500 text-xs">Bản xem trước tài liệu PDF trực tuyến</p>
-              <div className="p-4 bg-slate-50 rounded-lg text-left font-mono text-[11px] text-slate-700 space-y-1 border border-slate-200">
-                <p className="font-bold text-blue-700">=== TÓM TẮT NỘI DUNG CV ===</p>
-                <p>- Họ tên: {viewingCVModalCandidate.candidateName}</p>
-                <p>- Trạng thái ứng tuyển: {viewingCVModalCandidate.status || 'Đã nộp'}</p>
-                <p>- Kỹ năng nổi bật: {(viewingCVModalCandidate.candidateSkills || candidateProfile?.skills || ['Java', 'SQL', 'Git']).join(', ')}</p>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setViewingCVModalCandidate(null)} className="btn btn-secondary text-xs">Đóng</button>
-            </div>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
+const JobApplicantsModal = lazy(() => import('./JobApplicantsModal').then(module => ({ default: module.JobApplicantsModal })));
+const formatCount = value => String(value).padStart(2, '0');
+const EMPTY_PROFILE = {};
+const EMPTY_ITEMS = [];
+function meetingUrl(value) {
+  try { const url = new URL(value); return ['https:', 'http:'].includes(url.protocol) ? url.href : null; } catch { return null; }
 }
 
+export function EmployerDashboard() {
+  const { currentUser, employerProfile, companies = EMPTY_ITEMS, jobs = EMPTY_ITEMS, applications = EMPTY_ITEMS, setActivePage, setViewingCVModalCandidate } = useApp();
+  const [viewingApplicantsJob, setViewingApplicantsJob] = useState(null);
+  const profile = useMemo(() => employerProfile || EMPTY_PROFILE, [employerProfile]);
+  const isVerified = profile.verificationStatus === 'Verified';
+  const companyName = profile.companyName || 'Doanh nghiệp';
+  const employerJobs = useMemo(() => {
+    const validIds = new Set([currentUser?.id, profile.ownerUserId, profile.id].filter(Boolean));
+    const validNames = new Set([profile.companyName, currentUser?.username, currentUser?.fullName].filter(Boolean).map(name => name.toLowerCase().trim()));
+    companies.forEach(company => {
+      if ((currentUser?.id && company.ownerUserId === currentUser.id) || (currentUser?.email && company.email?.toLowerCase() === currentUser.email.toLowerCase())) {
+        if (company.id) validIds.add(company.id);
+        if (company.ownerUserId) validIds.add(company.ownerUserId);
+        if (company.companyName) validNames.add(company.companyName.toLowerCase().trim());
+      }
+    });
+    return jobs.filter(job => (job.employerId && validIds.has(job.employerId)) || (job.company && validNames.has(job.company.toLowerCase().trim())));
+  }, [jobs, profile, currentUser, companies]);
+  const employerJobIds = useMemo(() => new Set(employerJobs.map(job => job.id)), [employerJobs]);
+  const employerApplications = useMemo(() => applications.filter(application => employerJobIds.has(application.jobId)), [applications, employerJobIds]);
+  const activeJobs = useMemo(() => employerJobs.filter(job => job.publishStatus !== 'CLOSED'), [employerJobs]);
+  const approvedCount = activeJobs.filter(job => job.moderationStatus === 'APPROVED' || (!job.moderationStatus && job.verifiedStatus === 'Verified')).length;
+  const interviews = employerApplications.filter(application => application.status === 'Phỏng vấn');
+  const recentApplicants = employerApplications.slice(0, 4);
+  const metrics = [
+    { label: 'Tin đang hoạt động', value: approvedCount, note: 'Vị trí đang tiếp nhận hồ sơ', page: 'job-management' },
+    { label: 'Tổng hồ sơ ứng tuyển', value: employerApplications.length, note: 'Ứng viên kết nối với doanh nghiệp', page: 'applicant-management' },
+    { label: 'Lịch phỏng vấn sắp tới', value: interviews.length, note: 'Cuộc hẹn đang được theo dõi', page: 'recruitment-pipeline' },
+    { label: 'Vị trí đã tuyển thành công', value: employerApplications.filter(application => application.status === 'Offer').length, note: 'Hồ sơ đã nhận offer', page: 'recruitment-pipeline' },
+  ];
 
+  return <div className="hiring-studio">
+    <section className="hiring-hero" aria-labelledby="hiring-company-heading">
+      <div className="hiring-hero-copy">
+        <p className="hiring-eyebrow">KHÔNG GIAN TUYỂN DỤNG</p>
+        <div className="hiring-company-heading">
+          {isImageLogo(profile.logo) && <button type="button" className="hiring-company-logo" onClick={() => setActivePage('company-profile')} aria-label="Cập nhật logo công ty"><img src={getCompanyLogoUrl(profile.logo)} alt={companyName} onError={event => { event.currentTarget.parentElement.hidden = true; }} /></button>}
+          <h1 id="hiring-company-heading">{companyName}</h1>
+        </div>
+        <span className={`hiring-verification ${isVerified ? 'is-verified' : ''}`}>{isVerified ? 'Đã xác minh' : profile.verificationStatus === 'Rejected' ? 'Chưa được xác minh' : 'Chờ xác minh'}</span>
+        <p className="hiring-recruiter">HR Recruiter: <strong>{profile.recruiterName || currentUser?.fullName || currentUser?.username || 'Nhà tuyển dụng'}</strong>{profile.email && <span>{profile.email}</span>}</p>
+        {(profile.industry || profile.location) && <p className="hiring-company-meta">{[profile.industry, profile.location].filter(Boolean).join(' · ')}</p>}
+        <div className="hiring-hero-actions"><button type="button" className="hiring-button hiring-button--light" disabled={!isVerified} onClick={() => setActivePage('create-job')}>Đăng tin tuyển dụng mới</button><button type="button" className="hiring-button hiring-button--outline" onClick={() => setActivePage('company-profile')}>Hồ sơ công ty</button></div>
+      </div>
+      <div className="hiring-hero-art"><TechnologyBackdrop /><p className="hiring-hero-message">Đội ngũ tốt,<br />bắt đầu từ<br /><span>cơ hội đúng.</span></p><span className="hiring-hero-caption">Kết nối năng lực. Xây dựng đội ngũ.</span></div>
+    </section>
+
+    {!isVerified && <section className="hiring-verification-notice" aria-label="Xác minh doanh nghiệp"><div><h2>Tài khoản Doanh nghiệp Chưa Xác Minh (Pending Verification)</h2><p>Chức năng Đăng tin tuyển dụng công khai hiện đang được tạm khóa. Ban Quản trị sẽ xem xét Giấy phép kinh doanh để cấp quyền tuyển dụng.</p></div><button type="button" className="hiring-button hiring-button--secondary" onClick={() => setActivePage('employer-register')}>Cập nhật Giấy phép kinh doanh</button></section>}
+    <section className="hiring-metrics" aria-label="Thống kê tuyển dụng">{metrics.map(metric => <button type="button" className="hiring-metric" key={metric.label} onClick={() => setActivePage(metric.page)}><span className="hiring-metric-label">{metric.label}</span><strong>{formatCount(metric.value)}</strong><span className="hiring-metric-note">{metric.note}</span></button>)}</section>
+
+    <div className="hiring-columns">
+      <section className="hiring-panel hiring-jobs" aria-labelledby="hiring-jobs-heading">
+        <div className="hiring-panel-heading"><div><span className="hiring-kicker">CƠ HỘI ĐANG MỞ</span><h2 id="hiring-jobs-heading">Tin tuyển dụng đang hoạt động</h2><p>Danh sách các vị trí đang mở tiếp nhận ứng viên nộp CV</p></div><button type="button" className="hiring-text-link" onClick={() => setActivePage('job-management')}>Quản lý tất cả tin</button></div>
+        {!activeJobs.length ? <div className="hiring-empty"><span className="hiring-empty-index" aria-hidden="true">01 / BẮT ĐẦU</span><h3>Bạn chưa có tin tuyển dụng nào đang mở.</h3><p>Tạo bài đăng tuyển dụng mới để tiếp cận hàng nghìn ứng viên IT tài năng trên CareerFit.</p><button type="button" className="hiring-button hiring-button--primary" disabled={!isVerified} onClick={() => setActivePage('create-job')}>Tạo tin tuyển dụng đầu tiên</button></div> : <div className="hiring-job-list">{activeJobs.map(job => {
+          const approved = job.moderationStatus === 'APPROVED' || (!job.moderationStatus && job.verifiedStatus === 'Verified');
+          const rejected = job.moderationStatus === 'REJECTED';
+          const count = employerApplications.filter(application => application.jobId === job.id).length;
+          return <article className="hiring-job" key={job.id}><div className="hiring-job-top"><div><h3>{job.title}</h3><p>{[job.category, job.jobType].filter(Boolean).join(' · ')}</p></div><button type="button" className="hiring-job-status" data-status={approved ? 'approved' : rejected ? 'rejected' : 'pending'} onClick={() => setActivePage('job-management')} title={rejected && job.rejectionReason ? `Lý do: ${job.rejectionReason}` : undefined}>{approved ? 'Đã duyệt' : rejected ? 'Bị từ chối' : 'Chờ kiểm duyệt'}</button></div>{rejected && job.rejectionReason && <button type="button" className="hiring-rejection" onClick={() => setActivePage('job-management')}>Lý do: {job.rejectionReason}</button>}<div className="hiring-job-bottom"><span>{job.salary}</span><button type="button" className="hiring-applicant-count" onClick={() => setViewingApplicantsJob(job)}>{count} hồ sơ</button><button type="button" className="hiring-button hiring-button--secondary" onClick={() => setViewingApplicantsJob(job)}>Ứng viên</button></div></article>;
+        })}</div>}
+      </section>
+      <aside className="hiring-rail">
+        <section className="hiring-panel" aria-labelledby="hiring-applicants-heading"><div className="hiring-panel-heading"><div><span className="hiring-kicker">KẾT NỐI MỚI</span><h2 id="hiring-applicants-heading">Ứng viên mới nhất</h2></div><button type="button" className="hiring-text-link" onClick={() => setActivePage('applicant-management')}>Xem tất cả</button></div>{!recentApplicants.length ? <p className="hiring-rail-empty">Chưa có ứng viên nộp hồ sơ.</p> : <div className="hiring-applicant-list">{recentApplicants.map(application => <button type="button" className="hiring-applicant" key={application.id} onClick={() => setViewingCVModalCandidate(application)}><span className="hiring-applicant-top"><strong>{application.candidateName || 'Ứng viên'}</strong><span className="hiring-application-status" data-status={application.status}>{application.status}</span></span><span className="hiring-applicant-role">{jobs.find(job => job.id === application.jobId)?.title || 'Tin tuyển dụng'}</span><span className="hiring-applicant-meta"><span>{application.candidateUniversity || application.candidateEmail}</span><time>{application.appliedDate}</time></span></button>)}</div>}</section>
+        <section className="hiring-interviews" aria-labelledby="hiring-interviews-heading"><span className="hiring-kicker">BƯỚC TIẾP THEO</span><h2 id="hiring-interviews-heading">Lịch phỏng vấn đã lên</h2>{!interviews.length ? <p className="hiring-rail-empty">Chưa có lịch phỏng vấn nào được xếp trong tuần này.</p> : <div className="hiring-interview-list">{interviews.map(application => <article className="hiring-interview" key={application.id}><div><strong>{application.candidateName || 'Ứng viên'}</strong><span>{application.interviewDetails?.time || 'Chờ xác nhận giờ'}</span></div><p>{application.interviewDetails?.date || application.interviewDate || 'Chờ xác nhận ngày'}</p>{meetingUrl(application.interviewDetails?.meetingLink) && <a href={meetingUrl(application.interviewDetails.meetingLink)} target="_blank" rel="noreferrer">Google Meet Link</a>}</article>)}</div>}</section>
+      </aside>
+    </div>
+    {viewingApplicantsJob && <Suspense fallback={null}><JobApplicantsModal job={viewingApplicantsJob} isOpen onClose={() => setViewingApplicantsJob(null)} /></Suspense>}
+  </div>;
+}

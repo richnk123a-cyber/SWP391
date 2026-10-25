@@ -20,8 +20,9 @@ import {
 import { Modal } from './Modal';
 import { DeleteAccountModal } from './DeleteAccountModal';
 import './SecuritySettingsPage.css';
+import { EmployerPageHeader } from '../employer/EmployerPageHeader';
 
-export function SecuritySettingsPage() {
+export function SecuritySettingsPage({ embedded = false }) {
   const { currentUser, showToast, resetPassword } = useApp();
 
   const [isLoadingStatus, setIsLoadingStatus] = useState(true);
@@ -161,8 +162,9 @@ export function SecuritySettingsPage() {
     authProvider === 'UNKNOWN' ? 'Chưa xác nhận' : 'Tài khoản Hệ thống';
 
   return (
-    <div className="security-page w-full max-w-[1000px] mx-auto space-y-6 sm:space-y-8 pb-12 animate-in fade-in duration-300">
+    <div className={`security-page ${embedded ? 'account-security-embedded' : currentUser?.role === 'EMPLOYER' ? 'employer-page hiring-security-page' : ''} w-full max-w-[1000px] mx-auto space-y-6 sm:space-y-8 pb-12 animate-in fade-in duration-300`}>
       {/* Top Header Banner */}
+      {!embedded && (currentUser?.role === 'EMPLOYER' ? <EmployerPageHeader eyebrow="AN TÂM TRONG MỌI KẾT NỐI" title="Bảo mật tài khoản" description="Quản lý mật khẩu và phương thức đăng nhập trong cùng một không gian." /> : (
       <div className="security-hero bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-8 rounded-3xl shadow-xl border border-indigo-500/20 relative overflow-hidden">
         <div className="absolute right-0 top-0 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -190,6 +192,7 @@ export function SecuritySettingsPage() {
         </div>
       </div>
 
+      ))}
       {/* Main Grid */}
       <div className="security-layout grid grid-cols-1 lg:grid-cols-3 gap-6">
         
@@ -280,6 +283,7 @@ export function SecuritySettingsPage() {
         {/* Right Column: Password Action Form */}
         <div className="lg:col-span-2">
           <div className="security-password-card bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-6">
+            {embedded && <div className="account-login-status" role="status"><span>Phương thức đăng nhập: <strong>{isLoadingStatus ? 'Đang kiểm tra...' : statusError ? 'Chưa xác nhận' : providerLabel}</strong></span><span>{isLoadingStatus ? '' : statusError ? 'Cần kiểm tra lại kết nối' : hasPassword ? 'Đã thiết lập mật khẩu' : 'Chưa có mật khẩu trực tiếp'}</span></div>}
             
             {/* Form Header */}
             <div>
@@ -464,6 +468,7 @@ export function SecuritySettingsPage() {
       </div>
 
       {/* Danger Zone: Xóa tài khoản */}
+      {!embedded && currentUser?.role !== 'ADMIN' && (
       <div className="bg-rose-50/80 border border-rose-200 rounded-2xl p-6 sm:p-7 shadow-xs space-y-4 mb-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="space-y-1">
@@ -483,6 +488,7 @@ export function SecuritySettingsPage() {
           </button>
         </div>
       </div>
+      )}
 
       {/* Forgot Password Modal */}
       <Modal

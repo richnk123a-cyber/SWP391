@@ -1,3 +1,4 @@
+import { EmployerPageHeader } from './EmployerPageHeader';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { MatchBadge } from '../common/Badge';
@@ -5,29 +6,7 @@ import { calculateSkillMatch } from '../../utils/matching';
 import { Modal } from '../common/Modal';
 import { ScheduleInterviewModal } from './ScheduleInterviewModal';
 import { SegmentedControl } from '../common/SegmentedControl';
-import {
-  Users,
-  Eye,
-  FileText,
-  Calendar,
-  CheckCircle2,
-  Search,
-  Filter,
-  RotateCcw,
-  X,
-  ShieldAlert,
-  Sparkles,
-  MapPin,
-  GraduationCap,
-  Briefcase,
-  Check,
-  AlertTriangle,
-  Send,
-  XCircle,
-  Award,
-  ChevronRight,
-  UserCheck
-} from 'lucide-react';
+import { FileText, Calendar, Search, Filter, RotateCcw, X, Check, AlertTriangle, XCircle, Award } from 'lucide-react';
 
 export function ApplicantManagementPage() {
   const {
@@ -37,6 +16,7 @@ export function ApplicantManagementPage() {
     employerProfile,
     candidateProfile,
     updateApplicationStatus,
+    refreshApplications,
     setViewingCVModalCandidate,
     viewingCVModalCandidate,
     selectedJobId,
@@ -78,6 +58,12 @@ export function ApplicantManagementPage() {
   }, [jobs, employerProfile, currentUser, companies]);
 
   // Search & Filter State
+  useEffect(() => {
+    if (typeof refreshApplications === 'function') {
+      refreshApplications();
+    }
+  }, [refreshApplications]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedJobFilter, setSelectedJobFilter] = useState(() => {
     if (selectedJobId && selectedJobId !== 'All') return selectedJobId;
@@ -139,7 +125,7 @@ export function ApplicantManagementPage() {
 
       return true;
     });
-  }, [applications, selectedJobFilter, statusTab, searchQuery, selectedSkill, minMatchScore, jobs, candidateProfile.skills]);
+  }, [applications, employerJobIds, selectedJobFilter, statusTab, searchQuery, selectedSkill, minMatchScore, jobs, candidateProfile]);
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -152,30 +138,21 @@ export function ApplicantManagementPage() {
   const hasFilters = Boolean(searchQuery || selectedJobFilter !== 'All' || statusTab !== 'All' || selectedSkill !== 'All' || minMatchScore > 0);
 
   return (
-    <div className="employer-workspace employer-applicantmanagementpage space-y-6 mx-auto">
-      {/* 1. HEADER */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
-              <Users size={18} />
-            </div>
-            <h1 className="text-xl font-bold text-slate-900">Quản lý Hồ sơ & Sàng lọc Ứng viên</h1>
-          </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Theo dõi, so khớp Match Score, mở CV và lên lịch phỏng vấn với các ứng viên IT.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
-            Tổng số ứng viên: <strong className="text-blue-600 font-bold">{filteredApps.length}</strong>
-          </span>
-        </div>
+    <div className="employer-page hiring-applicants-page space-y-6 mx-auto">
+      <EmployerPageHeader eyebrow="KẾT NỐI ĐÚNG NĂNG LỰC" title="Hồ sơ ứng viên" description="Theo dõi, so khớp Match Score, mở CV và lên lịch phỏng vấn với các ứng viên IT." />
+      <div className="employer-metrics-grid" aria-label="Trạng thái ứng viên">
+        <button type="button" className="employer-metric-total" aria-pressed={!hasFilters} onClick={clearFilters}>
+          <span>Ứng viên đang hiển thị</span><strong>{filteredApps.length.toString().padStart(2, '0')}</strong>
+        </button>
+        {[['Đã nộp', 'Hồ sơ mới'], ['Phỏng vấn', 'Đang phỏng vấn'], ['Offer', 'Đã gửi offer']].map(([status, label]) => (
+          <button type="button" key={status} aria-pressed={statusTab === status} onClick={() => setStatusTab(statusTab === status ? 'All' : status)}>
+            <span>{label}</span><strong>{applications.filter(app => employerJobIds.includes(app.jobId) && app.status === status).length.toString().padStart(2, '0')}</strong>
+          </button>
+        ))}
       </div>
 
       {/* 2. SEARCH & FILTER TOOLBAR */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+      <div className="employer-filter-panel bg-white p-5 rounded-2xl border border-slate-200 space-y-4">
         {/* Top Search & Dropdowns */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
           <div className="md:col-span-6 relative">
@@ -202,11 +179,12 @@ export function ApplicantManagementPage() {
           <div className="md:col-span-3">
             <select
               className="form-control text-xs bg-slate-50 border-slate-200 font-medium h-10"
+              aria-label="Lọc ứng viên theo vị trí"
               value={selectedJobFilter}
               onChange={(e) => setSelectedJobFilter(e.target.value)}
             >
-              <option value="All">Tất cả bài đăng ({jobs.length})</option>
-              {jobs.map(j => (
+              <option value="All">Tất cả bài đăng ({employerJobIds.length})</option>
+              {jobs.filter(job => employerJobIds.includes(job.id)).map(j => (
                 <option key={j.id} value={j.id}>{j.title}</option>
               ))}
             </select>
@@ -215,6 +193,7 @@ export function ApplicantManagementPage() {
           <div className="md:col-span-3">
             <select
               className="form-control text-xs bg-slate-50 border-slate-200 font-medium h-10"
+              aria-label="Lọc theo kỹ năng ứng viên"
               value={selectedSkill}
               onChange={(e) => setSelectedSkill(e.target.value)}
             >
@@ -274,7 +253,7 @@ export function ApplicantManagementPage() {
       </div>
 
       {/* 3. APPLICANTS TABLE */}
-      <div className="card p-5 bg-white border border-slate-200 rounded-2xl shadow-xs">
+      <div className="employer-results-panel">
         <div className="table-container">
           <table className="table">
             <thead>
@@ -303,7 +282,7 @@ export function ApplicantManagementPage() {
 
                   return (
                     <tr key={app.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td>
+                      <td data-label="Ứng viên">
                         <div
                           onClick={() => setDrawerApplicant({ app, job, match })}
                           className="flex items-center gap-3 cursor-pointer group"
@@ -319,19 +298,19 @@ export function ApplicantManagementPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="font-semibold text-slate-800 text-xs max-w-[180px] truncate">{job.title}</td>
-                      <td>
+                      <td data-label="Vị trí ứng tuyển" className="font-semibold text-slate-800 text-xs max-w-[180px] truncate">{job.title}</td>
+                      <td data-label="Kỹ năng">
                         <div className="flex flex-wrap gap-1 max-w-xs">
                           {appSkills.slice(0, 3).map(sk => (
                             <span key={sk} className="skill-tag text-[10px] py-0.5 px-1.5">{sk}</span>
                           ))}
                         </div>
                       </td>
-                      <td>
-                        <MatchBadge score={match.percentage} label={match.label} badgeClass={match.badgeClass} />
+                      <td data-label="Độ phù hợp">
+                        <MatchBadge showIcon={false} score={match.percentage} label={match.label} badgeClass={match.badgeClass} />
                       </td>
-                      <td className="text-xs text-slate-500 whitespace-nowrap">{app.appliedDate}</td>
-                      <td>
+                      <td data-label="Ngày nộp" className="text-xs text-slate-500 whitespace-nowrap">{app.appliedDate}</td>
+                      <td data-label="Trạng thái">
                         <select
                           className={`form-control py-1 px-2 text-xs font-semibold rounded-lg border ${
                             app.status === 'Offer'
@@ -359,7 +338,7 @@ export function ApplicantManagementPage() {
                           <option value="Từ chối">Từ chối</option>
                         </select>
                       </td>
-                      <td className="text-right whitespace-nowrap">
+                      <td data-label="Thao tác" className="text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => setViewingCVModalCandidate({ ...app, match, job, candidateId: app.candidateId })}
@@ -405,7 +384,7 @@ export function ApplicantManagementPage() {
                   <p className="text-xs text-slate-300 mt-0.5">{drawerApplicant.app.candidateUniversity} • {drawerApplicant.app.candidateEmail}</p>
                 </div>
               </div>
-              <MatchBadge score={drawerApplicant.match.percentage} label={drawerApplicant.match.label} badgeClass={drawerApplicant.match.badgeClass} />
+              <MatchBadge showIcon={false} score={drawerApplicant.match.percentage} label={drawerApplicant.match.label} badgeClass={drawerApplicant.match.badgeClass} />
             </div>
 
             {/* Application Meta */}

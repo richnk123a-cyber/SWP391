@@ -50,7 +50,10 @@ public final class JobSpecifications {
                 predicates.add(builder.like(builder.lower(root.get("jobType")), containsPattern(jobType)));
             }
             if (minSalary != null || maxSalary != null) {
-                predicates.add(builder.equal(builder.upper(root.get("salaryCurrency")), salaryCurrency));
+                String targetCurrency = (salaryCurrency != null && !salaryCurrency.isBlank())
+                        ? salaryCurrency.trim().toUpperCase(Locale.ROOT)
+                        : "VNĐ";
+                predicates.add(builder.equal(builder.upper(root.get("salaryCurrency")), targetCurrency));
                 predicates.add(builder.isNotNull(root.get("salaryMin")));
                 predicates.add(builder.isNotNull(root.get("salaryMax")));
             }

@@ -1,0 +1,240 @@
+/* Workspace-only atmosphere: exterior pages retain their existing presentation. */
+.landscape-workspace {
+  --primary: #2d6a4f;
+  --primary-dark: #1b4332;
+  --primary-hover: #1b4332;
+  --accent: #52b788;
+  --accent-light: #74c69d;
+  --mint-50: #f1faf4;
+  --mint-100: #d8f3dc;
+  --mint-200: #b7e4c7;
+  --sun: #f4c95d;
+  --peach: #f4a261;
+  --sky: #8ecae6;
+  --text-main: #1b4332;
+  --text-secondary: #5c7a6b;
+  --text-muted: #496858;
+  --mint-ink: #1b4332;
+  --mint-primary: #2d6a4f;
+  --mint-primary-hover: #1b4332;
+  --mint-muted: #496858;
+  --mint-soft: #f1faf4;
+  --mint-wash: #d8f3dc;
+  --mint-border: #b7e4c7;
+  --glass-surface: rgba(255,255,255,.72);
+  --glass-dense: rgba(255,255,255,.92);
+  --glass-outline: rgba(255,255,255,.7);
+  --glass-shadow: 0 8px 32px rgba(45,106,79,.10);
+  --glass-filter: blur(14px) saturate(140%);
+  --color-slate-900: #1b4332;
+  --color-slate-800: #1b4332;
+  --color-slate-700: #2d6a4f;
+  --color-slate-600: #496858;
+  --color-slate-500: #496858;
+  --color-slate-400: #496858;
+  --color-gray-900: #1b4332;
+  --color-gray-800: #1b4332;
+  --color-gray-600: #496858;
+  --color-gray-500: #496858;
+  --color-blue-50: #f1faf4;
+  --color-blue-100: #d8f3dc;
+  --color-blue-200: #b7e4c7;
+  --color-blue-300: #74c69d;
+  --color-blue-400: #52b788;
+  --color-blue-500: #2d6a4f;
+  --color-blue-600: #2d6a4f;
+  --color-blue-700: #1b4332;
+  --color-blue-800: #1b4332;
+  --color-blue-900: #1b4332;
+  --color-indigo-50: #f1faf4;
+  --color-indigo-100: #d8f3dc;
+  --color-indigo-200: #b7e4c7;
+  --color-indigo-300: #74c69d;
+  --color-indigo-400: #52b788;
+  --color-indigo-500: #2d6a4f;
+  --color-indigo-600: #2d6a4f;
+  --color-indigo-700: #1b4332;
+  --color-indigo-800: #1b4332;
+  --color-indigo-900: #1b4332;
+  --color-cyan-50: #f1faf4;
+  --color-cyan-100: #d8f3dc;
+  --color-cyan-200: #b7e4c7;
+  --color-cyan-300: #74c69d;
+  --color-cyan-400: #52b788;
+  --color-cyan-500: #2d6a4f;
+  --color-cyan-600: #2d6a4f;
+  --color-cyan-700: #1b4332;
+  --color-cyan-800: #1b4332;
+  --color-cyan-900: #1b4332;
+  --color-teal-50: #f1faf4;
+  --color-teal-100: #d8f3dc;
+  --color-teal-200: #b7e4c7;
+  --color-teal-300: #74c69d;
+  --color-teal-400: #52b788;
+  --color-teal-500: #2d6a4f;
+  --color-teal-600: #2d6a4f;
+  --color-teal-700: #1b4332;
+  --color-teal-800: #1b4332;
+  --color-teal-900: #1b4332;
+  --color-emerald-50: #f1faf4;
+  --color-emerald-100: #d8f3dc;
+  --color-emerald-200: #b7e4c7;
+  --color-emerald-300: #74c69d;
+  --color-emerald-400: #52b788;
+  --color-emerald-500: #2d6a4f;
+  --color-emerald-600: #2d6a4f;
+  --color-emerald-700: #1b4332;
+  --color-emerald-800: #1b4332;
+  --color-emerald-900: #1b4332;
+  --color-green-50: #f1faf4;
+  --color-green-100: #d8f3dc;
+  --color-green-200: #b7e4c7;
+  --color-green-300: #74c69d;
+  --color-green-400: #52b788;
+  --color-green-500: #2d6a4f;
+  --color-green-600: #2d6a4f;
+  --color-green-700: #1b4332;
+  --color-green-800: #1b4332;
+  --color-green-900: #1b4332;
+  --color-purple-50: #f1faf4;
+  --color-purple-100: #d8f3dc;
+  --color-purple-200: #b7e4c7;
+  --color-purple-300: #74c69d;
+  --color-purple-400: #52b788;
+  --color-purple-500: #2d6a4f;
+  --color-purple-600: #2d6a4f;
+  --color-purple-700: #1b4332;
+  --color-purple-800: #1b4332;
+  --color-purple-900: #1b4332;
+  --color-violet-50: #f1faf4;
+  --color-violet-100: #d8f3dc;
+  --color-violet-200: #b7e4c7;
+  --color-violet-300: #74c69d;
+  --color-violet-400: #52b788;
+  --color-violet-500: #2d6a4f;
+  --color-violet-600: #2d6a4f;
+  --color-violet-700: #1b4332;
+  --color-violet-800: #1b4332;
+  --color-violet-900: #1b4332;
+  position: relative;
+  z-index: 1;
+}
+:root .landscape-workspace.landscape-workspace,
+:root .landscape-workspace.landscape-workspace .workspace-content { background: transparent; color: var(--text-main); }
+
+/* Shared card surfaces, including utility-based employer/admin cards. */
+:root .landscape-workspace.landscape-workspace :is(
+  .studio-stat,.studio-panel,.studio-profile-panel,.studio-roadmap-panel,.studio-insight,.studio-goal-card,
+  .discovery-filters,.discovery-job-card,.discovery-highlight,.discovery-profile-hint,.discovery-float-card,
+  .job-detail-card,.applications-metric,.applications-workspace,.applications-board-card,.applications-row,
+  .learning-curriculum,.learning-overview,.learning-guide,.learning-next-card,.learning-hero-progress,
+  .profile-card,.profile-cv-card,.profile-ai-card,.profile-checklist,.profile-selected-skills,
+  .hiring-panel,.hiring-metric,.hiring-interviews,.hiring-pipeline-card,.employer-filter-panel,
+  .account-settings-nav,.account-settings-card,.security-account,.security-password-card,.security-advice,
+  .cv-ai-summary,.modal-content
+),
+:root .landscape-workspace.landscape-workspace :where(.cv-ai-metrics > div,.bg-white[class*="rounded"],.employer-results-panel .table tr) {
+  background: var(--glass-surface);
+  border: 1px solid var(--glass-outline);
+  border-radius: 20px;
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  transition: transform .25s ease, background-color .25s ease, box-shadow .25s ease, border-color .25s ease;
+}
+:root .landscape-workspace.landscape-workspace :is(.studio-stat,.discovery-job-card,.hiring-metric,.applications-board-card):hover {
+  transform: translateY(-3px);
+  background: rgba(255,255,255,.88);
+  border-color: var(--accent-light);
+  box-shadow: 0 12px 36px rgba(45,106,79,.16);
+}
+
+/* The scene stays visible behind the sidebar and header without moving them. */
+:root .landscape-workspace.landscape-workspace .workspace-sidebar { background: rgba(255,255,255,.80); border-right: 1px solid rgba(45,106,79,.08); box-shadow: 4px 0 24px #2d6a4f05; backdrop-filter: var(--glass-filter); -webkit-backdrop-filter: var(--glass-filter); }
+:root .landscape-workspace.landscape-workspace .workspace-navbar,
+:root .landscape-workspace.landscape-workspace .login-header { background: rgba(255,255,255,.72) !important; border-bottom: 1px solid rgba(45,106,79,.08) !important; box-shadow: 0 3px 18px #2d6a4f06; backdrop-filter: var(--glass-filter); -webkit-backdrop-filter: var(--glass-filter); }
+:root:has(.app-background[data-scrolled="true"]) .landscape-workspace :is(.workspace-navbar,.login-header) { box-shadow: 0 6px 24px rgba(45,106,79,.10); }
+:root .landscape-workspace.landscape-workspace .workspace-sidebar .sidebar-item.is-active { background: rgba(183,228,199,.62); color: #1b4332; box-shadow: inset 3px 0 #52b788; }
+:root .landscape-workspace.landscape-workspace .workspace-sidebar .sidebar-item:hover { background: rgba(216,243,220,.70); }
+:root .landscape-workspace.landscape-workspace .workspace-mobile-panel { background: rgba(241,250,244,.97); }
+
+/* Mint-tinted welcome glass and a single, quiet sweep of light. */
+:root .landscape-workspace.landscape-workspace :is(.studio-hero,.hiring-hero,.discovery-hero,.applications-hero,.learning-hero,.profile-hero,.security-hero,.hiring-company-banner,.candidate-career-banner) {
+  position: relative;
+  background: rgba(216,243,220,.75);
+  border: 1px solid var(--glass-outline);
+  border-radius: 24px;
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  color: #1b4332;
+}
+:root .landscape-workspace.landscape-workspace :is(.studio-hero,.hiring-hero)::after { content: ''; position: absolute; inset: 0 auto 0 -50%; width: 40%; pointer-events: none; background: linear-gradient(105deg, transparent, #ffffff66, transparent); opacity: 0; transform: skewX(-18deg); animation: workspace-welcome-light 1.6s .15s ease-out 1; }
+:root .landscape-workspace.landscape-workspace :is(.applications-section-heading,.profile-section-heading,.learning-section-header,.discovery-filter-heading,.hiring-panel-heading,.account-settings-card-heading) { background: rgba(241,250,244,.50); border-color: rgba(45,106,79,.08); }
+
+/* Small text and long forms have denser surfaces than decorative cards. */
+:root .landscape-workspace.landscape-workspace :is(.profile-card,.profile-cv-card,.account-settings-card,.security-password-card,.hiring-editor,.table-container,.table,.modal-content,.learning-lesson-content) { background: var(--glass-dense); }
+:root .landscape-workspace.landscape-workspace :is(.modal-body,.modal-header,.modal-footer) { background: transparent; }
+:root .landscape-workspace.landscape-workspace :is(.applications-empty,.applications-preparation,.applications-board-column) { background: rgba(241,250,244,.45); }
+:root .landscape-workspace.landscape-workspace .table th { background: rgba(216,243,220,.70); color: #1b4332; }
+:root .landscape-workspace.landscape-workspace .table td { background: rgba(255,255,255,.60); }
+:root .landscape-workspace.landscape-workspace .table tr:hover td { background: rgba(241,250,244,.95); }
+:root .landscape-workspace.landscape-workspace :is(.discovery-search,.discovery-highlight,.learning-mode-switch) { background: rgba(255,255,255,.80); border: 1px solid var(--glass-outline); border-radius: 20px; box-shadow: var(--glass-shadow); backdrop-filter: var(--glass-filter); -webkit-backdrop-filter: var(--glass-filter); }
+:root .landscape-workspace.landscape-workspace :is(.form-control,.profile-field input,.profile-field textarea,.filter-salary input,.discovery-sort select,.applications-toolbar select,.learning-search) { background: rgba(255,255,255,.92); border: 1px solid rgba(45,106,79,.18); color: #1b4332; border-radius: 10px; }
+:root .landscape-workspace.landscape-workspace :is(input,textarea,select):focus-visible { outline: 2px solid #52b788; outline-offset: 2px; }
+:root .landscape-workspace.landscape-workspace :is(input,textarea)::placeholder { color: #496858; opacity: 1; }
+:root .landscape-workspace.landscape-workspace .profile-dropzone { background: rgba(241,250,244,.80); border: 1px dashed #74c69d; border-radius: 16px; }
+:root .landscape-workspace.landscape-workspace :is(.btn-primary,.studio-primary-button,.studio-hero-primary,.discovery-search-submit,.profile-primary,.learning-primary,.applications-primary,.hiring-button--primary) { background: #2d6a4f; color: white; border-color: #2d6a4f; box-shadow: 0 4px 12px #2d6a4f14; }
+:root .landscape-workspace.landscape-workspace :is(.btn-primary,.studio-primary-button,.studio-hero-primary,.discovery-search-submit,.profile-primary,.learning-primary,.applications-primary,.hiring-button--primary):hover:not(:disabled) { background: #1b4332; color: white; }
+:root .landscape-workspace.landscape-workspace .careerfit-toast { background: #1b4332; color: white; border-color: #2d6a4f; }
+
+/* Four small pastel icon accents, not four competing full-card colors. */
+:root .landscape-workspace.landscape-workspace .studio-stat-icon { border-radius: 50%; background: #d8f3dc; color: #2d6a4f; }
+:root .landscape-workspace.landscape-workspace .studio-stat-icon--1 { background: #dceff8; color: #235d77; }
+:root .landscape-workspace.landscape-workspace .studio-stat-icon--2 { background: #fbe5d3; color: #88441e; }
+:root .landscape-workspace.landscape-workspace .studio-stat-icon--3 { background: #fbf0cd; color: #71530c; }
+:root .landscape-workspace.landscape-workspace :is(.studio-stat-value,.hiring-metric strong,.applications-metric strong) { color: #1b4332; }
+
+/* Existing lesson list becomes a gently winding path; content order is intact. */
+:root .landscape-workspace.landscape-workspace .learning-lesson:not(:last-child)::before { background: none; width: 24px; height: calc(100% - 20px); border-left: 2px dashed #b7e4c7; border-radius: 48%; left: 18px; top: 36px; transform: rotate(-4deg); }
+:root .landscape-workspace.landscape-workspace .learning-lesson:nth-child(even)::before { transform: rotate(4deg); }
+:root .landscape-workspace.landscape-workspace .learning-step { background: #f1faf4; color: #1b4332; border-color: #b7e4c7; }
+:root .landscape-workspace.landscape-workspace .learning-lesson.is-complete .learning-step { background: #2d6a4f; color: white; border-color: #2d6a4f; }
+:root .landscape-workspace.landscape-workspace .learning-lesson.is-next .learning-step { background: #d8f3dc; color: #1b4332; position: relative; isolation: isolate; }
+:root .landscape-workspace.landscape-workspace .learning-lesson.is-next .learning-step::after { content: ''; position: absolute; inset: -6px; border: 1px solid #52b788; border-radius: inherit; animation: workspace-marker-pulse 2.8s ease-out infinite; pointer-events: none; }
+:root .landscape-workspace.landscape-workspace .applications-status { background: rgba(241,250,244,.95); }
+:root .landscape-workspace.landscape-workspace .applications-row { position: relative; --application-stage: #2d6a4f; border-left: 2px solid #b7e4c7; }
+:root .landscape-workspace.landscape-workspace .applications-row:has(.tone-violet) { --application-stage: #286582; }
+:root .landscape-workspace.landscape-workspace .applications-row:has(.tone-amber) { --application-stage: #805523; }
+:root .landscape-workspace.landscape-workspace .applications-row:has(.tone-rose) { --application-stage: #9a4152; }
+:root .landscape-workspace.landscape-workspace .applications-row::before { content: ''; position: absolute; left: -5px; top: calc(50% - 4px); width: 8px; height: 8px; border-radius: 50%; background: var(--application-stage); box-shadow: 0 0 0 3px #f1faf4; }
+:root .landscape-workspace.landscape-workspace .technology-signal { animation: workspace-circuit-glow 8s ease-in-out infinite; }
+:root .landscape-workspace.landscape-workspace .technology-signal--second { animation-delay: -3s; }
+:root .landscape-workspace.landscape-workspace .technology-signal--third { animation-delay: -5s; }
+
+/* Existing mount/unmount behavior naturally replays entry motion per page. */
+:root .landscape-workspace.landscape-workspace :is(.studio-stat,.hiring-metric,.applications-metric,.discovery-job-card,.profile-card,.learning-curriculum,.applications-workspace) { animation: workspace-card-enter .5s ease-out backwards; }
+:root .landscape-workspace.landscape-workspace :is(.studio-stat,.hiring-metric,.applications-metric,.discovery-job-card,.profile-card):nth-child(2) { animation-delay: 60ms; }
+:root .landscape-workspace.landscape-workspace :is(.studio-stat,.hiring-metric,.applications-metric,.discovery-job-card,.profile-card):nth-child(3) { animation-delay: 120ms; }
+:root .landscape-workspace.landscape-workspace :is(.studio-stat,.hiring-metric,.applications-metric,.discovery-job-card,.profile-card):nth-child(4) { animation-delay: 180ms; }
+:root .landscape-workspace.landscape-workspace :is(.studio-stat,.hiring-metric,.applications-metric,.discovery-job-card,.profile-card):nth-child(n+5) { animation-delay: 240ms; }
+:root .landscape-workspace.landscape-workspace :is(.studio-stat,.hiring-metric,.applications-metric,.discovery-job-card,.profile-card):nth-child(6) { animation-delay: 300ms; }
+:root .landscape-workspace.landscape-workspace :is(.studio-stat,.hiring-metric,.applications-metric,.discovery-job-card,.profile-card):nth-child(7) { animation-delay: 360ms; }
+:root .landscape-workspace.landscape-workspace :is(.studio-stat,.hiring-metric,.applications-metric,.discovery-job-card,.profile-card):nth-child(8) { animation-delay: 420ms; }
+:root .landscape-workspace.landscape-workspace :is(.studio-stat,.hiring-metric,.applications-metric,.discovery-job-card,.profile-card):nth-child(9) { animation-delay: 480ms; }
+:root .landscape-workspace.landscape-workspace :is(.studio-stat,.hiring-metric,.applications-metric,.discovery-job-card,.profile-card):nth-child(10) { animation-delay: 540ms; }
+@keyframes workspace-card-enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes workspace-welcome-light { 0% { opacity: 0; transform: translateX(0) skewX(-18deg); } 35% { opacity: .35; } 100% { opacity: 0; transform: translateX(420%) skewX(-18deg); } }
+@keyframes workspace-marker-pulse { 0% { transform: scale(.85); opacity: .65; } 100% { transform: scale(1.25); opacity: 0; } }
+@keyframes workspace-circuit-glow { 0%,100% { opacity: .18; } 50% { opacity: .60; } }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .landscape-workspace { --glass-surface: rgba(255,255,255,.95); --glass-dense: rgba(255,255,255,.95); --glass-filter: none; }
+  :root .landscape-workspace.landscape-workspace :is(.workspace-sidebar,.workspace-navbar,.login-header,.modal-content,.studio-hero,.hiring-hero,.discovery-hero,.applications-hero,.learning-hero,.profile-hero,.studio-stat,.hiring-metric,.applications-metric,.discovery-job-card,.profile-card,.profile-cv-card,.learning-curriculum,.applications-workspace,.job-detail-card,.hiring-panel,.bg-white[class*="rounded"]) { background: rgba(255,255,255,.95) !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root .landscape-workspace.landscape-workspace *, :root .landscape-workspace.landscape-workspace *::before, :root .landscape-workspace.landscape-workspace *::after { animation: none !important; transition: none !important; }
+  :root .landscape-workspace.landscape-workspace :is(.studio-stat,.discovery-job-card,.hiring-metric,.applications-board-card):hover { transform: none; }
+}
+@media (max-width: 650px) {
+  :root .landscape-workspace.landscape-workspace .learning-lesson:not(:last-child)::before { left: 14px; top: 28px; width: 18px; }
+}

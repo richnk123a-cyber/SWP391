@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { User, FileText, Settings, LogOut, ShieldCheck, MapPin, Building2, Map, LayoutDashboard, ChevronDown, Trash2 } from 'lucide-react';
+import { User, FileText, Settings, LogOut, ShieldCheck, Building2, Map, LayoutDashboard, ChevronDown, Trash2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { getCompanyLogoUrl, isImageLogo } from '../../utils/logoUtils';
 import { DeleteAccountModal } from './DeleteAccountModal';
+import { getCandidateAvatar } from '../../utils/candidateAvatar';
 
 export function ProfileDropdown() {
   const { currentUser, logout, setActivePage, candidateProfile, currentEmployerCompany, employerProfile } = useApp();
@@ -40,8 +41,9 @@ export function ProfileDropdown() {
   const getAvatarContent = () => {
     const name = getDisplayName();
     if (currentUser.role === 'CANDIDATE') {
-      if (candidateProfile?.avatarUrl || currentUser?.avatarUrl) {
-        return <img src={candidateProfile?.avatarUrl || currentUser?.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />;
+      const avatar = getCandidateAvatar(candidateProfile, currentUser);
+      if (avatar) {
+        return <img src={avatar} alt="Ảnh đại diện" className="w-full h-full object-cover" />;
       }
       return name ? name.charAt(0).toUpperCase() : 'C';
     }
@@ -59,7 +61,7 @@ export function ProfileDropdown() {
           />
         );
       }
-      return activeEmployerLogo || '🏢';
+      return name.charAt(0).toUpperCase();
     }
     return name ? name.charAt(0).toUpperCase() : 'A';
   };
@@ -180,9 +182,9 @@ export function ProfileDropdown() {
               <button
                 onClick={() => {
                   setIsOpen(false);
-                  if (currentUser.role === 'CANDIDATE') setActivePage('candidate-profile');
-                  else if (currentUser.role === 'EMPLOYER') setActivePage('company-profile');
-                  else setActivePage('admin-dashboard');
+                  if (currentUser.role === 'CANDIDATE') setActivePage('candidate-security');
+                  else if (currentUser.role === 'EMPLOYER') setActivePage('employer-security');
+                  else setActivePage('admin-security');
                 }}
                 className="w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-blue-600 flex items-center gap-2.5 transition-colors"
               >
@@ -191,15 +193,17 @@ export function ProfileDropdown() {
             </div>
 
             <div className="py-1 border-t border-slate-100">
-              <button
-                onClick={() => {
-                  setIsOpen(false);
-                  setIsDeleteModalOpen(true);
-                }}
-                className="w-full text-left px-3 py-2 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2.5 transition-colors"
-              >
-                <Trash2 size={15} className="text-rose-600" /> Xóa tài khoản
-              </button>
+              {currentUser?.role !== 'ADMIN' && (
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    setIsDeleteModalOpen(true);
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2.5 transition-colors"
+                >
+                  <Trash2 size={15} className="text-rose-600" /> Xóa tài khoản
+                </button>
+              )}
               <button
                 onClick={() => {
                   setIsOpen(false);

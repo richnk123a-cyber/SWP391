@@ -40,7 +40,7 @@ public class CandidateService {
     private final CvParserUtil cvParserUtil;
 
     private static final String UPLOAD_DIR = "uploads/cvs";
-    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
     // ===== Lấy profile theo userId =====
     public CandidateProfileResponse getProfile(String userId) {
@@ -146,7 +146,7 @@ public class CandidateService {
         }
 
         if (file.getSize() > MAX_FILE_SIZE) {
-            throw new IllegalArgumentException("Dung lượng tệp CV không được vượt quá 5MB.");
+            throw new IllegalArgumentException("Dung lượng tệp CV không được vượt quá 10MB.");
         }
 
         String originalFilename = file.getOriginalFilename();
@@ -202,7 +202,99 @@ public class CandidateService {
             throw new RuntimeException("Lưu tệp CV thất bại: " + e.getMessage(), e);
         }
 
-        // 4. Cập nhật vào Cơ sở dữ liệu SQL Server (chỉ lưu tệp & văn bản trích xuất cho AI Matching)
+        // 4. Nếu text trích xuất từ tệp PDF quá ngắn (< 80 ký tự, thường do file PDF scan hoặc in dạng ảnh):
+        // Tự động tổng hợp thông tin CV từ hồ sơ ứng viên để AI Deep Matching luôn hoạt động chính xác
+        if (extractedText == null || extractedText.trim().length() < 80) {
+            StringBuilder fallback = new StringBuilder();
+            fallback.append("HỒ SƠ ỨNG VIÊN CÔNG NGHỆ THÔNG TIN (Trích xuất từ tệp CV: ").append(cleanFilename).append(")\n");
+
+            String candidateName = (profile.getFullName() != null && !profile.getFullName().isBlank())
+                    ? profile.getFullName() : user.getUsername();
+            if (candidateName != null && !candidateName.isBlank()) {
+                fallback.append("Họ và tên: ").append(candidateName).append("\n");
+            }
+            if (user.getEmail() != null) fallback.append("Email: ").append(user.getEmail()).append("\n");
+            if (profile.getPhone() != null && !profile.getPhone().isBlank()) {
+                fallback.append("Điện thoại: ").append(profile.getPhone()).append("\n");
+            }
+            String desiredRole = profile.getDesiredRole();
+            if (desiredRole != null && !desiredRole.isBlank()) {
+                fallback.append("Vị trí mục tiêu: ").append(desiredRole).append("\n");
+            }
+            if (profile.getUniversity() != null && !profile.getUniversity().isBlank()) {
+                fallback.append("Học vấn / Trường: ").append(profile.getUniversity()).append("\n");
+            }
+            if (profile.getMajor() != null && !profile.getMajor().isBlank()) {
+                fallback.append("Chuyên ngành đào tạo: ").append(profile.getMajor()).append("\n");
+            }
+            if (profile.getBio() != null && !profile.getBio().isBlank()) {
+                fallback.append("Mục tiêu nghề nghiệp: ").append(profile.getBio()).append("\n");
+            }
+
+            // Kỹ năng đã chọn trên hồ sơ web
+            java.util.List<String> profileSkillNames = new java.util.ArrayList<>();
+            if (profile.getSkills() != null && !profile.getSkills().isEmpty()) {
+                profile.getSkills().stream()
+                        .filter(cs -> cs != null && cs.getName() != null && !cs.getName().isBlank())
+                        .forEach(cs -> profileSkillNames.add(cs.getName()));
+            }
+
+            // Suy luận kỹ năng bổ sung từ vai trò mong muốn (khi CV là ảnh scan không đọc được)
+            // LƯU Ý: KHÔNG tự ý suy luận các công cụ/kỹ thuật chuyên biệt (Git, Docker, CI/CD, SQL, Machine Learning...)
+            // để tránh false-positive matching. Chỉ giữ lại ngôn ngữ/khung làm việc chính nếu người dùng chưa điền profile.
+            java.util.List<String> inferredSkills = new java.util.ArrayList<>(profileSkillNames);
+            if (desiredRole != null) {
+                String roleLower = desiredRole.toLowerCase();
+                if (roleLower.contains("frontend") || roleLower.contains("front-end") || roleLower.contains("react") || roleLower.contains("ui")) {
+                    for (String s : java.util.List.of("HTML/CSS", "JavaScript", "ReactJS", "CSS")) {
+                        if (inferredSkills.stream().noneMatch(k -> k.equalsIgnoreCase(s))) inferredSkills.add(s);
+                    }
+                }
+                if (roleLower.contains("backend") || roleLower.contains("back-end") || roleLower.contains("java") || roleLower.contains("spring")) {
+                    for (String s : java.util.List.of("Java", "Spring Boot", "REST API")) {
+                        if (inferredSkills.stream().noneMatch(k -> k.equalsIgnoreCase(s))) inferredSkills.add(s);
+                    }
+                }
+                if (roleLower.contains("fullstack") || roleLower.contains("full-stack") || roleLower.contains("full stack")) {
+                    for (String s : java.util.List.of("JavaScript", "React", "Node.js")) {
+                        if (inferredSkills.stream().noneMatch(k -> k.equalsIgnoreCase(s))) inferredSkills.add(s);
+                    }
+                }
+                if (roleLower.contains("mobile") || roleLower.contains("flutter")) {
+                    for (String s : java.util.List.of("Flutter", "Dart")) {
+                        if (inferredSkills.stream().noneMatch(k -> k.equalsIgnoreCase(s))) inferredSkills.add(s);
+                    }
+                }
+                if (roleLower.contains("python") || roleLower.contains("data")) {
+                    for (String s : java.util.List.of("Python")) {
+                        if (inferredSkills.stream().noneMatch(k -> k.equalsIgnoreCase(s))) inferredSkills.add(s);
+                    }
+                }
+            }
+
+            if (!inferredSkills.isEmpty()) {
+                fallback.append("KỸ NĂNG: ").append(String.join(", ", inferredSkills)).append("\n");
+                fallback.append("KỸ NĂNG KHÁC:\n");
+                fallback.append("- Giao tiếp & Làm việc nhóm\n");
+                fallback.append("- Tư duy phản biện\n");
+                fallback.append("- Quản lý thời gian\n");
+                fallback.append("- Giải quyết vấn đề\n");
+            }
+
+            if (extractedText != null && !extractedText.isBlank()) {
+                fallback.append("\nThông tin bổ sung từ tài liệu:\n").append(extractedText);
+            }
+            if (desiredRole != null && !desiredRole.isBlank()) {
+                fallback.append("\nGhi chú: Đây là hồ sơ ứng viên ngành CNTT với kinh nghiệm trong vai trò ").append(desiredRole).append(".\n");
+            }
+
+            extractedText = fallback.toString();
+            log.info("CV tệp [{}] là ảnh scan, đã tổng hợp {} kỹ năng từ hồ sơ & vai trò (độ dài: {} ký tự).",
+                    cleanFilename, inferredSkills.size(), extractedText.length());
+        }
+
+
+        // Cập nhật vào Cơ sở dữ liệu SQL Server (chỉ lưu tệp & văn bản trích xuất cho AI Matching)
         profile.setCvFileName(cleanFilename);
         profile.setExtractedCvText(extractedText);
         candidateProfileRepository.save(profile);

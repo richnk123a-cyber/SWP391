@@ -175,6 +175,35 @@ CREATE TABLE dbo.roadmap_topics (
 GO
 
 -- 11. BẢNG BÁO CÁO VI PHẠM (REPORTS)
+-- 10.1. BANG LO TRINH HOC CA NHAN CUA UNG VIEN
+CREATE TABLE dbo.candidate_personal_roadmaps (
+    id NVARCHAR(100) PRIMARY KEY,
+    user_id NVARCHAR(50) NOT NULL,
+    job_id NVARCHAR(50),
+    job_title NVARCHAR(255),
+    company NVARCHAR(255),
+    skill_name NVARCHAR(255),
+    target_role NVARCHAR(255),
+    description NVARCHAR(MAX),
+    match_percentage INT DEFAULT 0,
+    topics_json NVARCHAR(MAX),
+    created_at DATETIME2 DEFAULT GETDATE(),
+    updated_at DATETIME2 DEFAULT GETDATE()
+);
+GO
+
+-- 10.2. BANG TIEN DO HOC TAP TUNG BAI CUA UNG VIEN
+CREATE TABLE dbo.candidate_topic_progress (
+    id NVARCHAR(150) PRIMARY KEY,
+    user_id NVARCHAR(50) NOT NULL,
+    topic_id NVARCHAR(100) NOT NULL,
+    roadmap_id NVARCHAR(100),
+    completed BIT NOT NULL DEFAULT 0,
+    updated_at DATETIME2 DEFAULT GETDATE(),
+    CONSTRAINT UQ_candidate_topic UNIQUE (user_id, topic_id)
+);
+GO
+
 CREATE TABLE dbo.reports (
     id NVARCHAR(50) PRIMARY KEY,
     job_id NVARCHAR(50) FOREIGN KEY REFERENCES dbo.jobs(id),

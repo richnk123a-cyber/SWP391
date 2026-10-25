@@ -38,7 +38,7 @@ export function CandidateSystemIntro({ candidateName = 'Nguyễn Trọng Tiến'
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center bg-[#050914] text-white select-none overflow-hidden motion-reduce:[&_*]:animate-none motion-reduce:[&_*]:transition-none transition-opacity duration-300 ease-out ${
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-[#102b20] text-white select-none overflow-hidden motion-reduce:[&_*]:animate-none motion-reduce:[&_*]:transition-none transition-opacity duration-300 ease-out ${
         isClosing ? 'opacity-0 scale-[1.02] pointer-events-none' : 'opacity-100'
       }`}
     >
@@ -47,7 +47,7 @@ export function CandidateSystemIntro({ candidateName = 'Nguyễn Trọng Tiến'
         <div
           className="absolute inset-0 opacity-[0.08]"
           style={{
-            backgroundImage: `linear-gradient(to right, #0ea5e9 1px, transparent 1px), linear-gradient(to bottom, #0ea5e9 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(to right, var(--mint-primary) 1px, transparent 1px), linear-gradient(to bottom, var(--mint-primary) 1px, transparent 1px)`,
             backgroundSize: '40px 40px'
           }}
         />
@@ -120,9 +120,9 @@ export function CandidateSystemIntro({ candidateName = 'Nguyễn Trọng Tiến'
           <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 320 110">
             <defs>
               <linearGradient id="introLaserGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.8" />
-                <stop offset="50%" stopColor="#6366f1" stopOpacity="0.6" />
-                <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.9" />
+                <stop offset="0%" stopColor="var(--mint-base)" stopOpacity="0.8" />
+                <stop offset="50%" stopColor="var(--mint-mid)" stopOpacity="0.6" />
+                <stop offset="100%" stopColor="var(--mint-base)" stopOpacity="0.9" />
               </linearGradient>
             </defs>
 

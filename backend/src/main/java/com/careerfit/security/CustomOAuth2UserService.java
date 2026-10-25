@@ -57,6 +57,14 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             if (email != null && !email.contains("@")) {
                 email = null;
             }
+
+            // Security: Kiểm tra xác minh email Microsoft trước khi cho phép liên kết tài khoản
+            Boolean emailVerified = oAuth2User.getAttribute("email_verified");
+            boolean isVerified = Boolean.TRUE.equals(emailVerified) || oAuth2User.getAttribute("mail") != null;
+            if (!isVerified) {
+                log.warn("Tài khoản Microsoft [{}] chưa được xác minh email. Từ chối đăng nhập.", email);
+                throw new OAuth2AuthenticationException("Email Microsoft chưa được xác minh. Vui lòng xác minh email trước khi đăng nhập.");
+            }
         } else {
             throw new OAuth2AuthenticationException("Provider khong duoc ho tro: " + registrationId);
         }

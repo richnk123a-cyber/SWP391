@@ -277,7 +277,9 @@ export function AdminDashboard() {
             {recentReports.map(rep => (
               <div
                 key={rep.id}
-                className="p-3.5 rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-colors space-y-1.5"
+                onClick={() => setActivePage('admin-reports')}
+                className="p-3.5 rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-slate-100 hover:border-blue-300 transition-all space-y-1.5 cursor-pointer group"
+                title="Bấm để xem và xử lý báo cáo vi phạm"
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-bold text-xs text-slate-900 truncate">

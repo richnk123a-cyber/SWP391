@@ -1,0 +1,304 @@
+/* ==========================================================================
+   CareerFit AI Chatbot Styles
+   Based on CareerFit Official Design System & Reference Mockup
+   ========================================================================== */
+
+:root {
+  --cf-green-primary: #28674E;
+  --cf-green-hover: #1E4E3B;
+  --cf-green-badge: #3A7E62;
+  --cf-mint-bg: #E5F2E9;
+  --cf-mint-border: #D1E5D7;
+  --cf-cream-bg: #F8FBF8;
+}
+
+/* Chatbot Floating Trigger Wrapper */
+.cf-chatbot-wrapper {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 68px;
+  height: 68px;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Chatbot Floating Trigger Button */
+.cf-chatbot-trigger {
+  position: relative;
+  width: 68px;
+  height: 68px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.2s ease;
+  cursor: pointer;
+  background: transparent;
+  outline: none;
+  border: none;
+  padding: 0;
+  filter: drop-shadow(0 8px 18px rgba(27, 60, 43, 0.22));
+}
+
+.cf-chatbot-trigger:hover {
+  transform: translateY(-2px) scale(1.05);
+  filter: drop-shadow(0 12px 24px rgba(27, 60, 43, 0.28));
+}
+
+.cf-chatbot-trigger:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* Hover Tooltip Speech Bubble (Left of mascot) */
+.cf-chatbot-tooltip {
+  position: absolute;
+  right: calc(100% + 14px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #FFFFFF;
+  border: 1px solid #D6E8DC;
+  box-shadow: 0 10px 25px -4px rgba(27, 60, 43, 0.14), 0 4px 8px -2px rgba(0, 0, 0, 0.04);
+  border-radius: 18px;
+  padding: 10px 16px;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: cfTooltipFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  z-index: 100000;
+}
+
+/* Speech Bubble Arrow pointing right towards the mascot */
+.cf-chatbot-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  transform: translateY(-50%);
+  border-width: 7px 0 7px 8px;
+  border-style: solid;
+  border-color: transparent transparent transparent #FFFFFF;
+}
+
+.cf-chatbot-tooltip::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  transform: translateY(-50%);
+  border-width: 8px 0 8px 9px;
+  border-style: solid;
+  border-color: transparent transparent transparent #D6E8DC;
+}
+
+@keyframes cfTooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(6px, -50%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, -50%);
+  }
+}
+
+/* Chatbot Main Panel */
+.cf-chatbot-panel {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 400px;
+  height: 580px;
+  max-height: calc(100vh - 48px);
+  background-color: var(--cf-cream-bg);
+  border-radius: 28px;
+  box-shadow: 0 20px 45px -10px rgba(18, 48, 34, 0.25), 0 2px 6px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(40, 103, 78, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 99999;
+  animation: cfPanelOpen 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes cfPanelOpen {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Chat Scrollbar */
+.cf-chat-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.cf-chat-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.cf-chat-scroll::-webkit-scrollbar-thumb {
+  background: #D1E5D7;
+  border-radius: 4px;
+}
+.cf-chat-scroll::-webkit-scrollbar-thumb:hover {
+  background: #B6D4C0;
+}
+
+/* Role Suggestion Pills (White cream, light green border, uniform size, mint hover) */
+.cf-suggestion-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.cf-suggestion-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background-color: var(--cf-cream-bg);
+  border: 1px solid var(--cf-mint-border);
+  border-radius: 9999px;
+  padding: 8px 12px;
+  font-size: 11.5px;
+  font-weight: 550;
+  color: #244C38;
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+  box-shadow: 0 1px 2px rgba(27, 60, 43, 0.04);
+  cursor: pointer;
+  line-height: 1.25;
+  user-select: none;
+}
+
+.cf-suggestion-pill:hover {
+  background-color: var(--cf-mint-bg);
+  border-color: #A9CEB8;
+  color: var(--cf-green-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(27, 60, 43, 0.08);
+}
+
+.cf-suggestion-pill:active {
+  transform: translateY(0);
+}
+
+/* Guide Controls Bar (Back, Skip, Restart, Cancel) */
+.cf-guide-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: #F1F7F3;
+  border-top: 1px solid #DCECE1;
+  font-size: 11px;
+}
+
+.cf-guide-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 500;
+  color: #385E4B;
+  transition: all 0.15s ease;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.cf-guide-btn:hover {
+  background: #E0EFE5;
+  color: var(--cf-green-primary);
+}
+
+.cf-guide-btn.danger:hover {
+  background: #FEE2E2;
+  color: #DC2626;
+}
+
+.cf-guide-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  background: #3A7E62;
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* Quick option pills in bot messages */
+.cf-quick-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.cf-quick-btn {
+  font-size: 11px;
+  padding: 4px 9px;
+  border-radius: 9999px;
+  background: #FFFFFF;
+  border: 1px solid #C8DFD0;
+  color: #23543D;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cf-quick-btn:hover {
+  background: #E5F2E9;
+  border-color: #28674E;
+  color: #1A3E2F;
+}
+
+/* Draft Preview Card */
+.cf-preview-card {
+  background: #FFFFFF;
+  border: 1px solid #CCE3D3;
+  border-radius: 14px;
+  padding: 12px;
+  margin-top: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* Corner mascot decorative peek (inside bottom right above chips) */
+.cf-mascot-corner-peek {
+  position: absolute;
+  right: 6px;
+  bottom: 56px;
+  width: 96px;
+  height: 104px;
+  pointer-events: none;
+  z-index: 10;
+  user-select: none;
+  opacity: 0.95;
+  transition: transform 0.3s ease;
+}
+
+@media (max-width: 640px) {
+  .cf-chatbot-wrapper {
+    right: 16px;
+    bottom: 16px;
+  }
+  .cf-chatbot-panel {
+    right: 12px;
+    bottom: 12px;
+    width: calc(100vw - 24px);
+    height: calc(100vh - 24px);
+    max-height: 88vh;
+    border-radius: 22px;
+  }
+  .cf-mascot-corner-peek {
+    display: none;
+  }
+  .cf-suggestion-grid {
+    grid-template-columns: 1fr;
+  }
+}

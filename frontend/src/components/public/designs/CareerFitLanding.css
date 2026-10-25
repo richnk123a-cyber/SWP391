@@ -5,15 +5,15 @@
     ============================================================ */
     :scope {
       --color-bg:        #FAFAF7;
-      --color-text:      #14171F;
-      --color-muted:     #5B6472;
-      --color-border:    #E4E4DF;
-      --color-accent:    #1F4FD8;
-      --color-accent-dk: #1840B8;
-      --color-success:   #1E7A4F;
-      --color-dark-bg:   #14171F;
+      --color-text:      var(--mint-ink);
+      --color-muted:     var(--mint-muted);
+      --color-border:    var(--mint-border);
+      --color-accent:    var(--mint-muted);
+      --color-accent-dk: var(--mint-primary);
+      --color-success:   var(--mint-primary);
+      --color-dark-bg:   var(--mint-ink);
       --color-dark-text: #F0EFEA;
-      --color-dark-muted:#9AA3AE;
+      --color-dark-muted:var(--mint-muted);
 
       --fs-xs:   13px;
       --fs-sm:   14px;
@@ -296,9 +296,9 @@
       font-size: var(--fs-xs);
       font-weight: 600;
       color: var(--color-success);
-      background: #EBF7F1;
+      background: var(--mint-soft);
       border-radius: var(--radius-btn);
-      border: 1px solid #C3E8D5;
+      border: 1px solid var(--mint-wash);
     }
 
     .match-card__salary {

@@ -1,0 +1,4 @@
+.cinematic-background { position: absolute; inset: auto 0 0; top: 300px; pointer-events: none; overflow: hidden; }
+.cinematic-background-fallback { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 80%, var(--mint-base) 0, var(--mint-soft) 42%, var(--mint-canvas) 80%); }
+.cinematic-background .hero-video { width: 100%; height: 100%; object-fit: cover; object-position: center 55%; will-change: opacity; }
+.cinematic-background-gradient { background: linear-gradient(180deg, #f9fcf6 0%, #f9fcf6ed 12%, #f0f7e97a 38%, #dcefd812 68%, #edf8e74a 82%, #f9fcf6 100%); }

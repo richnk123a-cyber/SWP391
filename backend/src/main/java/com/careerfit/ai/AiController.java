@@ -35,6 +35,7 @@ public class AiController {
      * Endpoint kích hoạt chức năng AI từ Frontend / Backend.
      */
     @PostMapping("/execute")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<AiExecutionResponse> executeAiFeature(@RequestBody AiExecutionRequest request) {
         log.info("Nhận yêu cầu kích hoạt AI từ Client: featureCode=[{}]", request.getFeatureCode());
         AiExecutionResponse response = orchestratorService.execute(request);
@@ -45,6 +46,7 @@ public class AiController {
      * Endpoint khám phá kỹ năng mới & thẩm định nguồn học trực tuyến qua AI chuyên ngành CNTT.
      */
     @PostMapping("/skill-discovery")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<AiSkillDiscoveryService.SkillDiscoveryResult> discoverSkillResources(
             @RequestBody Map<String, Object> request
     ) {

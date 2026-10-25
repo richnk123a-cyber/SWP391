@@ -43,7 +43,7 @@ export function CandidateOnboarding() {
   const selectCV = file => {
     if (!file) return;
     if (!/\.(pdf|docx)$/i.test(file.name)) return setCvError('Vui lòng chọn tệp PDF hoặc DOCX.');
-    if (!file.size || file.size > 5 * 1024 * 1024) return setCvError('Tệp phải có nội dung và dung lượng không quá 5 MB.');
+    if (!file.size || file.size > 10 * 1024 * 1024) return setCvError('Tệp phải có nội dung và dung lượng không quá 10 MB.');
     setCvFile(file);
     setCvError('');
   };

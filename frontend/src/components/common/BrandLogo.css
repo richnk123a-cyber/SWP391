@@ -1,0 +1,48 @@
+.careerfit-logo {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  width: 184px;
+  aspect-ratio: 5 / 1;
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+/* Frame the artwork without the PNG's transparent outer margins. */
+.careerfit-logo > img {
+  position: absolute;
+  top: 50%;
+  left: -6%;
+  display: block;
+  width: 112%;
+  max-width: none;
+  height: auto;
+  transform: translateY(-50%);
+}
+
+.login-header--glass .careerfit-logo { width: 208px; }
+.getting-started-footer-brand .careerfit-logo { width: 170px; }
+
+.careerfit-logo--sage > img { visibility: hidden; }
+.careerfit-logo--sage::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -6%;
+  width: 112%;
+  aspect-ratio: 3 / 1;
+  transform: translateY(-50%);
+  background: var(--mint-primary);
+  -webkit-mask: url('/brand/careerfit-logo-v4-bright.png') center / contain no-repeat;
+  mask: url('/brand/careerfit-logo-v4-bright.png') center / contain no-repeat;
+}
+.login-header--glass .careerfit-logo--sage::after { background: var(--mint-muted); }
+
+@media (max-width: 767px) {
+  .careerfit-logo,
+  .login-header--glass .careerfit-logo { width: 160px; }
+}
+
+@media (max-width: 359px) {
+  .login-header--glass .careerfit-logo { width: 132px; }
+}

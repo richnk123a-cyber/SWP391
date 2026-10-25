@@ -1,8 +1,9 @@
-import React, { useLayoutEffect, useRef, useState } from 'react';
+import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { getCompanyLogoUrl, isImageLogo } from '../../utils/logoUtils';
 import { LayoutDashboard, Search, FileText, Map, Kanban, Building2, PlusCircle, Users, ShieldAlert, ShieldCheck, Cpu, Layers, LogOut, ChevronLeft, ChevronRight, X, ArrowUpRight } from 'lucide-react';
 import './Sidebar.css';
+import { getCandidateAvatar } from '../../utils/candidateAvatar';
 
 const MENU_GROUPS = {
   CANDIDATE: [
@@ -47,22 +48,8 @@ const ROLE_NAMES = { CANDIDATE: 'Không gian ứng viên', EMPLOYER: 'Không gia
 export function Sidebar({ mobile = false }) {
   const { currentUser, logout, activePage, setActivePage, candidateProfile, currentEmployerCompany, isSidebarCollapsed, toggleSidebar, setIsMobileDrawerOpen } = useApp();
   const collapsed = !mobile && isSidebarCollapsed;
-  const navRef = useRef(null);
-  const [indicator, setIndicator] = useState({ top: 0, height: 42, visible: false });
+  const candidateAvatar = getCandidateAvatar(candidateProfile, currentUser);
   const selectedPage = activePage === 'candidate-onboarding' ? 'candidate-profile' : activePage === 'job-detail' ? 'job-search' : activePage === 'create-job' ? 'job-management' : activePage;
-  useLayoutEffect(() => {
-    const nav = navRef.current;
-    if (!nav) return;
-    const update = () => {
-      const selected = nav.querySelector('[aria-current="page"]');
-      if (!selected) { setIndicator(previous => ({ ...previous, visible: false })); return; }
-      setIndicator({ top: selected.getBoundingClientRect().top - nav.getBoundingClientRect().top, height: selected.offsetHeight, visible: true });
-    };
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(nav);
-    return () => observer.disconnect();
-  }, [selectedPage, collapsed, currentUser?.role, mobile]);
   if (!currentUser) return null;
   const groups = MENU_GROUPS[currentUser.role] || [];
   const displayName = (currentUser.role === 'CANDIDATE' ? candidateProfile?.name : currentUser.role === 'EMPLOYER' ? currentEmployerCompany?.recruiterName : null) || currentUser.fullName || currentUser.name || currentUser.username || 'Tài khoản';
@@ -70,12 +57,11 @@ export function Sidebar({ mobile = false }) {
 
   return <aside className={`workspace-sidebar ${collapsed ? 'is-collapsed' : ''} ${mobile ? 'is-mobile' : ''}`} aria-label="Menu điều hướng">
     <div className="sidebar-heading"><span className="sidebar-heading-label">{ROLE_NAMES[currentUser.role]}</span><button className="sidebar-toggle" onClick={mobile ? () => setIsMobileDrawerOpen(false) : toggleSidebar} aria-label={mobile ? 'Đóng menu' : collapsed ? 'Mở rộng menu' : 'Thu gọn menu'} aria-expanded={mobile ? undefined : !collapsed}>{mobile ? <X size={17} /> : collapsed ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}</button></div>
-    <div className="sidebar-scroll"><nav className="sidebar-navigation" ref={navRef}>
-      <span className="sidebar-active-indicator" aria-hidden="true" style={{ transform: `translate3d(0, ${indicator.top}px, 0)`, height: indicator.height, opacity: indicator.visible ? 1 : 0 }} />
+    <div className="sidebar-scroll"><nav className="sidebar-navigation">
       {groups.map(group => <div className="sidebar-group" key={group.label}><h2>{group.label}</h2>{group.items.map(({ id, label, icon: Icon }) => <button key={id} className={`sidebar-item ${selectedPage === id ? 'is-active' : ''}`} aria-current={selectedPage === id ? 'page' : undefined} onClick={() => navigate(id)} title={collapsed ? label : undefined}><Icon size={18} strokeWidth={1.65} /><span className="sidebar-item-label">{label}</span>{selectedPage === id && <span className="sidebar-item-dot" />}</button>)}</div>)}
     </nav></div>
     {currentUser.role === 'CANDIDATE' && <div className="sidebar-career-note"><span>Bước tiếp theo</span><h3>Đầu tư cho chính mình.</h3><p>Một kỹ năng mới. Một cơ hội mới.</p><button onClick={() => navigate('learning-roadmap')}>Tiếp tục học <ArrowUpRight size={14} /></button></div>}
-    <div className="sidebar-account"><button className="sidebar-profile" onClick={() => navigate(currentUser.role === 'CANDIDATE' ? 'candidate-profile' : currentUser.role === 'EMPLOYER' ? 'company-profile' : 'admin-dashboard')} title={collapsed ? displayName : undefined}><span className="sidebar-avatar" style={currentUser.role === 'EMPLOYER' && currentEmployerCompany?.logo && isImageLogo(currentEmployerCompany.logo) ? { background: 'transparent' } : undefined}>{currentUser.role === 'CANDIDATE' && candidateProfile?.avatarUrl ? <img src={candidateProfile.avatarUrl} alt="" /> : currentUser.role === 'EMPLOYER' && currentEmployerCompany?.logo && isImageLogo(currentEmployerCompany.logo) ? <img src={getCompanyLogoUrl(currentEmployerCompany.logo)} alt="" className="w-full h-full object-cover" style={{ background: 'transparent' }} /> : displayName.charAt(0).toUpperCase()}</span><span className="sidebar-account-copy"><strong>{displayName}</strong><small>{currentUser.email}</small></span></button><button className="sidebar-logout" onClick={() => { if (mobile) setIsMobileDrawerOpen(false); logout(); }} title="Đăng xuất" aria-label="Đăng xuất"><LogOut size={16} /></button></div>
+    <div className="sidebar-account"><button className="sidebar-profile" onClick={() => navigate(currentUser.role === 'CANDIDATE' ? 'candidate-profile' : currentUser.role === 'EMPLOYER' ? 'company-profile' : 'admin-dashboard')} title={collapsed ? displayName : undefined}><span className="sidebar-avatar" style={currentUser.role === 'EMPLOYER' && currentEmployerCompany?.logo && isImageLogo(currentEmployerCompany.logo) ? { background: 'transparent' } : undefined}>{currentUser.role === 'CANDIDATE' && candidateAvatar ? <img src={candidateAvatar} alt="" /> : currentUser.role === 'EMPLOYER' && currentEmployerCompany?.logo && isImageLogo(currentEmployerCompany.logo) ? <img src={getCompanyLogoUrl(currentEmployerCompany.logo)} alt="" className="w-full h-full object-cover" style={{ background: 'transparent' }} /> : displayName.charAt(0).toUpperCase()}</span><span className="sidebar-account-copy"><strong>{displayName}</strong><small>{currentUser.email}</small></span></button><button className="sidebar-logout" onClick={() => { if (mobile) setIsMobileDrawerOpen(false); logout(); }} title="Đăng xuất" aria-label="Đăng xuất"><LogOut size={16} /></button></div>
   </aside>;
 }
 

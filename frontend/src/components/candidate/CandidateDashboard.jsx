@@ -1,12 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { lazy, Suspense, useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { calculateSkillMatch } from '../../utils/matching';
-import { ArrowUpRight, ArrowRight, Bookmark, BriefcaseBusiness, Check, CheckCircle2, ChevronRight, FileText, MapPin, Send, Eye, CalendarDays, Trophy, BookOpen, ShieldAlert } from 'lucide-react';
+import { ArrowUpRight, ArrowRight, Bookmark, BriefcaseBusiness, Check, CheckCircle2, ChevronRight, FileText, MapPin, Send, Eye, CalendarDays, Trophy, BookOpen, ShieldAlert, Sparkles, Compass, Plus } from 'lucide-react';
+import { TechnologyBackdrop } from '../common/TechnologyBackdrop';
 import './CandidateDashboard.css';
-import { CandidateCareerBanner } from './CandidateCareerBanner';
-import { CandidateReportHistoryModal } from './CandidateReportHistoryModal';
+
+const CandidateReportHistoryModal = lazy(() => import('./CandidateReportHistoryModal').then(module => ({ default: module.CandidateReportHistoryModal })));
 
 const EMPTY_SKILLS = [];
+const skillList = value => Array.isArray(value) ? value : typeof value === 'string' ? value.split(/[,;\n]/).map(item => item.trim()).filter(Boolean) : [];
 
 export function CandidateDashboard() {
   const { currentUser, candidateProfile, jobs = [], applications = [], roadmaps = [], setActivePage, setSelectedJobId, setIsAIModalOpen, savedJobIds = [], toggleSaveJob } = useApp();
@@ -22,7 +24,7 @@ export function CandidateDashboard() {
       return { ...item, jobTitle: item.jobTitle || job?.title || 'Vị trí đã ứng tuyển', companyName: item.companyName || job?.company || 'Doanh nghiệp' };
     });
   }, [applications, currentUser, jobs, profile.id]);
-  const recommended = useMemo(() => jobs.filter(job => !job.moderationStatus || job.moderationStatus === 'APPROVED').map(job => ({ ...job, match: calculateSkillMatch(skills, job.requiredSkills || [], profile.extractedCvText) }))
+  const recommended = useMemo(() => jobs.filter(job => !job.moderationStatus || job.moderationStatus === 'APPROVED').map(job => ({ ...job, requiredSkills: skillList(job.requiredSkills), match: calculateSkillMatch(skills, skillList(job.requiredSkills), profile.extractedCvText) }))
     .sort((a, b) => b.match.percentage - a.match.percentage).slice(0, 4), [jobs, skills, profile.extractedCvText]);
   const profileChecks = [
     { label: 'Thông tin cá nhân', done: Boolean(profile.name && profile.email && profile.phone) },
@@ -48,67 +50,118 @@ export function CandidateDashboard() {
   const date = new Intl.DateTimeFormat('vi-VN', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
 
   return (
-    <div className="candidate-overview">
-      <header className="overview-heading">
-        <div><p className="overview-eyebrow">KHÔNG GIAN CỦA BẠN</p><h1>Tổng quan sự nghiệp</h1><p>Mỗi bước nhỏ hôm nay, một cơ hội mới ngày mai.</p></div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setIsReportHistoryOpen(true)}
-            className="btn btn-secondary text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 font-medium bg-white text-slate-700 shadow-xs transition-colors cursor-pointer"
-          >
-            <ShieldAlert size={14} className="text-amber-600" /> Báo cáo của tôi
-          </button>
-          <span className="overview-date"><CalendarDays size={15} />{date}</span>
+    <div className="candidate-studio">
+      <header className="studio-heading">
+        <div>
+          <p className="studio-eyebrow"><span />KHÔNG GIAN CỦA BẠN</p>
+          <h1>Tổng quan sự nghiệp<span>.</span></h1>
+          <p className="studio-heading-description">Mỗi bước nhỏ hôm nay, một cơ hội mới ngày mai.</p>
+        </div>
+        <div className="studio-heading-tools">
+          <time className="studio-date" dateTime={new Date().toISOString()}><CalendarDays size={15} aria-hidden="true" />{date}</time>
+          <button type="button" className="studio-report-button" onClick={() => setIsReportHistoryOpen(true)}><ShieldAlert size={16} aria-hidden="true" />Báo cáo của tôi</button>
         </div>
       </header>
-
-      <CandidateCareerBanner name={name} targetRole={profile.preferences?.desiredRole || 'Fresher Developer'} skills={skills} jobCount={recommended.length} hasCV={profile.hasCV} onNavigate={setActivePage} />
-
-      <section className="overview-stats" aria-label="Thống kê ứng tuyển">
-        {stats.map(({ label, value, icon: Icon, note }) => <button key={label} className="overview-stat" onClick={() => setActivePage('application-kanban')}><span className="stat-top"><span>{label}</span><Icon size={17} strokeWidth={1.6} /></span><strong>{value.toString().padStart(2, '0')}</strong><span className="stat-note">{note}<ArrowUpRight size={14} /></span></button>)}
+      <section className="studio-hero studio-hero--technology" aria-labelledby="studio-welcome-heading">
+        <div className="studio-hero-layout">
+        <div className="studio-hero-copy">
+          <p className="studio-hello">Chào {name},</p>
+          <h2 id="studio-welcome-heading">Sự nghiệp của bạn,<br />đang tiến về phía trước.</h2>
+          <p className="studio-hero-description">{recommended.length ? `${recommended.length} vị trí phù hợp đang chờ bạn hôm nay.` : 'Cập nhật hồ sơ để khám phá cơ hội phù hợp với bạn.'}</p>
+          <div className="studio-hero-actions">
+            <button type="button" className="studio-hero-primary" onClick={() => setActivePage('job-search')}>Tìm việc phù hợp <ArrowUpRight size={18} aria-hidden="true" /></button>
+            <button type="button" className="studio-hero-secondary" onClick={() => setActivePage('learning-roadmap')}>Tiếp tục lộ trình <ArrowRight size={17} aria-hidden="true" /></button>
+          </div>
+        </div>
+        <div className="studio-hero-visual">
+          <TechnologyBackdrop animated />
+          <div className="studio-goal-stack">
+          <div className="studio-goal-card">
+            <span className="studio-goal-label"><Compass size={15} aria-hidden="true" />MỤC TIÊU HIỆN TẠI</span>
+            <h3>{profile.preferences?.desiredRole || 'Fresher Developer'}</h3>
+            <div className="studio-goal-divider" />
+            <div className="studio-goal-details"><span><strong>{skills.length}</strong> kỹ năng đã đồng bộ</span><span className="studio-cv-status"><span />{profile.hasCV ? 'CV đã sẵn sàng' : 'Cần bổ sung CV'}</span></div>
+          </div>
+          </div>
+          <span className="studio-orbit-caption">Định hướng rõ ràng. Tiến xa hơn.</span>
+        </div>
+        </div>
       </section>
 
-      <div className="overview-columns">
-        <div className="overview-main">
-          <section className="overview-panel recommended-panel">
-            <div className="panel-heading"><div><h2>Việc làm dành cho bạn <span className="panel-count">{recommended.length}</span></h2><p>Ưu tiên những vị trí phù hợp với kỹ năng hiện có.</p></div><button className="overview-link" onClick={() => setActivePage('job-search')}>Xem tất cả <ArrowRight size={15} /></button></div>
-            <div className="recommended-list">
-              {recommended.map(job => <article key={job.id} className="overview-job">
-                <div className="company-monogram" aria-hidden="true">{(job.company || 'IT').slice(0, 1).toUpperCase()}</div>
-                <div className="overview-job-content"><div className="job-title-row"><button className="job-title" onClick={() => openJob(job.id)}>{job.title}</button><button className={`job-bookmark ${savedJobIds.includes(job.id) ? 'is-saved' : ''}`} aria-label={savedJobIds.includes(job.id) ? `Bỏ lưu ${job.title}` : `Lưu ${job.title}`} aria-pressed={savedJobIds.includes(job.id)} onClick={() => toggleSaveJob(job.id)}><Bookmark size={17} fill={savedJobIds.includes(job.id) ? 'currentColor' : 'none'} /></button></div><p className="job-company">{job.company}{(job.isVerified || ['VERIFIED', 'Verified'].includes(job.verificationStatus || job.verifiedStatus)) && <CheckCircle2 size={13} aria-label="Doanh nghiệp đã xác minh" />}</p><div className="job-meta"><span><MapPin size={13} />{job.location || 'Chưa cập nhật địa điểm'}</span><span className="job-salary">{job.salary || 'Lương thỏa thuận'}</span></div><div className="job-bottom"><div className="job-skill-tags">{(job.requiredSkills || []).slice(0, 3).map(skill => <span key={skill}>{skill}</span>)}</div><button className="job-match" onClick={() => openJob(job.id)}><span className="match-dot" />{job.match.percentage}% khớp kỹ năng<ChevronRight size={14} /></button></div></div>
-              </article>)}
-              {!recommended.length && <div className="overview-empty"><BriefcaseBusiness size={28} /><h3>Chưa có công việc đề xuất</h3><p>Khám phá danh sách tuyển dụng hoặc cập nhật kỹ năng của bạn.</p><button className="overview-link" onClick={() => setActivePage('job-search')}>Tìm việc làm <ArrowRight size={15} /></button></div>}
+      <section className="studio-stats" aria-label="Thống kê ứng tuyển">
+        {stats.map(({ label, value, icon: Icon, note }, index) => (
+          <button key={label} type="button" className="studio-stat" onClick={() => setActivePage('application-kanban')}>
+            <span className="studio-stat-top"><span className={`studio-stat-icon studio-stat-icon--${index}`}><Icon size={19} strokeWidth={1.6} aria-hidden="true" /></span><ArrowUpRight size={16} className="studio-stat-arrow" aria-hidden="true" /></span>
+            <span className="studio-stat-value">{value.toString().padStart(2, '0')}</span>
+            <span className="studio-stat-label">{label}</span>
+            <span className="studio-stat-note">{note}</span>
+          </button>
+        ))}
+      </section>
+
+      <div className="studio-columns">
+        <div className="studio-main">
+          <section className="studio-recommendations" aria-labelledby="studio-jobs-heading">
+            <div className="studio-section-heading">
+              <div><span className="studio-section-kicker">CƠ HỘI TIẾP THEO</span><h2 id="studio-jobs-heading">Việc làm dành cho bạn <span className="studio-count">{recommended.length}</span></h2><p>Ưu tiên những vị trí phù hợp với kỹ năng hiện có.</p></div>
+              <button type="button" className="studio-text-link" onClick={() => setActivePage('job-search')}>Xem tất cả <ArrowUpRight size={16} aria-hidden="true" /></button>
             </div>
-            <div className="panel-footnote">Gợi ý dựa trên kỹ năng trong hồ sơ và yêu cầu tuyển dụng.</div>
+            <div className="studio-job-grid">
+              {recommended.map(job => (
+                <article key={job.id} className="studio-job">
+                  <div className="studio-job-company-row">
+                    <span className="studio-company-mark" aria-hidden="true">{(job.company || 'IT').slice(0, 1).toUpperCase()}</span>
+                    <div className="studio-company-copy"><p>{job.company || 'Doanh nghiệp'}{(job.isVerified || ['VERIFIED', 'Verified'].includes(job.verificationStatus || job.verifiedStatus)) && <CheckCircle2 size={13} aria-label="Doanh nghiệp đã xác minh" />}</p><span><MapPin size={12} aria-hidden="true" />{job.location || 'Chưa cập nhật địa điểm'}</span></div>
+                    <button type="button" className="studio-bookmark" aria-label={savedJobIds.includes(job.id) ? `Bỏ lưu ${job.title}` : `Lưu ${job.title}`} aria-pressed={savedJobIds.includes(job.id)} onClick={() => toggleSaveJob(job.id)}><Bookmark size={17} fill={savedJobIds.includes(job.id) ? 'currentColor' : 'none'} /></button>
+                  </div>
+                  <h3><button type="button" onClick={() => openJob(job.id)}>{job.title}</button></h3>
+                  <p className="studio-job-salary">{job.salary || 'Lương thỏa thuận'}</p>
+                  <div className="studio-job-skills">{job.requiredSkills.slice(0, 3).map(skill => <span key={skill}>{skill}</span>)}</div>
+                  <div className="studio-job-footer"><button type="button" className="studio-match" onClick={() => openJob(job.id)}><span />{job.match.percentage}% khớp kỹ năng</button><button type="button" className="studio-job-open" onClick={() => openJob(job.id)} aria-label={`Xem chi tiết ${job.title}`}><ArrowUpRight size={18} /></button></div>
+                </article>
+              ))}
+            </div>
+            {!recommended.length && <div className="studio-empty"><BriefcaseBusiness size={28} aria-hidden="true" /><h3>Chưa có công việc đề xuất</h3><p>Khám phá danh sách tuyển dụng hoặc cập nhật kỹ năng của bạn.</p><button type="button" className="studio-text-link" onClick={() => setActivePage('job-search')}>Tìm việc làm <ArrowRight size={15} aria-hidden="true" /></button></div>}
+            <p className="studio-job-footnote"><Sparkles size={13} aria-hidden="true" />Gợi ý dựa trên kỹ năng trong hồ sơ và yêu cầu tuyển dụng.</p>
           </section>
 
-          <section className="overview-panel">
-            <div className="panel-heading"><div><h2>Hoạt động ứng tuyển</h2><p>Theo dõi những cơ hội bạn đang theo đuổi.</p></div>{myApplications.length > 0 && <button className="overview-link" onClick={() => setActivePage('application-kanban')}>Quản lý <ArrowRight size={15} /></button>}</div>
-            {myApplications.length ? <div className="overview-application-list">{myApplications.slice(0, 3).map(application => <button key={application.id} className="overview-application" onClick={() => setActivePage('application-kanban')}><span className="application-icon"><FileText size={18} /></span><span><strong>{application.jobTitle}</strong><small>{application.companyName}</small></span><span className="application-status">{application.status}</span><ChevronRight size={15} /></button>)}</div> : (
-              <div className="application-empty">
-                <span className="empty-icon" aria-hidden="true"><Send size={21} strokeWidth={1.5} /></span>
-                <div className="application-empty-copy">
-                  <h3>Chưa có đơn ứng tuyển</h3>
-                  <p>Các hồ sơ bạn gửi sẽ được cập nhật tại đây.</p>
-                </div>
-                <button className="application-empty-action" onClick={() => setActivePage('job-search')}>Khám phá việc làm <ArrowUpRight size={15} /></button>
-              </div>
+          <section className="studio-panel studio-activity" aria-labelledby="studio-activity-heading">
+            <div className="studio-panel-heading"><div><h2 id="studio-activity-heading">Hoạt động ứng tuyển</h2><p>Theo dõi những cơ hội bạn đang theo đuổi.</p></div>{myApplications.length > 0 && <button type="button" className="studio-text-link" onClick={() => setActivePage('application-kanban')}>Quản lý <ArrowUpRight size={16} aria-hidden="true" /></button>}</div>
+            {myApplications.length ? (
+              <div className="studio-application-list">{myApplications.slice(0, 3).map(application => <button type="button" key={application.id} className="studio-application" onClick={() => setActivePage('application-kanban')}><span className="studio-application-icon"><FileText size={18} aria-hidden="true" /></span><span className="studio-application-copy"><strong>{application.jobTitle}</strong><small>{application.companyName}</small></span><span className="studio-application-status" data-status={application.status}>{application.status}</span><ChevronRight size={16} aria-hidden="true" /></button>)}</div>
+            ) : (
+              <div className="studio-application-empty"><span className="studio-empty-icon"><Send size={22} aria-hidden="true" /></span><div><h3>Chưa có đơn ứng tuyển</h3><p>Các hồ sơ bạn gửi sẽ được cập nhật tại đây.</p></div><button type="button" className="studio-secondary-button" onClick={() => setActivePage('job-search')}>Khám phá việc làm <ArrowUpRight size={16} aria-hidden="true" /></button></div>
             )}
           </section>
         </div>
 
-        <aside className="overview-rail" aria-label="Hồ sơ và phát triển kỹ năng">
-          <section className="overview-panel profile-panel"><div className="panel-heading"><h2>Hồ sơ của bạn</h2><span className="profile-percentage">{completion}%</span></div><div className="overview-progress" role="progressbar" aria-label="Mức độ hoàn thiện hồ sơ" aria-valuenow={completion} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${completion}%` }} /></div><p className="rail-description">{completion === 100 ? 'Hồ sơ đã sẵn sàng. Hãy giữ thông tin luôn cập nhật.' : 'Hoàn thiện hồ sơ để có những gợi ý chính xác hơn.'}</p><ul className="profile-checklist">{profileChecks.map(item => <li key={item.label}><span>{item.label}</span>{item.done ? <Check size={15} className="check-complete" aria-label="Đã hoàn thành" /> : <span className="check-pending">Bổ sung</span>}</li>)}</ul><button className="overview-button secondary full-width" onClick={() => setActivePage('candidate-profile')}>Cập nhật hồ sơ <ArrowUpRight size={15} /></button></section>
+        <aside className="studio-rail" aria-label="Hồ sơ và phát triển kỹ năng">
+          <section className="studio-panel studio-profile" aria-labelledby="studio-profile-heading">
+            <div className="studio-profile-heading">
+              <div className="studio-completion-ring" role="progressbar" aria-label="Mức độ hoàn thiện hồ sơ" aria-valuenow={completion} aria-valuemin={0} aria-valuemax={100} style={{ '--completion': `${completion}%` }}><span>{completion}<small>%</small></span></div>
+              <div><span className="studio-section-kicker">NỀN TẢNG SỰ NGHIỆP</span><h2 id="studio-profile-heading">Hồ sơ của bạn</h2></div>
+            </div>
+            <p className="studio-profile-description">{completion === 100 ? 'Hồ sơ đã sẵn sàng. Hãy giữ thông tin luôn cập nhật.' : 'Hoàn thiện hồ sơ để có những gợi ý chính xác hơn.'}</p>
+            <ul className="studio-profile-checklist">{profileChecks.map(item => <li key={item.label}><span className={`studio-check-icon ${item.done ? 'is-complete' : ''}`}>{item.done ? <Check size={12} aria-hidden="true" /> : <Plus size={12} aria-hidden="true" />}</span><span>{item.label}</span><small>{item.done ? 'Hoàn tất' : 'Bổ sung'}</small></li>)}</ul>
+            <button type="button" className="studio-primary-button" onClick={() => setActivePage('candidate-profile')}>Cập nhật hồ sơ <ArrowUpRight size={16} aria-hidden="true" /></button>
+          </section>
 
-          <section className="overview-panel roadmap-panel"><div className="panel-heading"><h2>Lộ trình học tập</h2><BookOpen size={17} /></div>{roadmap ? <><p className="roadmap-target">{roadmap.targetRole}</p><div className="roadmap-progress-label"><span>{completed}/{topics.length} chủ đề hoàn thành</span><strong>{progress}%</strong></div><div className="overview-progress" role="progressbar" aria-label="Tiến độ học tập" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${progress}%` }} /></div><div className="next-topic"><span>{nextTopic ? 'TIẾP THEO' : 'ĐÃ HOÀN THÀNH'}</span><h3>{nextTopic ? nextTopic.title.replace(/^\d+\.\s*/, '') : 'Bạn đã hoàn thành các chủ đề'}</h3>{nextTopic?.estimatedTime && <p>{nextTopic.estimatedTime} học tập</p>}</div></> : <p className="rail-description">Chọn mục tiêu để bắt đầu lộ trình phát triển kỹ năng của bạn.</p>}<button className="overview-button secondary full-width" onClick={() => setActivePage('learning-roadmap')}>{roadmap ? 'Tiếp tục học' : 'Khám phá lộ trình'}<ArrowRight size={15} /></button></section>
+          <section className="studio-panel studio-roadmap" aria-labelledby="studio-roadmap-heading">
+            <div className="studio-roadmap-heading"><span className="studio-roadmap-icon"><BookOpen size={20} aria-hidden="true" /></span><div><span className="studio-section-kicker">MỖI NGÀY MỘT BƯỚC</span><h2 id="studio-roadmap-heading">Lộ trình học tập</h2></div></div>
+            {roadmap ? <><p className="studio-roadmap-target">{roadmap.targetRole}</p><div className="studio-roadmap-progress-label"><span>{completed}/{topics.length} chủ đề hoàn thành</span><strong>{progress}%</strong></div><div className="studio-progress" role="progressbar" aria-label="Tiến độ học tập" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${progress}%` }} /></div><div className="studio-next-topic"><span>{nextTopic ? 'TIẾP THEO' : 'ĐÃ HOÀN THÀNH'}</span><h3>{nextTopic ? nextTopic.title.replace(/^\d+\.\s*/, '') : 'Bạn đã hoàn thành các chủ đề'}</h3>{nextTopic?.estimatedTime && <p>{nextTopic.estimatedTime} học tập</p>}</div></> : <p className="studio-profile-description">Chọn mục tiêu để bắt đầu lộ trình phát triển kỹ năng của bạn.</p>}
+            <button type="button" className="studio-secondary-button" onClick={() => setActivePage('learning-roadmap')}>{roadmap ? 'Tiếp tục học' : 'Khám phá lộ trình'}<ArrowRight size={16} aria-hidden="true" /></button>
+          </section>
 
-          <section className="overview-insight"><span className="insight-label">GÓC NHÌN KỸ NĂNG</span><h2>Biết mình phù hợp ở đâu.</h2><p>{bestJob ? `Đối chiếu hồ sơ với “${bestJob.title}” để hiểu điểm mạnh và kỹ năng cần bổ sung.` : 'Khám phá việc làm để đối chiếu yêu cầu với kỹ năng hiện tại.'}</p><button className="overview-link" onClick={bestJob ? openAnalysis : () => setActivePage('job-search')}>{bestJob ? 'Xem phân tích kỹ năng' : 'Khám phá việc làm'}<ArrowUpRight size={16} /></button></section>
+          <section className="studio-insight" aria-labelledby="studio-insight-heading">
+            <span className="studio-insight-icon"><Sparkles size={20} strokeWidth={1.5} aria-hidden="true" /></span><span className="studio-section-kicker">GÓC NHÌN KỸ NĂNG</span>
+            <h2 id="studio-insight-heading">Biết mình phù hợp<br />ở đâu.</h2>
+            <p>{bestJob ? `Đối chiếu hồ sơ với “${bestJob.title}” để hiểu điểm mạnh và kỹ năng cần bổ sung.` : 'Khám phá việc làm để đối chiếu yêu cầu với kỹ năng hiện tại.'}</p>
+            <button type="button" className="studio-insight-button" onClick={bestJob ? openAnalysis : () => setActivePage('job-search')}>{bestJob ? 'Xem phân tích kỹ năng' : 'Khám phá việc làm'}<ArrowUpRight size={16} aria-hidden="true" /></button>
+          </section>
         </aside>
       </div>
-      <footer className="overview-footer"><span>CareerFit <span> / </span> Hành trình nghề nghiệp của bạn</span></footer>
-      <CandidateReportHistoryModal isOpen={isReportHistoryOpen} onClose={() => setIsReportHistoryOpen(false)} />
+      <footer className="studio-footer"><span>CareerFit <span>/</span> Hành trình nghề nghiệp của bạn</span><span><span className="studio-footer-dot" />Phát triển từ những bước nhỏ.</span></footer>
+      {isReportHistoryOpen && <Suspense fallback={null}><CandidateReportHistoryModal isOpen onClose={() => setIsReportHistoryOpen(false)} /></Suspense>}
     </div>
   );
 }
-
-

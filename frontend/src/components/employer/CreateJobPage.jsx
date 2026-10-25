@@ -1,35 +1,19 @@
-import React, { useState } from 'react';
+import { EmployerPageHeader } from './EmployerPageHeader';
+import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { VerificationBadge, MatchBadge } from '../common/Badge';
 import { Modal } from '../common/Modal';
-import {
-  PlusCircle,
-  AlertTriangle,
-  Plus,
-  X,
-  ArrowLeft,
-  Eye,
-  Save,
-  Send,
-  MapPin,
-  Briefcase,
-  DollarSign,
-  Building2,
-  CheckCircle2,
-  Sparkles,
-  HelpCircle
-} from 'lucide-react';
+import { AlertTriangle, Plus, X, ArrowLeft, Eye, Send, Search } from 'lucide-react';
 
 export function CreateJobPage() {
   const { employerProfile, createJob, setActivePage, skillsCatalog } = useApp();
 
-  const isVerified = employerProfile.verificationStatus === 'Verified';
+  const isVerified = employerProfile?.verificationStatus === 'Verified';
 
   // Section 1: Basic Info
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Backend Developer');
   const [jobType, setJobType] = useState('Internship');
-  const [location, setLocation] = useState(employerProfile.location || 'TP.HCM');
+  const [location, setLocation] = useState(employerProfile?.location || 'TP.HCM');
   const [workMode, setWorkMode] = useState('On-site'); // On-site, Hybrid, Remote
 
   // Section 2: Salary Range
@@ -56,11 +40,86 @@ export function CreateJobPage() {
   const [preferredSkills, setPreferredSkills] = useState(['Spring Boot', 'Docker']);
   const [newReqSkillInput, setNewReqSkillInput] = useState('');
   const [newPrefSkillInput, setNewPrefSkillInput] = useState('');
+  const [reqSuggestionsOpen, setReqSuggestionsOpen] = useState(false);
+  const [prefSuggestionsOpen, setPrefSuggestionsOpen] = useState(false);
+  const reqInputRef = useRef(null);
+  const prefInputRef = useRef(null);
+  const reqDropdownRef = useRef(null);
+  const prefDropdownRef = useRef(null);
+
+  // Filter skillsCatalog for autocomplete suggestions (algorithmic, no AI)
+  const getFilteredSuggestions = (input, alreadySelected) => {
+    const q = input.trim().toLowerCase();
+    if (!q) return [];
+    return (skillsCatalog || [])
+      .filter(s => {
+        const name = (s.name || s).toLowerCase();
+        return name.includes(q) && !alreadySelected.some(sel => sel.toLowerCase() === name);
+      })
+      .slice(0, 8);
+  };
+
+  const reqSuggestions = getFilteredSuggestions(newReqSkillInput, requiredSkills);
+  const prefSuggestions = getFilteredSuggestions(newPrefSkillInput, preferredSkills);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (reqDropdownRef.current && !reqDropdownRef.current.contains(e.target) &&
+          reqInputRef.current && !reqInputRef.current.contains(e.target)) {
+        setReqSuggestionsOpen(false);
+      }
+      if (prefDropdownRef.current && !prefDropdownRef.current.contains(e.target) &&
+          prefInputRef.current && !prefInputRef.current.contains(e.target)) {
+        setPrefSuggestionsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const [deadline, setDeadline] = useState('30/10/2026');
 
   // Preview Modal
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  // Auto-fill listener from CareerFit AI Assistant
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('careerfit_job_draft_autofill');
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (draft.title) setTitle(draft.title);
+        if (draft.category) setCategory(draft.category);
+        if (draft.jobType) setJobType(draft.jobType);
+        if (draft.location) setLocation(draft.location);
+        if (draft.workMode) setWorkMode(draft.workMode);
+        if (draft.minSalary) setMinSalary(String(draft.minSalary));
+        if (draft.maxSalary) setMaxSalary(String(draft.maxSalary));
+        if (draft.currency) setCurrency(draft.currency);
+        if (draft.description) setDescription(draft.description);
+        if (draft.deadline) setDeadline(draft.deadline);
+        if (draft.responsibilities && Array.isArray(draft.responsibilities) && draft.responsibilities.length > 0) {
+          setResponsibilities(draft.responsibilities.filter(Boolean));
+        }
+        if (draft.requirements && Array.isArray(draft.requirements) && draft.requirements.length > 0) {
+          setRequirements(draft.requirements.filter(Boolean));
+        }
+        if (draft.requiredSkills && Array.isArray(draft.requiredSkills) && draft.requiredSkills.length > 0) {
+          setRequiredSkills(draft.requiredSkills.filter(Boolean));
+        }
+        if (draft.preferredSkills && Array.isArray(draft.preferredSkills) && draft.preferredSkills.length > 0) {
+          setPreferredSkills(draft.preferredSkills.filter(Boolean));
+        }
+        localStorage.removeItem('careerfit_job_draft_autofill');
+        if (typeof showToast === 'function') {
+          showToast('Đã tự động điền thông tin tin tuyển dụng từ Trợ lý AI!', 'success');
+        }
+      }
+    } catch (e) {
+      console.warn('Lỗi khi đọc draft job autofill:', e);
+    }
+  }, []);
 
   const formattedSalary = `${minSalary}.000.000 - ${maxSalary}.000.000 ${currency}`;
 
@@ -79,27 +138,46 @@ export function CreateJobPage() {
     );
   };
 
+  const addRequiredSkill = (name) => {
+    const trimmed = name.trim();
+    if (!trimmed || !isVerified) return;
+    if (!requiredSkills.some(s => s.toLowerCase() === trimmed.toLowerCase())) {
+      setRequiredSkills(prev => [...prev, trimmed]);
+    }
+    setNewReqSkillInput('');
+    setReqSuggestionsOpen(false);
+  };
+
+  const addPreferredSkill = (name) => {
+    const trimmed = name.trim();
+    if (!trimmed || !isVerified) return;
+    if (!preferredSkills.some(s => s.toLowerCase() === trimmed.toLowerCase())) {
+      setPreferredSkills(prev => [...prev, trimmed]);
+    }
+    setNewPrefSkillInput('');
+    setPrefSuggestionsOpen(false);
+  };
+
   const handleAddCustomReqSkill = (e) => {
     e.preventDefault();
-    if (!newReqSkillInput.trim() || !isVerified) return;
-    if (!requiredSkills.includes(newReqSkillInput.trim())) {
-      setRequiredSkills(prev => [...prev, newReqSkillInput.trim()]);
-      setNewReqSkillInput('');
-    }
+    addRequiredSkill(newReqSkillInput);
   };
 
   const handleAddCustomPrefSkill = (e) => {
     e.preventDefault();
-    if (!newPrefSkillInput.trim() || !isVerified) return;
-    if (!preferredSkills.includes(newPrefSkillInput.trim())) {
-      setPreferredSkills(prev => [...prev, newPrefSkillInput.trim()]);
-      setNewPrefSkillInput('');
-    }
+    addPreferredSkill(newPrefSkillInput);
   };
 
   // Submit Job with Moderation Status
-  const handleSubmitJob = (moderationStatus = 'PENDING') => {
+  const handleSubmitJob = async (moderationStatus = 'PENDING') => {
     if (!title.trim() || !isVerified) return;
+
+    const minNum = Number(minSalary);
+    const maxNum = Number(maxSalary);
+    if (!isNaN(minNum) && !isNaN(maxNum) && minNum > maxNum) {
+      showToast('Lương tối thiểu không được lớn hơn lương tối đa!', 'danger');
+      return;
+    }
 
     const jobData = {
       title,
@@ -117,16 +195,17 @@ export function CreateJobPage() {
       publishStatus: 'ACTIVE'
     };
 
-    const success = createJob(jobData);
+    const success = await createJob(jobData);
     if (success) {
       setActivePage('job-management');
     }
   };
 
   return (
-    <div className="employer-workspace employer-createjobpage mx-auto space-y-6">
+    <div className="employer-page hiring-create-page mx-auto space-y-6">
+      <EmployerPageHeader eyebrow="MỞ RA CƠ HỘI MỚI" title="Đăng tin tuyển dụng" description="Hoàn thiện thông tin vị trí, mức lương và kỹ năng để kết nối với ứng viên phù hợp." />
       {/* Top Header */}
-      <div className="flex items-center justify-between">
+      <div className="hiring-create-toolbar flex items-center justify-between">
         <button
           onClick={() => setActivePage('job-management')}
           className="btn btn-secondary text-xs font-semibold flex items-center gap-1"
@@ -175,7 +254,7 @@ export function CreateJobPage() {
       )}
 
       {/* Main Form Body */}
-      <form onSubmit={(e) => { e.preventDefault(); handleSubmitJob('PENDING'); }} className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-xs space-y-8 text-xs">
+      <form onSubmit={(e) => { e.preventDefault(); handleSubmitJob('PENDING'); }} className="hiring-editor bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 space-y-8 text-xs">
         {/* SECTION 1: THÔNG TIN CƠ BẢN */}
         <div className="space-y-4">
           <h3 className="text-base font-bold text-slate-900 pb-2 border-b border-slate-100 flex items-center gap-2">
@@ -420,23 +499,75 @@ export function CreateJobPage() {
               ))}
             </div>
 
-            <div className="flex gap-2">
-              <input
-                type="text"
-                disabled={!isVerified}
-                className="form-control text-xs py-1.5 bg-white flex-1"
-                placeholder="Nhập kỹ năng mới (ví dụ: Spring Boot, React...)..."
-                value={newReqSkillInput}
-                onChange={e => setNewReqSkillInput(e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={handleAddCustomReqSkill}
-                className="btn btn-primary text-xs py-1 px-3 font-bold"
-              >
-                + Thêm Tag
-              </button>
+            {/* Autocomplete Input for Required Skills */}
+            <div className="relative">
+              <div className="flex items-center gap-2 form-control bg-white py-0 px-0 overflow-hidden h-9">
+                <Search size={14} className="text-slate-400 shrink-0 ml-2.5" />
+                <input
+                  ref={reqInputRef}
+                  type="text"
+                  disabled={!isVerified}
+                  className="flex-1 h-full border-none outline-none bg-transparent text-xs py-0 px-1.5"
+                  placeholder="Tìm hoặc thêm kỹ năng (ví dụ: Java, Spring Boot...)..."
+                  value={newReqSkillInput}
+                  onChange={e => {
+                    setNewReqSkillInput(e.target.value);
+                    setReqSuggestionsOpen(true);
+                  }}
+                  onFocus={() => setReqSuggestionsOpen(true)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { e.preventDefault(); addRequiredSkill(newReqSkillInput); }
+                    if (e.key === 'Escape') { setReqSuggestionsOpen(false); }
+                  }}
+                />
+                {newReqSkillInput && (
+                  <button
+                    type="button"
+                    onClick={() => addRequiredSkill(newReqSkillInput)}
+                    className="shrink-0 mr-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded px-2 py-0.5 transition-colors"
+                  >
+                    + Thêm
+                  </button>
+                )}
+              </div>
+              {/* Suggestions Dropdown */}
+              {reqSuggestionsOpen && reqSuggestions.length > 0 && (
+                <div
+                  ref={reqDropdownRef}
+                  className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden"
+                >
+                  <div className="py-1 max-h-52 overflow-y-auto">
+                    {reqSuggestions.map(s => {
+                      const name = s.name || s;
+                      const q = newReqSkillInput.trim().toLowerCase();
+                      const idx = name.toLowerCase().indexOf(q);
+                      return (
+                        <button
+                          key={s.id || name}
+                          type="button"
+                          onMouseDown={e => { e.preventDefault(); addRequiredSkill(name); }}
+                          className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 flex items-center justify-between group transition-colors"
+                        >
+                          <span>
+                            {idx >= 0 ? (
+                              <>
+                                {name.slice(0, idx)}
+                                <strong className="text-blue-600">{name.slice(idx, idx + q.length)}</strong>
+                                {name.slice(idx + q.length)}
+                              </>
+                            ) : name}
+                          </span>
+                          {s.category && (
+                            <span className="text-[10px] text-slate-400 group-hover:text-blue-500">{s.category}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
+            <p className="text-[10px] text-blue-600/70">Nhấn Enter hoặc chọn từ gợi ý để thêm. Có thể nhập kỹ năng tuỳ chỉnh không có trong danh sách.</p>
           </div>
 
           {/* PREFERRED SKILLS */}
@@ -454,23 +585,75 @@ export function CreateJobPage() {
               ))}
             </div>
 
-            <div className="flex gap-2">
-              <input
-                type="text"
-                disabled={!isVerified}
-                className="form-control text-xs py-1.5 bg-white flex-1"
-                placeholder="Nhập kỹ năng cộng điểm (ví dụ: Docker, CI/CD...)..."
-                value={newPrefSkillInput}
-                onChange={e => setNewPrefSkillInput(e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={handleAddCustomPrefSkill}
-                className="btn btn-secondary text-xs py-1 px-3 font-bold"
-              >
-                + Thêm Plus
-              </button>
+            {/* Autocomplete Input for Preferred Skills */}
+            <div className="relative">
+              <div className="flex items-center gap-2 form-control bg-white py-0 px-0 overflow-hidden h-9">
+                <Search size={14} className="text-slate-400 shrink-0 ml-2.5" />
+                <input
+                  ref={prefInputRef}
+                  type="text"
+                  disabled={!isVerified}
+                  className="flex-1 h-full border-none outline-none bg-transparent text-xs py-0 px-1.5"
+                  placeholder="Tìm hoặc thêm kỹ năng cộng điểm (ví dụ: Docker, CI/CD...)..."
+                  value={newPrefSkillInput}
+                  onChange={e => {
+                    setNewPrefSkillInput(e.target.value);
+                    setPrefSuggestionsOpen(true);
+                  }}
+                  onFocus={() => setPrefSuggestionsOpen(true)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { e.preventDefault(); addPreferredSkill(newPrefSkillInput); }
+                    if (e.key === 'Escape') { setPrefSuggestionsOpen(false); }
+                  }}
+                />
+                {newPrefSkillInput && (
+                  <button
+                    type="button"
+                    onClick={() => addPreferredSkill(newPrefSkillInput)}
+                    className="shrink-0 mr-1 text-[10px] font-bold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded px-2 py-0.5 transition-colors"
+                  >
+                    + Thêm
+                  </button>
+                )}
+              </div>
+              {/* Suggestions Dropdown */}
+              {prefSuggestionsOpen && prefSuggestions.length > 0 && (
+                <div
+                  ref={prefDropdownRef}
+                  className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden"
+                >
+                  <div className="py-1 max-h-52 overflow-y-auto">
+                    {prefSuggestions.map(s => {
+                      const name = s.name || s;
+                      const q = newPrefSkillInput.trim().toLowerCase();
+                      const idx = name.toLowerCase().indexOf(q);
+                      return (
+                        <button
+                          key={s.id || name}
+                          type="button"
+                          onMouseDown={e => { e.preventDefault(); addPreferredSkill(name); }}
+                          className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 flex items-center justify-between group transition-colors"
+                        >
+                          <span>
+                            {idx >= 0 ? (
+                              <>
+                                {name.slice(0, idx)}
+                                <strong className="text-slate-800">{name.slice(idx, idx + q.length)}</strong>
+                                {name.slice(idx + q.length)}
+                              </>
+                            ) : name}
+                          </span>
+                          {s.category && (
+                            <span className="text-[10px] text-slate-400 group-hover:text-slate-600">{s.category}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
+            <p className="text-[10px] text-slate-500">Nhấn Enter hoặc chọn từ gợi ý để thêm. Có thể nhập kỹ năng tuỳ chỉnh không có trong danh sách.</p>
           </div>
         </div>
 
@@ -518,7 +701,7 @@ export function CreateJobPage() {
                     {category} • {jobType}
                   </span>
                   <h3 className="text-xl font-extrabold mt-1">{title || 'Tiêu đề vị trí tuyển dụng'}</h3>
-                  <p className="text-xs text-slate-300 mt-0.5">{employerProfile.companyName} ({employerProfile.verificationStatus})</p>
+                  <p className="text-xs text-slate-300 mt-0.5">{employerProfile?.companyName || 'Doanh nghiệp'} ({employerProfile?.verificationStatus || 'Chưa xác minh'})</p>
                 </div>
                 <span className="text-sm font-extrabold text-emerald-400 bg-emerald-950/50 px-3 py-1 rounded-lg border border-emerald-500/30">
                   {formattedSalary}
