@@ -1,9 +1,10 @@
+import { EmployerPageHeader } from './EmployerPageHeader';
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { MatchBadge } from '../common/Badge';
 import { calculateSkillMatch } from '../../utils/matching';
 import { ScheduleInterviewModal } from './ScheduleInterviewModal';
-import { Kanban, FileText, Video, Filter, Sparkles, UserCheck } from 'lucide-react';
+import { Video } from 'lucide-react';
 
 export function RecruitmentPipeline() {
   const {
@@ -99,46 +100,19 @@ export function RecruitmentPipeline() {
   };
 
   return (
-    <div className="employer-workspace employer-recruitmentpipeline space-y-6 mx-auto">
-      {/* HEADER & FILTER */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold">
-              <Kanban size={18} />
-            </div>
-            <h1 className="text-xl font-bold text-slate-900">Quy trình tuyển dụng</h1>
-          </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Kéo và thả card ứng viên hoặc chọn từ menu để chuyển tiếp trạng thái tuyển dụng.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Filter by Job */}
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs">
-            <Filter size={14} className="text-slate-400 shrink-0" />
-            <span className="font-medium text-slate-600">Lọc vị trí:</span>
-            <select
-              className="bg-transparent border-none text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
-              value={selectedJobFilter}
-              onChange={e => setSelectedJobFilter(e.target.value)}
-            >
-              <option value="All">Tất cả tin tuyển dụng ({employerJobs.length})</option>
-              {employerJobs.map(j => (
-                <option key={j.id} value={j.id}>{j.title}</option>
-              ))}
-            </select>
-          </div>
-
-          <span className="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-2 rounded-xl border border-slate-200 shrink-0">
-            Tổng hồ sơ: <strong className="text-blue-600 font-extrabold">{employerApps.length}</strong>
-          </span>
-        </div>
+    <div className="employer-page hiring-pipeline-page space-y-6 mx-auto">
+      <EmployerPageHeader eyebrow="TỪ KẾT NỐI ĐẾN ĐỒNG HÀNH" title="Quy trình tuyển dụng" description="Kéo và thả card ứng viên hoặc chọn từ menu để chuyển tiếp trạng thái tuyển dụng." />
+      <div className="employer-pipeline-toolbar">
+        <label htmlFor="pipeline-job-filter">Vị trí tuyển dụng</label>
+        <select id="pipeline-job-filter" className="form-control" value={selectedJobFilter} onChange={e => setSelectedJobFilter(e.target.value)}>
+          <option value="All">Tất cả tin tuyển dụng ({employerJobs.length})</option>
+          {employerJobs.map(job => <option key={job.id} value={job.id}>{job.title}</option>)}
+        </select>
+        <span className="employer-pipeline-total"><strong>{employerApps.length}</strong> hồ sơ · 05 giai đoạn</span>
       </div>
 
       {/* KANBAN BOARD */}
-      <div className="employer-pipeline-board flex gap-4 overflow-x-auto pb-4 scrollbar-thin">
+      <div className="hiring-pipeline-board flex gap-4 overflow-x-auto pb-4 scrollbar-thin">
         {columns.map(col => {
           const colApps = employerApps.filter(a => a.status === col.id);
           return (
@@ -146,7 +120,7 @@ export function RecruitmentPipeline() {
               key={col.id}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, col.id)}
-              className="employer-pipeline-column min-w-[300px] w-[300px] bg-slate-50/90 rounded-2xl border border-slate-200 p-3 flex flex-col max-h-[calc(100vh-220px)] shrink-0 transition-colors"
+              data-stage={col.id} className="hiring-pipeline-column min-w-[300px] w-[300px] bg-slate-50/90 rounded-2xl border border-slate-200 p-3 flex flex-col max-h-[calc(100vh-220px)] shrink-0 transition-colors"
             >
               {/* Column Header */}
               <div className={`p-3 rounded-xl border flex items-center justify-between mb-3 shadow-2xs ${col.color}`}>
@@ -160,7 +134,7 @@ export function RecruitmentPipeline() {
               <div className="space-y-3 flex-1 overflow-y-auto pr-1">
                 {colApps.map(app => {
                   const job = jobs.find(j => j.id === app.jobId) || { title: 'Tin tuyển dụng IT', requiredSkills: [] };
-                  const appSkills = app.candidateSkills || (candidateProfile ? candidateProfile.skills : []);
+                  const appSkills = app.candidateSkills || [];
                   const match = calculateSkillMatch(appSkills, job.requiredSkills || []);
 
                   return (
@@ -168,7 +142,7 @@ export function RecruitmentPipeline() {
                       key={app.id}
                       draggable
                       onDragStart={(e) => handleDragStart(e, app.id)}
-                      className="bg-white p-4 rounded-xl border border-slate-200/90 hover:border-blue-400 shadow-2xs hover:shadow-md transition-all space-y-3 cursor-grab active:cursor-grabbing group"
+                      className="hiring-pipeline-card bg-white p-4 rounded-xl border border-slate-200/90 hover:border-blue-400 shadow-2xs hover:shadow-md transition-all space-y-3 cursor-grab active:cursor-grabbing group"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
@@ -177,7 +151,7 @@ export function RecruitmentPipeline() {
                           </h4>
                           <p className="text-[11px] text-slate-500 truncate">{app.candidateUniversity || app.candidateEmail}</p>
                         </div>
-                        <MatchBadge score={match.percentage} label={match.label} badgeClass={match.badgeClass} />
+                        <MatchBadge showIcon={false} score={match.percentage} label={match.label} badgeClass={match.badgeClass} />
                       </div>
 
                       <div className="text-[11px] text-slate-700 bg-slate-50 p-2 rounded-lg border border-slate-100">
@@ -203,14 +177,15 @@ export function RecruitmentPipeline() {
                             e.stopPropagation();
                             setViewingCVModalCandidate(app);
                           }}
-                          className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
+                          className="hiring-cv-link"
                           title="Xem CV PDF"
                         >
-                          <FileText size={15} />
+                          Xem CV
                         </button>
 
                         <select
                           className="form-control py-1 px-1.5 text-[11px] font-semibold bg-slate-50 border-slate-200 rounded-lg flex-1 cursor-pointer"
+                          aria-label={`Trạng thái của ${app.candidateName}`}
                           value={app.status}
                           onChange={e => {
                             const newSt = e.target.value;

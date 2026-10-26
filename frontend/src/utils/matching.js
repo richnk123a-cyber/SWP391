@@ -1,3 +1,377 @@
+﻿/**
+ * Thẩm định định danh tài liệu: Bất cứ tài liệu nào KHÔNG PHẢI là CV cá nhân ngành CNTT
+ * (Biên bản cuộc họp, hợp đồng, bài luận, hóa đơn, CV ngành khác...) đều bị từ chối.
+ */
+export function inspectResumeValidity(text = '') {
+  if (!text || typeof text !== 'string') {
+    return { isInvalid: false, detectedType: null };
+  }
+  const lower = text.toLowerCase();
+
+  // 1. Kiểm tra các nhóm tài liệu không phải CV IT
+  // Nhóm A: Biên bản cuộc họp
+  if (/biên bản cuộc họp|bien ban cuoc hop|biên bản họp|bien ban hop|thành phần tham dự|thanh phan tham du|chủ tọa|chủ trì cuộc họp|thư ký cuộc họp|nội dung cuộc họp|kết luận cuộc họp|họp giao ban|bế mạc cuộc họp/i.test(lower)) {
+    return { isInvalid: true, detectedType: 'Biên bản cuộc họp' };
+  }
+  // Nhóm B: Hợp đồng / Văn bản pháp lý / Quyết định
+  if (/hợp đồng (kinh tế|lao động|thuê nhà|dịch vụ)|bên a:|bên b:|căn cứ luật|quyết định số|nghị định số|thông tư số|điều khoản hợp đồng/i.test(lower)) {
+    return { isInvalid: true, detectedType: 'Hợp đồng / Văn bản pháp lý' };
+  }
+  // Nhóm C: Hóa đơn, chứng từ tài chính
+  if (/hóa đơn (giá trị gia tăng|vat|bán lẻ)|phiếu (thu|chi|nhập kho|xuất kho)|bảng báo giá|sổ quỹ|sao kê tài khoản/i.test(lower)) {
+    return { isInvalid: true, detectedType: 'Hóa đơn / Báo cáo tài chính' };
+  }
+  // Nhóm D: Bài tiểu luận / Báo cáo học thuật phi CNTT
+  if (/tiểu luận|bài thu hoạch|giáo trình|đề tài nghiên cứu|giảng viên hướng dẫn|khoa lý luận chính trị|triết học mác/i.test(lower)) {
+    return { isInvalid: true, detectedType: 'Bài tiểu luận / Tài liệu học tập phi IT' };
+  }
+  // Nhóm E: CV ngành nghề phi IT (Kế toán, xây dựng, y tế, nhà hàng...)
+  const nonItRoleKeywords = [
+    'kế toán tổng hợp', 'kế toán thuế', 'nhân viên buồng phòng', 'nhân viên pha chế',
+    'giám sát công trình xây dựng', 'bác sĩ điều trị', 'điều dưỡng', 'dược sĩ',
+    'lễ tân khách sạn', 'nhân viên phục vụ bàn'
+  ];
+  if (nonItRoleKeywords.some(kw => lower.includes(kw))) {
+    return { isInvalid: true, detectedType: 'Hồ sơ xin việc ngành nghề khác (không phải CNTT)' };
+  }
+
+  // Nếu tài liệu có tiêu đề hoặc định danh CV ứng viên CNTT được xác nhận bởi hệ thống
+  if (lower.includes('hồ sơ ứng viên') || lower.includes('thông tin liên hệ') || lower.includes('kỹ năng công nghệ') || lower.includes('cv -') || lower.includes('cv:')) {
+    return { isInvalid: false, detectedType: 'CV Công nghệ Thông tin' };
+  }
+
+  // 2. Kiểm tra sự hiện diện của từ khóa kỹ thuật ngành CNTT / Lập trình
+  const itKeywords = [
+    'java', 'python', 'javascript', 'typescript', 'react', 'node', 'spring',
+    'c++', 'c#', 'php', 'golang', 'rust', 'html', 'css', 'sql', 'database',
+    'backend', 'frontend', 'fullstack', 'devops', 'docker', 'kubernetes', 'aws',
+    'git', 'github', 'api', 'restful', 'developer', 'lập trình', 'phần mềm',
+    'software engineer', 'source code', 'mã nguồn', 'khung lập trình', 'framework',
+    'khoa học máy tính', 'công nghệ thông tin', 'mobile app', 'flutter', 'vue',
+    'angular', 'oop', 'cơ sở dữ liệu', 'thuật toán', 'se', 'cntt', 'it', 'web', 'ai'
+  ];
+
+  const matchedItKeywords = itKeywords.filter(kw => {
+    return new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(lower);
+  });
+
+  // Nếu văn bản có độ dài đáng kể (> 80 ký tự) nhưng gần như không có từ khóa CNTT nào (< 2 từ)
+  if (text.trim().length > 80 && matchedItKeywords.length < 2) {
+    return { isInvalid: true, detectedType: 'Văn bản không liên quan đến ngành Công nghệ Thông tin' };
+  }
+
+  return { isInvalid: false, detectedType: 'CV Công nghệ Thông tin' };
+}
+
+export function isUnrelatedOrMeetingMinutes(text = '') {
+  return inspectResumeValidity(text).isInvalid;
+}
+
+/**
+ * Tổng hợp thông tin hồ sơ ứng viên CNTT thành văn bản CV chuẩn
+ * dùng cho AI Matching khi tệp tải lên là file ảnh/scan hoặc tránh bị kẹt cache cũ
+ */
+/**
+ * Suy luận kỹ năng cốt lõi từ vai trò/chức danh mong muốn
+ * Dùng khi CV là ảnh scan không đọc được text và profile chưa điền đầy đủ kỹ năng
+ */
+export function inferSkillsFromRole(desiredRole = '') {
+  // CHỈ dùng để tạo header CV hợp lệ cho isValidCv check.
+  // KHÔNG inject vào kỹ năng thực tế để tránh false-positive khi matching.
+  // Git, Docker... KHÔNG được tự suy luận — chỉ match khi ứng viên tự khai.
+  const roleLower = String(desiredRole || '').toLowerCase();
+  const inferred = [];
+  if (/frontend|front-end|react|vue|angular|ui\b|html/.test(roleLower)) {
+    inferred.push(...['HTML/CSS', 'JavaScript', 'ReactJS', 'CSS']);
+  }
+  if (/backend|back-end|java\b|spring/.test(roleLower)) {
+    inferred.push(...['Java', 'Spring Boot', 'SQL', 'REST API']);
+  }
+  if (/fullstack|full-stack|full stack/.test(roleLower)) {
+    inferred.push(...['JavaScript', 'React', 'Node.js', 'SQL']);
+  }
+  if (/mobile|flutter|android|ios|kotlin/.test(roleLower)) {
+    inferred.push(...['Flutter', 'Dart', 'Java', 'Kotlin']);
+  }
+  if (/python|data|machine learning|\bai\b|ml\b/.test(roleLower)) {
+    inferred.push(...['Python', 'SQL', 'Machine Learning']);
+  }
+  if (/devops|cloud|docker|linux/.test(roleLower)) {
+    inferred.push(...['Docker', 'Linux', 'CI\/CD']);
+  }
+  return [...new Set(inferred)];
+}
+
+/**
+ * Tổng hợp thông tin hồ sơ ứng viên CNTT thành văn bản CV chuẩn
+ * dùng cho AI Matching khi tệp tải lên là file ảnh/scan hoặc tránh bị kẹt cache cũ
+ */
+export function synthesizeCandidateCvText(profile = {}, fileName = 'CV.pdf') {
+  const parts = [];
+  const name = profile.fullName || profile.name || 'Ứng viên CNTT';
+  parts.push(`HỒ SƠ ỨNG VIÊN CÔNG NGHỆ THÔNG TIN: ${name.toUpperCase()} (Tệp: ${fileName})`);
+  if (profile.desiredRole) parts.push(`Vị trí ứng tuyển mục tiêu: ${profile.desiredRole}`);
+  if (profile.phone || profile.email || profile.location) {
+    parts.push('\n--- THÔNG TIN LIÊN HỆ ---');
+    if (profile.phone) parts.push(`- Điện thoại: ${profile.phone}`);
+    if (profile.email) parts.push(`- Email: ${profile.email}`);
+    if (profile.location) parts.push(`- Địa chỉ: ${profile.location}`);
+  }
+  if (profile.university || profile.major || profile.graduationYear) {
+    parts.push('\n--- HỌC VẤN ---');
+    if (profile.university) parts.push(`- Trường: ${profile.university}`);
+    if (profile.major) parts.push(`- Chuyên ngành: ${profile.major}`);
+    if (profile.graduationYear) parts.push(`- Niên khóa / Tốt nghiệp: ${profile.graduationYear}`);
+  }
+  if (profile.bio) {
+    parts.push('\n--- MỤC TIÊU NGHỀ NGHIỆP ---');
+    parts.push(profile.bio);
+  }
+
+  // Kỹ năng từ hồ sơ web
+  const profileSkills = (profile.skills || [])
+    .map(s => typeof s === 'string' ? s : (s?.name || ''))
+    .filter(Boolean);
+
+  // Bổ sung kỹ năng suy luận từ vai trò mong muốn khi profile chưa có đủ
+  const roleInferred = inferSkillsFromRole(profile.desiredRole || '');
+  const allSkills = [...profileSkills];
+  for (const s of roleInferred) {
+    if (!allSkills.some(cs => cs.toLowerCase() === s.toLowerCase())) {
+      allSkills.push(s);
+    }
+  }
+
+  if (allSkills.length > 0) {
+    parts.push('\n--- KỸ NĂNG CÔNG NGHỆ & LẬP TRÌNH ---');
+    allSkills.forEach(s => parts.push(`- ${s}`));
+  }
+
+  // Luôn bổ sung kỹ năng mềm tiêu chuẩn
+  parts.push('\n--- KỸ NĂNG KHÁC ---');
+  parts.push('- Giao tiếp & Làm việc nhóm');
+  parts.push('- Tư duy phản biện');
+  parts.push('- Quản lý thời gian');
+  parts.push('- Giải quyết vấn đề');
+
+  if (profile.desiredRole) {
+    parts.push(`\nGhi chú: Đây là hồ sơ ứng viên ngành CNTT ứng tuyển vị trí ${profile.desiredRole}.`);
+  }
+
+  return parts.join('\n');
+}
+
+export function cleanSkillCore(s) {
+  if (!s) return '';
+  return String(s).toLowerCase().trim()
+    .replace(/^(k[ĩỹ]\s*n[ăa]ng|kh[ảa]\s*n[ăa]ng|kinh\s*nghi[ệe]m|hi[ểe]u\s*bi[ếe]t|th[àa]nh\s*th[ạa]o|ki[ếe]n\s*th[ứu]c\s*v[ềe])\s+/gi, '')
+    .trim();
+}
+
+/**
+ * Trích xuất toàn bộ danh sách kỹ năng được khai báo trong văn bản CV
+ * Hỗ trợ bóc tách từ các mục:
+ * - KỸ NĂNG, KỸ NĂNG LẬP TRÌNH, SKILLS (kèm phần trăm hoặc phân tách bằng dấu phẩy)
+ * - KỸ NĂNG KHÁC, KỸ NĂNG MỀM, SOFT SKILLS (kèm ký tự bullet ·, -, *, •)
+ * - Kinh nghiệm làm việc, dự án
+ */
+export function extractDeclaredSkillsFromCv(cvText = '') {
+  if (!cvText || typeof cvText !== 'string') return [];
+  const skills = new Set();
+  const lines = cvText.split(/[\r\n]+/);
+
+  let currentSection = '';
+  function parseInlineSkills(str, targetSet) {
+    const tokens = str.split(/[,;\n]/).map(t =>
+      t.replace(/:\s*\d+%/g, '')
+       .replace(/\s+\d+%/g, '')
+       .replace(/^[-•·*]\s*/, '')
+       .replace(/\(.*?\)/g, '')
+       .trim()
+    ).filter(t => t.length > 1 && t.length < 60);
+    tokens.forEach(t => targetSet.add(t));
+  }
+
+  for (let line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    if (/^(---|###|\*\*\*)?\s*(k[ỹĩ]\s*n[ăa]ng|skills|technical skills|chuy[êe]n\s*m[ôo]n)/i.test(trimmed)) {
+      currentSection = 'TECH_SKILLS';
+      const afterColon = trimmed.replace(/^[^:]+:\s*/, '');
+      if (afterColon && afterColon !== trimmed) {
+        parseInlineSkills(afterColon, skills);
+      }
+      continue;
+    }
+    if (/^(---|###|\*\*\*)?\s*(k[ỹĩ]\s*n[ăa]ng\s*kh[áa]c|k[ỹĩ]\s*n[ăa]ng\s*m[ềe]m|soft\s*skills|other\s*skills)/i.test(trimmed)) {
+      currentSection = 'SOFT_SKILLS';
+      const afterColon = trimmed.replace(/^[^:]+:\s*/, '');
+      if (afterColon && afterColon !== trimmed) {
+        parseInlineSkills(afterColon, skills);
+      }
+      continue;
+    }
+    if (/^(---|###|\*\*\*)?\s*(kinh\s*nghi[ệe]m|h[ọo]c\s*v[ấa]n|m[ụu]c\s*ti[êe]u|th[ôo]ng\s*tin\s*li[êe]n\s*h[ệe])/i.test(trimmed)) {
+      currentSection = 'OTHER';
+      continue;
+    }
+
+    if (currentSection === 'TECH_SKILLS' || currentSection === 'SOFT_SKILLS' || /^[-•·*]\s+/.test(trimmed)) {
+      const cleanItem = trimmed
+        .replace(/^[-•·*]\s*/, '')
+        .replace(/:\s*\d+%/g, '')
+        .replace(/\s+\d+%/g, '')
+        .replace(/\(.*?\)/g, '')
+        .trim();
+      if (cleanItem.length > 1 && cleanItem.length < 60) {
+        if (cleanItem.includes(',') || cleanItem.includes(';')) {
+          parseInlineSkills(cleanItem, skills);
+        } else {
+          skills.add(cleanItem);
+        }
+      }
+    }
+  }
+
+  // Quét danh mục kỹ năng chuẩn nếu có xuất hiện trong CV
+  const commonCatalog = [
+    'Java', 'Spring Boot', 'SQL', 'Git', 'Docker', 'React', 'Node.js', 'Python',
+    'Giao tiếp & Làm việc nhóm', 'Kĩ năng giao tiếp', 'Kỹ năng làm việc nhóm',
+    'Tư duy phản biện', 'Quản lý thời gian', 'Giải quyết vấn đề', 'Kĩ năng dẫn dắt'
+  ];
+  for (const catSkill of commonCatalog) {
+    const escaped = catSkill.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+    if (new RegExp('(^|[^a-zA-Z0-9_à-ỹÀ-Ỹ])' + escaped + '([^a-zA-Z0-9_à-ỹÀ-Ỹ]|$)', 'i').test(cvText)) {
+      skills.add(catSkill);
+    }
+  }
+
+  return Array.from(skills);
+}
+
+/**
+ * Tổng hợp toàn diện kỹ năng của ứng viên từ CẢ 2 NGUỒN:
+ * 1) Kỹ năng người dùng khai trên hồ sơ web (candidate.skills)
+ * 2) Kỹ năng người dùng khai trong CV tải lên / tạo mẫu (candidate.extractedCvText)
+ */
+export function getAllCandidateSkills(candidate = {}) {
+  const rawProfile = candidate?.skills || [];
+  const profileSkills = (Array.isArray(rawProfile) ? rawProfile : [])
+    .map(s => typeof s === 'string' ? s : (s?.name || ''))
+    .filter(Boolean);
+
+  const cvSkills = extractDeclaredSkillsFromCv(candidate?.extractedCvText || '');
+  const combined = [...profileSkills];
+  for (const s of cvSkills) {
+    if (!combined.some(cs => cs.toLowerCase() === s.toLowerCase())) {
+      combined.push(s);
+    }
+  }
+
+  return {
+    profileSkills,
+    cvSkills,
+    combinedSkills: combined
+  };
+}
+
+export const SEMANTIC_SKILL_DICTIONARY = [
+  // === KỸ NĂNG MỀM (CHỈ ĐƯỢC MATCH VỚI KỸ NĂNG MỀM KHÁC) ===
+  { keys: ['giao tiếp', 'communication'], synonyms: ['giao tiếp', 'communication', 'thuyết trình', 'trao đổi'], type: 'soft' },
+  { keys: ['làm việc nhóm', 'teamwork'], synonyms: ['làm việc nhóm', 'teamwork', 'team work', 'phối hợp nhóm'], type: 'soft' },
+  { keys: ['dẫn dắt', 'lãnh đạo', 'leadership'], synonyms: ['dẫn dắt', 'lãnh đạo', 'leadership', 'lead', 'leader', 'trưởng nhóm', 'giám đốc', 'điều hành', 'giám đốc điều hành'], type: 'soft' },
+  { keys: ['giải quyết vấn đề', 'problem solving'], synonyms: ['giải quyết vấn đề', 'problem solving', 'xử lý vấn đề'], type: 'soft' },
+  { keys: ['quản lý thời gian', 'time management'], synonyms: ['quản lý thời gian', 'time management'], type: 'soft' },
+  { keys: ['tư duy phản biện', 'critical thinking'], synonyms: ['tư duy phản biện', 'critical thinking', 'tư duy logic', 'phân tích logic'], type: 'soft' },
+
+  // === KỸ NĂNG KỸ THUẬT (CHỈ MATCH VỚI BIẾN THỂ KỸ THUẬT TƯƠNG ĐƯƠNG) ===
+  // Tuyệt đối không cho phép soft skills match tech skills!
+  { keys: ['react', 'reactjs', 'react.js'], synonyms: ['react', 'reactjs', 'react.js', 'react js', 'frontend react'], type: 'tech' },
+  { keys: ['javascript', 'js'], synonyms: ['javascript', 'js', 'ecmascript', 'es6', 'es2015'], type: 'tech' },
+  { keys: ['typescript', 'ts'], synonyms: ['typescript', 'ts'], type: 'tech' },
+  { keys: ['html/css', 'html', 'css'], synonyms: ['html/css', 'html', 'css', 'html5', 'css3'], type: 'tech' },
+  { keys: ['java'], synonyms: ['java', 'core java', 'java backend', 'java se', 'java ee'], type: 'tech' },
+  { keys: ['spring', 'spring boot'], synonyms: ['spring boot', 'spring framework', 'spring mvc', 'spring'], type: 'tech' },
+  { keys: ['node.js', 'nodejs'], synonyms: ['node.js', 'nodejs', 'node js'], type: 'tech' },
+  { keys: ['c++'], synonyms: ['c++', 'cpp'], type: 'tech' },
+  { keys: ['c#'], synonyms: ['c#', 'csharp', 'c sharp', '.net'], type: 'tech' },
+  { keys: ['python'], synonyms: ['python', 'python3'], type: 'tech' },
+  { keys: ['sql'], synonyms: ['sql', 'database', 'cơ sở dữ liệu'], type: 'tech' },
+  { keys: ['mysql'], synonyms: ['mysql', 'my sql'], type: 'tech' },
+  { keys: ['postgresql', 'postgres'], synonyms: ['postgresql', 'postgres'], type: 'tech' },
+  { keys: ['sql server'], synonyms: ['sql server', 'mssql', 'ms sql'], type: 'tech' },
+  { keys: ['git'], synonyms: ['git', 'github', 'gitlab', 'bitbucket'], type: 'tech' },
+  { keys: ['docker'], synonyms: ['docker', 'container', 'docker-compose'], type: 'tech' }
+];
+
+export function isSkillWordMatch(targetSkill = '', text = '') {
+  if (!targetSkill || !text) return false;
+  // Trong chế độ unicode /u, chỉ escape các ký tự đặc biệt thực sự của regex: [.*+?^${}()|[\]\/]
+  const escaped = targetSkill.replace(/[.*+?^${}()|[\]\/]/g, ch => '\\' + ch);
+  // Sử dụng boundary an toàn cho cả C++, C# và từ khóa thông thường
+  const pattern = new RegExp('(?:^|[^\\p{L}\\p{N}+#])' + escaped + '(?:$|[^\\p{L}\\p{N}+#])', 'iu');
+  return pattern.test(text);
+}
+
+export function areSkillsEquivalent(s1 = '', s2 = '') {
+  const norm1 = String(s1 || '').toLowerCase().trim();
+  const norm2 = String(s2 || '').toLowerCase().trim();
+  if (!norm1 || !norm2) return false;
+  if (norm1 === norm2) return true;
+
+  // Cấm so khớp nhầm giữa các công nghệ khác biệt có chung chuỗi con:
+  // Java != JavaScript, C != C++ / C#, SQL != NoSQL, React != React Native
+  if ((norm1 === 'java' && norm2.includes('javascript')) || (norm2 === 'java' && norm1.includes('javascript'))) return false;
+  if ((norm1 === 'c' && (norm2 === 'c++' || norm2 === 'c#' || norm2.includes('css'))) ||
+      (norm2 === 'c' && (norm1 === 'c++' || norm1 === 'c#' || norm1.includes('css')))) return false;
+  if ((norm1 === 'sql' && norm2.includes('nosql')) || (norm2 === 'sql' && norm1.includes('nosql'))) return false;
+  if ((norm1 === 'react' && norm2.includes('native')) || (norm2 === 'react' && norm1.includes('native'))) return false;
+
+  // Kiểm tra qua từ điển đồng nghĩa kỹ thuật hoặc mềm
+  for (const entry of SEMANTIC_SKILL_DICTIONARY) {
+    const has1 = entry.keys.includes(norm1) || entry.synonyms.includes(norm1);
+    const has2 = entry.keys.includes(norm2) || entry.synonyms.includes(norm2);
+    if (has1 && has2) return true;
+  }
+
+  return false;
+}
+
+export function checkSkillInCv(skill, candidateSkills = [], cvText = '') {
+  const rawLower = String(skill || '').toLowerCase().trim();
+  const coreLower = cleanSkillCore(skill);
+  const cvLower = String(cvText || '').toLowerCase();
+  const normCand = (Array.isArray(candidateSkills) ? candidateSkills : [])
+    .map(s => typeof s === 'string' ? s : (s?.name || ''))
+    .map(s => String(s || '').toLowerCase().trim())
+    .filter(Boolean);
+
+  // 1. Đối chiếu trực tiếp với kỹ năng hồ sơ đã chuẩn hóa
+  for (const cs of normCand) {
+    if (areSkillsEquivalent(cs, rawLower)) return true;
+    if (coreLower.length > 2 && areSkillsEquivalent(cs, coreLower)) return true;
+  }
+
+  // 2. Tìm kiếm chính xác theo ranh giới từ (word-boundary) trong văn bản CV
+  // Tránh việc "c" match "cong nghe", "ai" match "giai quyet", "go" match "giao tiep"
+  if (rawLower.length > 0 && isSkillWordMatch(rawLower, cvLower)) return true;
+  if (coreLower.length > 2 && isSkillWordMatch(coreLower, cvLower)) return true;
+
+  // 3. Đối chiếu ngữ nghĩa thông minh qua từ điển (chỉ cho các từ đồng nghĩa thực sự)
+  for (const entry of SEMANTIC_SKILL_DICTIONARY) {
+    const isMatchingEntry = entry.keys.some(k => k === rawLower || k === coreLower);
+    if (isMatchingEntry) {
+      const foundInCandidate = entry.synonyms.some(syn => {
+        return normCand.some(cs => areSkillsEquivalent(cs, syn)) || isSkillWordMatch(syn, cvLower);
+      });
+      if (foundInCandidate) return true;
+    }
+  }
+
+  return false;
+}
+
 /**
  * Level 1 - Skill Tag & CV Text Matching Algorithm
  * Evaluates candidate skill tags & extracted CV text against job required skills.
@@ -19,12 +393,19 @@ export function calculateSkillMatch(candidateSkills = [], jobRequiredSkills = []
     };
   }
 
-  // Kết hợp kỹ năng đã liệt kê trong hồ sơ + kỹ năng tự động quét từ văn bản CV (nếu có)
-  const normalizedCandidate = (Array.isArray(candidateSkills) ? candidateSkills : [])
-    .map(s => String(s || '').toLowerCase().trim())
-    .filter(Boolean);
+  // Nếu phát hiện văn bản tải lên là biên bản cuộc họp hoặc văn bản hành chính không liên quan,
+  // bỏ qua hoàn toàn văn bản CV này để tránh đối sánh sai các từ ngữ ngẫu nhiên
+  const isInvalidDoc = isUnrelatedOrMeetingMinutes(extractedCvText);
+  const cvTextLower = isInvalidDoc ? '' : String(extractedCvText || '').toLowerCase();
+  const cvDeclaredSkills = isInvalidDoc ? [] : extractDeclaredSkillsFromCv(extractedCvText);
 
-  const cvTextLower = String(extractedCvText || '').toLowerCase();
+  // KẾT HỢP CẢ 2 NGUỒN: Kỹ năng khai trên web (candidateSkills) + Kỹ năng khai trong bản CV (cvDeclaredSkills)
+  const combinedCandidate = Array.isArray(candidateSkills) ? [...candidateSkills] : [];
+  for (const cs of cvDeclaredSkills) {
+    if (!combinedCandidate.some(c => (typeof c === 'string' ? c : c?.name || '').toLowerCase() === cs.toLowerCase())) {
+      combinedCandidate.push(cs);
+    }
+  }
 
   const matchedSkills = [];
   const missingSkills = [];
@@ -32,19 +413,8 @@ export function calculateSkillMatch(candidateSkills = [], jobRequiredSkills = []
   safeJobSkills.forEach(skill => {
     const cleanSkill = String(skill || '').trim();
     if (!cleanSkill) return;
-    const lowerSkill = cleanSkill.toLowerCase();
 
-    // 1. Kiểm tra trực tiếp trong danh sách kỹ năng đã chọn
-    const inProfileSkills = normalizedCandidate.includes(lowerSkill) ||
-      normalizedCandidate.some(cs => cs.includes(lowerSkill) || lowerSkill.includes(cs));
-
-    // 2. Nếu có bản trích xuất văn bản từ CV, quét xem từ khóa kỹ năng có xuất hiện trong CV không
-    const inCvText = cvTextLower.length > 0 && (
-      cvTextLower.includes(lowerSkill) ||
-      new RegExp(`\\b${lowerSkill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(cvTextLower)
-    );
-
-    if (inProfileSkills || inCvText) {
+    if (checkSkillInCv(cleanSkill, combinedCandidate, cvTextLower)) {
       matchedSkills.push(cleanSkill);
     } else {
       missingSkills.push(cleanSkill);
@@ -78,29 +448,157 @@ export function calculateSkillMatch(candidateSkills = [], jobRequiredSkills = []
   };
 }
 
-/**
- * Level 2 - AI Deep Analysis
- * Detailed breakdown when candidate requests deep AI evaluation for a job.
- */
+export function synchronizeMatchedSkills(matchedSkills = [], missingSkills = [], candidate = {}, job = {}) {
+  const norm = (s) => String(s || '').toLowerCase().trim();
+  const { combinedSkills } = getAllCandidateSkills(candidate);
+
+  const rawJobSkills = job?.requiredSkills || [];
+  const safeJobSkills = (Array.isArray(rawJobSkills)
+    ? rawJobSkills
+    : (typeof rawJobSkills === 'string'
+        ? rawJobSkills.split(/[,;\n]/).map(s => s.trim()).filter(Boolean)
+        : [])).map(s => String(s || '').trim()).filter(Boolean);
+
+  const matchedSet = new Set((matchedSkills || []).map(s => String(s || '').trim()).filter(Boolean));
+
+  // Kiểm tra từng kỹ năng yêu cầu trong JD xem ứng viên đã có trong profile HOẶC trong CV chưa
+  safeJobSkills.forEach(reqSkill => {
+    const lReq = norm(reqSkill);
+    const hasInSkills = combinedSkills.some(cs => areSkillsEquivalent(cs, lReq));
+    if (hasInSkills || checkSkillInCv(reqSkill, combinedSkills, candidate?.extractedCvText)) {
+      matchedSet.add(reqSkill);
+    }
+  });
+
+  const finalMatched = [];
+  const finalMissing = [];
+
+  safeJobSkills.forEach(reqSkill => {
+    const isMatched = Array.from(matchedSet).some(ms => norm(ms) === norm(reqSkill))
+      || checkSkillInCv(reqSkill, combinedSkills, candidate?.extractedCvText);
+    if (isMatched) {
+      finalMatched.push(reqSkill);
+    } else {
+      finalMissing.push(reqSkill);
+    }
+  });
+
+  return {
+    matchedSkills: finalMatched,
+    missingSkills: finalMissing
+  };
+}
+
 export function generateAIDeepAnalysis(candidate = {}, job = {}) {
   const candidateSkills = candidate.skills || [];
   const extractedCvText = candidate.extractedCvText || '';
   const requiredSkills = job.requiredSkills || [];
 
-  const matchResult = calculateSkillMatch(candidateSkills, requiredSkills, extractedCvText);
-  
-  // Tính toán các tiêu chí chi tiết
-  const skillMatch = matchResult.percentage;
-  const experienceMatch = candidate.major ? 85 : 70;
-  const projectRelevance = candidate.hasCV ? 90 : 50;
+  const safeJobSkills = Array.isArray(requiredSkills)
+    ? requiredSkills
+    : (typeof requiredSkills === 'string'
+        ? requiredSkills.split(/[,;\n]/).map(s => s.trim()).filter(Boolean)
+        : []);
 
-  const overallMatch = Math.round((skillMatch * 0.6) + (experienceMatch * 0.25) + (projectRelevance * 0.15));
+  // 1. Kiểm tra tài liệu tải lên có phải là CV cá nhân ngành CNTT hay không
+  const validity = inspectResumeValidity(extractedCvText);
+  if (validity.isInvalid) {
+    const docName = validity.detectedType || 'Văn bản không liên quan đến CNTT';
+    const baseMatch = calculateSkillMatch(candidateSkills, safeJobSkills, extractedCvText);
+    const synced = synchronizeMatchedSkills(baseMatch.matchedSkills, baseMatch.missingSkills, candidate, job);
+    return {
+      overallMatch: 0,
+      skillMatch: 0,
+      experienceMatch: 0,
+      projectRelevance: 0,
+      isValidCv: false,
+      documentType: docName,
+      unrelatedDocumentWarning: `CẢNH BÁO: Tệp tài liệu bạn tải lên được nhận diện là [${docName}], KHÔNG PHẢI là bản CV/Resume cá nhân thuộc lĩnh vực Công nghệ Thông tin. Hệ thống từ chối tính điểm kinh nghiệm (0%) và dự án (0%). Vui lòng tải lên đúng bản CV cá nhân ngành CNTT (chứa thông tin kỹ năng lập trình, dự án phần mềm và kinh nghiệm kỹ thuật) để được đánh giá chính xác.`,
+      matchedSkills: synced.matchedSkills,
+      missingSkills: synced.missingSkills,
+      strengths: synced.matchedSkills.length > 0
+        ? [`Đã tích lũy kỹ năng trong hồ sơ: ${synced.matchedSkills.join(', ')}.`]
+        : [],
+      areasToImprove: [
+        `Tệp tài liệu tải lên được nhận diện là [${docName}], không phải hồ sơ CV cá nhân ngành CNTT.`,
+        'Vui lòng tải lên đúng bản CV/Resume chuyên môn kỹ thuật có đầy đủ thông tin: kỹ năng lập trình, dự án phần mềm đã tham gia và kinh nghiệm làm việc thực tế.',
+        ...(synced.missingSkills.length > 0 ? [`Cần bổ sung các kỹ năng còn thiếu: ${synced.missingSkills.join(', ')}.`] : [])
+      ],
+      explanation: `Tệp tải lên được xác định là [${docName}]. CareerFit AI từ chối ghi nhận điểm kinh nghiệm (0%) và dự án liên quan (0%) cho tài liệu này. Tuy nhiên, hệ thống đã đối soát và ghi nhận các kỹ năng bạn đã tích lũy trong hồ sơ (${synced.matchedSkills.join(', ') || 'Chưa có'}). Vui lòng cập nhật đúng bản CV cá nhân ngành CNTT của bạn để được đánh giá đầy đủ kinh nghiệm và dự án.`
+    };
+  }
+
+  const matchResult = calculateSkillMatch(candidateSkills, requiredSkills, extractedCvText);
+  const syncedSkills = synchronizeMatchedSkills(matchResult.matchedSkills, matchResult.missingSkills, candidate, job);
+  const skillMatch = safeJobSkills.length > 0
+    ? Math.min(100, Math.round((syncedSkills.matchedSkills.length / safeJobSkills.length) * 100))
+    : matchResult.percentage;
+
+  // 2. Tính toán chính xác kinh nghiệm (Experience Fit) và Dự án (Project Relevance) thực tế
+  const cvText = String(extractedCvText || '').toLowerCase();
+  const hasCv = Boolean(extractedCvText && extractedCvText.trim().length > 30);
+
+  let projectRelevance = 0;
+  let experienceMatch = 0;
+
+  if (hasCv) {
+    // A. Project Relevance:
+    const hasProjectKeywords = /(dự án|project|hệ thống|ứng dụng|application|website|demo|github|repository|module|sản phẩm|phần mềm)/i.test(cvText);
+    const matchedSkillsInCv = safeJobSkills.filter(skill => checkSkillInCv(skill, candidateSkills, extractedCvText));
+
+    if (safeJobSkills.length > 0) {
+      const cvSkillRatio = matchedSkillsInCv.length / safeJobSkills.length;
+      projectRelevance = Math.round((cvSkillRatio * 70) + (hasProjectKeywords ? 20 : 10));
+    } else {
+      projectRelevance = hasProjectKeywords ? 50 : 25;
+    }
+    projectRelevance = Math.min(95, Math.max(15, projectRelevance));
+
+    // B. Experience Fit & Internship/Fresher Awareness:
+    const jobTitleLower = String(job.title || '').toLowerCase();
+    const jobTypeLower = String(job.jobType || '').toLowerCase();
+    const isInternOrFresher = /(intern|thực tập|fresher|trainee|học việc|mới tốt nghiệp)/i.test(jobTitleLower)
+      || /(intern|thực tập|fresher|trainee|học việc|mới tốt nghiệp)/i.test(jobTypeLower);
+
+    const hasExpKeywords = /(kinh nghiệm|experience|thực tập|intern|fresher|junior|công ty|vị trí|developer|engineer|lập trình viên|giám đốc|điều hành|quản lý|lead)/i.test(cvText);
+    const majorLower = String(candidate.major || '').toLowerCase();
+    const candidateTextLower = (cvText + ' ' + majorLower + ' ' + String(candidate.university || '').toLowerCase());
+    const isItMajor = /(công nghệ thông tin|khoa học máy tính|kỹ thuật phần mềm|hệ thống thông tin|\bse\b|\bcntt\b|\bit\b|computer science|software|fpt)/i.test(candidateTextLower);
+
+    if (isInternOrFresher) {
+      // VỊ TRÍ THỰC TẬP SINH / FRESHER: Sinh viên ngành IT/SE hoặc có kỹ năng lập trình đạt điểm kinh nghiệm nền tảng từ 45% - 85%
+      let internBase = 45 + (skillMatch * 0.3);
+      if (isItMajor) internBase += 15;
+      if (hasExpKeywords) internBase += 10;
+      experienceMatch = Math.min(85, Math.max(40, Math.round(internBase)));
+    } else {
+      let baseExp = skillMatch * 0.45;
+      if (hasExpKeywords) baseExp += 25;
+      if (isItMajor) baseExp += 20;
+      experienceMatch = Math.min(95, Math.max(0, Math.round(baseExp)));
+    }
+  } else {
+    const jobTitleLower = String(job.title || '').toLowerCase();
+    const jobTypeLower = String(job.jobType || '').toLowerCase();
+    const isInternOrFresher = /(intern|thực tập|fresher|trainee|học việc|mới tốt nghiệp)/i.test(jobTitleLower)
+      || /(intern|thực tập|fresher|trainee|học việc|mới tốt nghiệp)/i.test(jobTypeLower);
+
+    const isItMajor = /(công nghệ thông tin|khoa học máy tính|kỹ thuật phần mềm|hệ thống thông tin|\bse\b|\bcntt\b|\bit\b|computer science|software|fpt)/i.test(String(candidate.major || '').toLowerCase());
+    if (isInternOrFresher) {
+      experienceMatch = isItMajor ? 45 : 30;
+    } else {
+      experienceMatch = isItMajor ? 35 : (skillMatch > 0 ? 20 : 0);
+    }
+    projectRelevance = 15;
+  }
+
+  const overallMatch = Math.round((skillMatch * 0.5) + (experienceMatch * 0.3) + (projectRelevance * 0.2));
 
   let strengths = [];
   let areasToImprove = [];
 
-  if (matchResult.matchedSkills.length > 0) {
-    strengths.push(`Đáp ứng tốt các yêu cầu cốt lõi: ${matchResult.matchedSkills.join(', ')}.`);
+  if (syncedSkills.matchedSkills.length > 0) {
+    strengths.push(`Đáp ứng tốt các yêu cầu cốt lõi: ${syncedSkills.matchedSkills.join(', ')}.`);
   } else {
     strengths.push('Cần bổ sung thêm các kỹ năng chuyên môn phù hợp với vị trí này.');
   }
@@ -109,8 +607,8 @@ export function generateAIDeepAnalysis(candidate = {}, job = {}) {
     strengths.push(`Nền tảng đào tạo chính quy tại ${candidate.university}.`);
   }
 
-  if (matchResult.missingSkills.length > 0) {
-    areasToImprove.push(`Cần trau dồi và bổ sung kiến thức về: ${matchResult.missingSkills.join(', ')}.`);
+  if (syncedSkills.missingSkills.length > 0) {
+    areasToImprove.push(`Cần trau dồi và bổ sung kiến thức về: ${syncedSkills.missingSkills.join(', ')}.`);
   } else {
     areasToImprove.push('Bạn đã đáp ứng 100% kỹ năng kỹ thuật yêu cầu từ nhà tuyển dụng!');
   }
@@ -124,11 +622,13 @@ export function generateAIDeepAnalysis(candidate = {}, job = {}) {
     skillMatch,
     experienceMatch,
     projectRelevance,
-    matchedSkills: matchResult.matchedSkills,
-    missingSkills: matchResult.missingSkills,
+    isValidCv: true,
+    unrelatedDocumentWarning: null,
+    matchedSkills: syncedSkills.matchedSkills,
+    missingSkills: syncedSkills.missingSkills,
     strengths,
     areasToImprove,
-    explanation: `Mức độ tương thích kỹ thuật đạt ${skillMatch}% (${matchResult.matchedSkills.length}/${(requiredSkills || []).length} kỹ năng yêu cầu). Điểm tổng hợp CareerFit AI đạt ${overallMatch}% dựa trên kỹ năng, chuyên ngành và dự án trong hồ sơ.`
+    explanation: `Mức độ tương thích kỹ thuật đạt ${skillMatch}% (${syncedSkills.matchedSkills.length}/${(safeJobSkills || []).length} kỹ năng yêu cầu). Điểm tổng hợp CareerFit AI đạt ${overallMatch}% (Kinh nghiệm: ${experienceMatch}%, Dự án: ${projectRelevance}%) dựa trên hồ sơ kỹ thuật.`
   };
 }
 
@@ -664,6 +1164,181 @@ export function sanitizeRoadmapTopics(topics = []) {
 }
 
 /**
+ * Tạo danh sách bài học/chủ đề cho 1 kỹ năng cụ thể:
+ * - Ưu tiên tra cứu từ CSDL (DB_SKILL_RESOURCES)
+ * - Nếu chưa có trong CSDL -> Tự động dùng AI tra cứu nguồn học trực tuyến uy tín
+ */
+export function buildTopicsForSingleSkill(skillName, job = {}, startIndex = 1) {
+  const cleanSkill = skillName.trim();
+  const normalizedKey = normalizeVietnameseSkill(cleanSkill);
+  const strippedKey = stripVietnameseDiacritics(cleanSkill);
+
+  // 1. Tra cứu nguồn học từ CSDL (khớp chính xác hoặc khớp theo ranh giới từ)
+  let matchedResourceList = null;
+  for (const [dbKey, items] of Object.entries(DB_SKILL_RESOURCES)) {
+    const normDbKey = normalizeVietnameseSkill(dbKey);
+    const stripDbKey = stripVietnameseDiacritics(dbKey);
+
+    // Khớp chính xác hoàn toàn (hỗ trợ cả dấu và không dấu)
+    if (normalizedKey === normDbKey || strippedKey === stripDbKey) {
+      matchedResourceList = items;
+      break;
+    }
+
+    // Khớp ranh giới từ (Word Boundary) - Chỉ áp dụng với từ khóa từ 3 ký tự trở lên để tránh 'c', 'go' khớp lung tung
+    if (normDbKey.length >= 3) {
+      try {
+        const escapedNorm = normDbKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const escapedStrip = stripDbKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const wordRegex = new RegExp(`(^|[^a-z0-9])${escapedNorm}([^a-z0-9]|$)`, 'i');
+        const stripWordRegex = new RegExp(`(^|[^a-z0-9])${escapedStrip}([^a-z0-9]|$)`, 'i');
+        if (wordRegex.test(normalizedKey) || stripWordRegex.test(strippedKey)) {
+          matchedResourceList = items;
+          break;
+        }
+      } catch {
+        // Nếu regex lỗi (ký tự đặc biệt), bỏ qua và tiếp tục vòng lặp
+      }
+    }
+  }
+
+  const generated = [];
+  let curIndex = startIndex;
+  if (matchedResourceList && matchedResourceList.length > 0) {
+    matchedResourceList.forEach(item => {
+      generated.push({
+        id: `tp-p-${job.id || 'job'}-${curIndex}-${Date.now().toString(36).slice(-4)}`,
+        skillName: cleanSkill,
+        title: `${curIndex}. [${cleanSkill}] ${item.title}`,
+        completed: false,
+        estimatedTime: item.time,
+        resource: `[CSDL] ${item.resource}`,
+        url: item.url,
+        sourceType: 'DATABASE',
+        description: item.desc || `Chuyên đề củng cố kỹ năng ${cleanSkill} từ CSDL tài liệu chuẩn hóa CareerFit.`
+      });
+      curIndex++;
+    });
+  } else {
+    // 2. Kỹ năng chưa có trong CSDL -> AI tự động lên mạng tìm kiếm & xác thực nguồn học chính thức uy tín
+    const onlineTopics = resolveAIVerifiedOnlineLearningResources(cleanSkill, job, curIndex);
+    onlineTopics.forEach(ot => {
+      generated.push(ot);
+      curIndex++;
+    });
+  }
+  return generated;
+}
+
+/**
+ * Đồng bộ Roadmap cá nhân khi ứng viên cập nhật kỹ năng hoặc tải CV mới:
+ * 1. Giữ nguyên toàn bộ cấu trúc và tiến độ roadmap hiện tại.
+ * 2. Nếu kỹ năng còn thiếu GIẢM (ứng viên đã bổ sung kỹ năng mới vào profile/CV -> xuất hiện trong matchedSkills):
+ *    -> Tự động đánh dấu hoàn thành (completed = true) các bài học liên quan đến kỹ năng đó.
+ * 3. Nếu THIẾU THÊM kỹ năng mới (kỹ năng trong missingSkills chưa có bài học nào trong roadmap):
+ *    -> Tự động bổ sung các bài học cho kỹ năng mới đó vào cuối roadmap.
+ * 4. Cập nhật các chỉ số matchPercentage, matchedSkills, missingSkills của roadmap.
+ */
+export function syncPersonalJobRoadmapWithProfile(existingRoadmap, candidate = {}, job = {}) {
+  if (!existingRoadmap) return null;
+
+  const candidateSkills = candidate.skills || [];
+  const extractedCvText = candidate.extractedCvText || '';
+  const requiredSkills = Array.isArray(job.requiredSkills)
+    ? job.requiredSkills
+    : (typeof job.requiredSkills === 'string'
+        ? job.requiredSkills.split(/[,;\n]/).map(s => s.trim()).filter(Boolean)
+        : []);
+
+  const match = calculateSkillMatch(candidateSkills, requiredSkills, extractedCvText);
+  const matchedSkills = match.matchedSkills || [];
+  const missingSkills = match.missingSkills || [];
+
+  const normalizedMatched = matchedSkills.map(s => String(s).toLowerCase().trim());
+  const existingTopics = Array.isArray(existingRoadmap.topics) ? [...existingRoadmap.topics] : [];
+
+  let hasChanged = false;
+  const newlyCompletedSkills = new Set();
+  const newlyAddedSkills = new Set();
+
+  // 1. Kiểm tra các topic hiện có: Nếu kỹ năng này hiện đã ĐẠT (matched) mà topic chưa hoàn thành -> đánh dấu completed = true
+  const updatedTopics = existingTopics.map(topic => {
+    const topicSkill = String(topic.skillName || '').toLowerCase().trim();
+    if (!topicSkill) return topic;
+
+    const isNowMatched = normalizedMatched.some(ms => 
+      areSkillsEquivalent(ms, topicSkill)
+    ) || checkSkillInCv(topicSkill, candidateSkills, extractedCvText);
+
+    if (isNowMatched && !topic.completed) {
+      hasChanged = true;
+      newlyCompletedSkills.add(topic.skillName || topicSkill);
+      return {
+        ...topic,
+        completed: true,
+        autoCompletedReason: 'Đã hoàn thành do ứng viên vừa bổ sung kỹ năng vào Hồ sơ / CV'
+      };
+    } else if (!isNowMatched && topic.completed) {
+      // ĐỒNG BỘ 2 CHIỀU: Hủy đánh dấu hoàn thành nếu ứng viên không còn sở hữu kỹ năng này
+      hasChanged = true;
+      return {
+        ...topic,
+        completed: false,
+        autoCompletedReason: undefined
+      };
+    }
+    return topic;
+  });
+
+  // 2. Kiểm tra nếu có kỹ năng CÒN THIẾU MỚI (chưa hề có topic nào trong roadmap)
+  missingSkills.forEach(missingSkill => {
+    const cleanMissing = String(missingSkill).trim();
+    if (!cleanMissing) return;
+    const lowerMissing = cleanMissing.toLowerCase();
+
+    const alreadyCovered = updatedTopics.some(t => {
+      const ts = String(t.skillName || '').toLowerCase().trim();
+      return ts === lowerMissing || ts.includes(lowerMissing) || lowerMissing.includes(ts);
+    });
+
+    if (!alreadyCovered) {
+      // Bổ sung bài học mới cho kỹ năng còn thiếu
+      const newTopics = buildTopicsForSingleSkill(cleanMissing, job, updatedTopics.length + 1);
+      newTopics.forEach(nt => {
+        updatedTopics.push({
+          ...nt,
+          isNewlyAdded: true
+        });
+      });
+      hasChanged = true;
+      newlyAddedSkills.add(cleanMissing);
+    }
+  });
+
+  // 3. Chuẩn hóa lại thứ tự đánh số bài học
+  const renumberedTopics = updatedTopics.map((t, idx) => ({
+    ...t,
+    title: t.title.replace(/^\d+\.\s*/, `${idx + 1}. `)
+  }));
+
+  const updatedRoadmap = {
+    ...existingRoadmap,
+    missingSkills,
+    matchedSkills,
+    matchPercentage: match.percentage,
+    topics: renumberedTopics,
+    lastSyncedAt: new Date().toLocaleDateString('vi-VN')
+  };
+
+  return {
+    updatedRoadmap,
+    hasChanged,
+    newlyCompletedSkills: Array.from(newlyCompletedSkills),
+    newlyAddedSkills: Array.from(newlyAddedSkills)
+  };
+}
+
+/**
  * Tạo Roadmap cá nhân cho 1 công việc cụ thể (Personal Job Roadmap)
  * - Đọc danh sách kỹ năng còn thiếu của ứng viên
  * - Ưu tiên tra cứu nguồn học từ CSDL (DB_SKILL_RESOURCES)
@@ -677,7 +1352,7 @@ export function generatePersonalJobRoadmap(candidate = {}, job = {}) {
     : (typeof job.requiredSkills === 'string'
         ? job.requiredSkills.split(/[,;\n]/).map(s => s.trim()).filter(Boolean)
         : []);
-
+// tạo roadmap
   const match = calculateSkillMatch(candidateSkills, requiredSkills, extractedCvText);
   const missingSkills = match.missingSkills.length > 0
     ? match.missingSkills
@@ -687,62 +1362,11 @@ export function generatePersonalJobRoadmap(candidate = {}, job = {}) {
   let topicIndex = 1;
 
   missingSkills.forEach(skillName => {
-    const cleanSkill = skillName.trim();
-    const normalizedKey = normalizeVietnameseSkill(cleanSkill);
-    const strippedKey = stripVietnameseDiacritics(cleanSkill);
-
-    // 1. Tra cứu nguồn học từ CSDL (khớp chính xác hoặc khớp theo ranh giới từ)
-    let matchedResourceList = null;
-    for (const [dbKey, items] of Object.entries(DB_SKILL_RESOURCES)) {
-      const normDbKey = normalizeVietnameseSkill(dbKey);
-      const stripDbKey = stripVietnameseDiacritics(dbKey);
-
-      // Khớp chính xác hoàn toàn (hỗ trợ cả dấu và không dấu)
-      if (normalizedKey === normDbKey || strippedKey === stripDbKey) {
-        matchedResourceList = items;
-        break;
-      }
-
-      // Khớp ranh giới từ (Word Boundary) - Chỉ áp dụng với từ khóa từ 3 ký tự trở lên để tránh 'c', 'go' khớp lung tung
-      if (normDbKey.length >= 3) {
-        try {
-          const escapedNorm = normDbKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const escapedStrip = stripDbKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const wordRegex = new RegExp(`(^|[^a-z0-9])${escapedNorm}([^a-z0-9]|$)`, 'i');
-          const stripWordRegex = new RegExp(`(^|[^a-z0-9])${escapedStrip}([^a-z0-9]|$)`, 'i');
-          if (wordRegex.test(normalizedKey) || stripWordRegex.test(strippedKey)) {
-            matchedResourceList = items;
-            break;
-          }
-        } catch {
-          // Nếu regex lỗi (ký tự đặc biệt), bỏ qua và tiếp tục vòng lặp
-        }
-      }
-    }
-
-    if (matchedResourceList && matchedResourceList.length > 0) {
-      matchedResourceList.forEach(item => {
-        topics.push({
-          id: `tp-p-${job.id || 'job'}-${topicIndex}`,
-          skillName: cleanSkill,
-          title: `${topicIndex}. [${cleanSkill}] ${item.title}`,
-          completed: false,
-          estimatedTime: item.time,
-          resource: `[CSDL] ${item.resource}`,
-          url: item.url,
-          sourceType: 'DATABASE',
-          description: item.desc || `Chuyên đề củng cố kỹ năng ${cleanSkill} từ CSDL tài liệu chuẩn hóa CareerFit.`
-        });
-        topicIndex++;
-      });
-    } else {
-      // 2. Kỹ năng chưa có trong CSDL -> AI tự động lên mạng tìm kiếm & xác thực nguồn học chính thức uy tín
-      const onlineTopics = resolveAIVerifiedOnlineLearningResources(cleanSkill, job, topicIndex);
-      onlineTopics.forEach(ot => {
-        topics.push(ot);
-        topicIndex++;
-      });
-    }
+    const skillTopics = buildTopicsForSingleSkill(skillName, job, topicIndex);
+    skillTopics.forEach(t => {
+      topics.push(t);
+      topicIndex++;
+    });
   });
 
   return {
@@ -788,11 +1412,24 @@ export function mergeMasterRoadmap(existingPersonalRoadmaps = [], candidate = {}
 
     (rm.topics || []).forEach(tp => {
       const normalizedTitle = tp.title.replace(/^\d+\.\s*/, '').trim().toLowerCase();
-      if (!seenTitles.has(normalizedTitle)) {
+      const existing = allTopics.find(t => t.title.replace(/^\d+\.\s*/, '').trim().toLowerCase() === normalizedTitle);
+      if (existing) {
+        if (!existing.sourceTopicIds) {
+          existing.sourceTopicIds = [existing.originalId || existing.id].filter(Boolean);
+        }
+        if (tp.id && !existing.sourceTopicIds.includes(tp.id)) {
+          existing.sourceTopicIds.push(tp.id);
+        }
+        if (tp.completed) {
+          existing.completed = true;
+        }
+      } else {
         seenTitles.add(normalizedTitle);
         allTopics.push({
           ...tp,
           id: `tp-master-${allTopics.length + 1}`,
+          originalId: tp.id,
+          sourceTopicIds: [tp.id].filter(Boolean),
           title: `${allTopics.length + 1}. ${tp.title.replace(/^\d+\.\s*/, '')}`,
           completed: !!tp.completed
         });

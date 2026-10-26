@@ -24,12 +24,15 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 .or(() -> userRepository.findFirstByEmail(identifier.toLowerCase()))
                 .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy tài khoản với thông tin: " + identifier));
 
+        boolean isLocked = user.getStatus() != null && "LOCKED".equalsIgnoreCase(user.getStatus().trim());
+        boolean isInactive = user.getStatus() != null && "INACTIVE".equalsIgnoreCase(user.getStatus().trim());
+
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getId())
                 .password(user.getPasswordHash())
                 .authorities(List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole())))
-                .accountLocked("LOCKED".equals(user.getStatus()))
-                .disabled("INACTIVE".equals(user.getStatus()))
+                .accountLocked(isLocked)
+                .disabled(isInactive)
                 .build();
     }
 }

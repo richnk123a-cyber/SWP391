@@ -27,7 +27,7 @@ export function ToastContainer() {
         return (
           <div
             key={toast.id}
-            className={`p-3.5 rounded-xl shadow-xl flex items-center gap-3 text-sm animate-fadeIn ${bg}`}
+            className={`careerfit-toast p-3.5 rounded-xl shadow-xl flex items-center gap-3 text-sm animate-fadeIn ${bg}`}
           >
             {icon}
             <span className="flex-1">{toast.message}</span>

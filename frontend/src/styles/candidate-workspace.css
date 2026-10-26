@@ -1,0 +1,222 @@
+/* Workspace navigation palette. Extra scope takes precedence over legacy themes. */
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-content { background: var(--mint-canvas); padding: 32px; }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-navbar { background: #fff !important; border-bottom-color: var(--mint-border) !important; box-shadow: none; }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-navbar input { background: var(--mint-canvas); border-color: var(--mint-border); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar { background: #fff; border-right-color: var(--mint-border); box-shadow: none; }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar .sidebar-active-indicator { background: var(--mint-primary); border-color: var(--mint-primary); box-shadow: 0 4px 10px color-mix(in srgb, var(--mint-primary) 7.06%, transparent); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar .sidebar-item { color: var(--mint-muted); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar .sidebar-item > svg { color: var(--mint-muted); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar .sidebar-item:hover { background: var(--mint-soft); color: var(--mint-primary); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar .sidebar-item.is-active,
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar .sidebar-item.is-active > svg { color: #fff; }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar .sidebar-item.is-active:hover { background: transparent; }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar .sidebar-group h2 { color: var(--mint-muted); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar .sidebar-account,
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar .sidebar-career-note { border-top-color: var(--mint-border); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar .sidebar-toggle { background: #fff; border-color: var(--mint-border); color: var(--mint-muted); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-navbar .bg-blue-50 { background: var(--mint-soft); border-color: var(--mint-border); color: var(--mint-primary); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) { --primary: var(--mint-primary); --primary-hover: var(--mint-primary-hover); --primary-light: var(--mint-soft); --primary-border: var(--mint-wash); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-navbar .workspace-find-jobs { background: var(--mint-primary); box-shadow: 0 3px 9px color-mix(in srgb, var(--mint-primary) 7.84%, transparent); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-navbar .workspace-find-jobs:hover { background: var(--mint-primary-hover); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-navbar .bg-blue-600 { background: var(--mint-primary); border-color: var(--mint-wash); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-navbar .text-slate-500 { color: var(--mint-muted); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-navbar .text-slate-400 { color: var(--mint-muted); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-navbar .workspace-role-badge:hover { background: var(--mint-border); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-navbar .workspace-search { color: var(--mint-primary); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-navbar .workspace-search::placeholder { color: var(--mint-muted); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-navbar .workspace-search:focus { border-color: var(--mint-muted); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint-primary) 7.84%, transparent); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar .sidebar-heading-label,
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar .sidebar-account-copy strong,
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar .sidebar-career-note h3 { color: var(--mint-primary); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar .sidebar-career-note button,
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar .sidebar-logout { color: var(--mint-primary); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar .sidebar-career-note > span,
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar .sidebar-career-note p,
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar .sidebar-account-copy small { color: var(--mint-muted); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar .sidebar-avatar { background: var(--mint-border); color: var(--mint-primary); border-color: var(--mint-wash); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar .sidebar-item-dot { background: var(--mint-wash); }
+:is(.candidate-workspace-shell,.employer-studio-shell):is(.candidate-workspace-shell,.employer-studio-shell) .workspace-sidebar .sidebar-profile:hover { background: var(--mint-soft); }
+
+/* Shared surfaces and type rhythm across jobs, applications, learning and profile. */
+.candidate-workspace-shell {
+  --candidate-ink: var(--mint-primary-hover);
+  --candidate-muted: var(--mint-muted);
+  --candidate-line: var(--mint-border);
+  --candidate-sage: var(--mint-primary);
+  background: var(--mint-canvas);
+}
+.candidate-workspace-shell.candidate-workspace-shell :is(.job-discovery,.applications-page,.learning-page,.profile-page) {
+  max-width: 1280px; width: 100%; margin-inline: auto; color: var(--candidate-ink);
+  --profile-border: var(--candidate-line); --learning-border: var(--candidate-line); --applications-border: var(--candidate-line);
+}
+.candidate-workspace-shell.candidate-workspace-shell :is(.discovery-filters,.discovery-job-card,.applications-workspace,.profile-card,.profile-cv-card,.learning-curriculum,.learning-overview,.learning-guide) {
+  background: #fff; border-color: var(--candidate-line); border-radius: 16px; box-shadow: none;
+}
+.candidate-workspace-shell.candidate-workspace-shell :is(.discovery-job-card,.applications-row,.learning-lesson-content) { transition: border-color .2s, background .2s, box-shadow .2s; }
+.candidate-workspace-shell.candidate-workspace-shell .discovery-job-card:hover { border-color: var(--mint-mid); box-shadow: 0 6px 20px color-mix(in srgb, var(--mint-primary-hover) 3.14%, transparent); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.discovery-filter-heading,.profile-section-heading,.learning-section-header,.applications-section-heading) {
+  background: #fff; border-color: var(--candidate-line); color: var(--mint-muted);
+}
+.candidate-workspace-shell.candidate-workspace-shell :is(.profile-section-heading h2,.profile-aside-heading h2,.learning-section-header h2,.learning-card-heading h3,.applications-section-heading h2,.discovery-results-heading h2,.discovery-filter-heading h2) { color: var(--mint-primary); font-weight: 500; }
+.candidate-workspace-shell.candidate-workspace-shell :is(.profile-section-heading p,.profile-section-description,.learning-section-description,.learning-overview > small,.learning-guide p,.discovery-results-heading p,.discovery-results-note,.applications-row-date,.applications-result-info) { color: var(--candidate-muted); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.profile-kicker,.learning-kicker,.applications-kicker,.discovery-page-heading > div > span) { color: var(--mint-muted); font-size: 10px; letter-spacing: .15em; font-weight: 500; }
+.candidate-workspace-shell.candidate-workspace-shell .discovery-page-heading h1 { color: var(--mint-primary-hover); font-size: 32px; font-weight: 400; letter-spacing: -.04em; }
+.candidate-workspace-shell.candidate-workspace-shell :is(.job-discovery,.profile-page,.learning-page,.applications-page) :is(.profile-primary,.learning-primary,.applications-primary,.discovery-search-submit) {
+  background: var(--mint-primary); border-color: var(--mint-primary); color: #fff; box-shadow: none; font-weight: 500 !important; border-radius: 8px;
+}
+.candidate-workspace-shell.candidate-workspace-shell :is(.job-discovery,.profile-page,.learning-page,.applications-page) :is(.profile-primary,.learning-primary,.applications-primary,.discovery-search-submit):hover:not(:disabled) { background: var(--mint-primary-hover); border-color: var(--mint-primary-hover); box-shadow: 0 4px 12px color-mix(in srgb, var(--mint-primary) 8.24%, transparent); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.applications-link,.learning-empty button,.learning-lesson-actions a,.profile-cv-file a) { color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.profile-field input,.profile-field textarea,.profile-skills-tools label,.profile-skills-tools select,.learning-search,.applications-search,.applications-toolbar select,.discovery-sort select,.filter-field > select,.filter-salary input) {
+  background: var(--mint-canvas); border-color: var(--mint-border); color: var(--mint-primary); box-shadow: none;
+}
+.candidate-workspace-shell.candidate-workspace-shell :is(.profile-field input,.profile-field textarea,.profile-skills-tools input,.learning-search input,.applications-search input,.discovery-keyword > input,.discovery-location > input) { color: var(--mint-primary); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.profile-field label,.filter-field label,.filter-salary label,.filter-types > label,.filter-verified,.discovery-sort label,.profile-skill-categories h3) { color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell :is(input,textarea)::placeholder { color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.profile-field input,.profile-field textarea,.filter-salary input):focus { background: #fff; border-color: var(--mint-muted); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint-primary) 7.06%, transparent); }
+.candidate-workspace-shell.candidate-workspace-shell :is(button,a,input,select,textarea):focus-visible { outline: 2px solid var(--mint-muted); outline-offset: 3px; }
+
+/* A quiet abstract hero replaces the saturated blue treatments. */
+.candidate-workspace-shell.candidate-workspace-shell :is(.discovery-hero,.applications-hero,.learning-hero,.profile-hero) {
+  position: relative; isolation: isolate; overflow: hidden; border: 1px solid var(--mint-primary-hover);
+  border-radius: 20px; background: radial-gradient(ellipse at 88% 70%,color-mix(in srgb, var(--mint-primary) 33.33%, transparent),transparent 65%),linear-gradient(115deg,var(--mint-ink),var(--mint-primary-hover));
+  box-shadow: none; color: #fff; padding: 34px 38px;
+}
+.candidate-workspace-shell.candidate-workspace-shell :is(.applications-hero,.learning-hero,.profile-hero)::before {
+  content: ''; position: absolute; z-index: -1; inset: auto -70px -200px auto; width: 600px; height: 440px;
+  border: 1px solid color-mix(in srgb, var(--mint-wash) 10.2%, transparent); border-radius: 50%; transform: rotate(-28deg);
+  background: none; box-shadow: 0 0 0 40px color-mix(in srgb, var(--mint-wash) 3.14%, transparent),0 0 0 90px color-mix(in srgb, var(--mint-wash) 2.35%, transparent); pointer-events: none;
+}
+.candidate-workspace-shell.candidate-workspace-shell :is(.applications-hero h1,.learning-hero h1,.profile-hero h1,.discovery-hero h2) { color: var(--mint-soft); font-weight: 400; letter-spacing: -.035em; }
+.candidate-workspace-shell.candidate-workspace-shell :is(.learning-hero h1 span,.discovery-hero h2 > span) { color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.discovery-hero-copy > p,.applications-hero p,.learning-hero-copy > p,.profile-hero-copy > p) { color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.profile-eyebrow,.applications-eyebrow,.learning-hero .learning-kicker,.discovery-kicker,.profile-hero-copy > div,.profile-hero-summary > span,.profile-hero-summary > small,.learning-hero-progress p,.learning-hero-tags) { color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.applications-hero-meta > span,.learning-hero-tags > span) { border-color: #ffffff1c; background: #ffffff05; color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.profile-hero-summary .profile-primary,.applications-hero .applications-primary) { background: var(--mint-border); border-color: var(--mint-border); color: var(--mint-primary-hover); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.profile-hero-summary .profile-primary,.applications-hero .applications-primary):hover:not(:disabled) { background: var(--mint-soft); border-color: var(--mint-soft); }
+
+/* Jobs: green folded forms, neutral cards, legible filter controls. */
+.candidate-workspace-shell.candidate-workspace-shell .discovery-hero { padding: 34px 36px 26px; }
+.candidate-workspace-shell.candidate-workspace-shell .discovery-hero-copy { min-height: 190px; }
+.candidate-workspace-shell.candidate-workspace-shell .discovery-orbit-glow { background: radial-gradient(ellipse,color-mix(in srgb, var(--mint-muted) 14.12%, transparent),transparent 68%); filter: none; animation: discovery-glow 8s ease-in-out infinite alternate; }
+.candidate-workspace-shell.candidate-workspace-shell .discovery-orbit-ring { border-color: color-mix(in srgb, var(--mint-mid) 27.06%, transparent); box-shadow: none; animation: none; }
+.candidate-workspace-shell.candidate-workspace-shell .discovery-orbit-core { background: linear-gradient(135deg,var(--mint-primary),var(--mint-primary-hover)); border-color: color-mix(in srgb, var(--mint-mid) 39.61%, transparent); box-shadow: 9px 10px 0 var(--mint-ink),16px 22px 38px color-mix(in srgb, var(--mint-ink) 20%, transparent); }
+.candidate-workspace-shell.candidate-workspace-shell .discovery-float-card { background: linear-gradient(135deg,color-mix(in srgb, var(--mint-primary) 93.33%, transparent),color-mix(in srgb, var(--mint-primary-hover) 96.08%, transparent)); border-color: color-mix(in srgb, var(--mint-mid) 25.1%, transparent); color: var(--mint-muted); box-shadow: 0 12px 25px color-mix(in srgb, var(--mint-ink) 18.82%, transparent); animation: discovery-card-float 7s ease-in-out infinite; }
+.candidate-workspace-shell.candidate-workspace-shell .discovery-orbit-system { --discovery-sway: 24px; animation: discovery-auto-sway 7s ease-in-out infinite alternate; }
+.candidate-workspace-shell .discovery-hero-atmosphere { position: absolute; z-index: -1; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; }
+.candidate-workspace-shell .discovery-hero-light { position: absolute; inset: -60% -10% -70% 10%; background: radial-gradient(ellipse,color-mix(in srgb, var(--mint-mid) 14.12%, transparent),transparent 60%); animation: discovery-light-sway 12s ease-in-out infinite alternate; }
+.candidate-workspace-shell .discovery-motion-button { position: absolute; z-index: 6; right: 16px; top: 14px; border: 1px solid #ffffff26; border-radius: 7px; background: #ffffff06; color: var(--mint-muted); padding: 5px 8px; font-size: 9px; }
+.candidate-workspace-shell .discovery-motion-button:hover { background: #ffffff12; color: var(--mint-border); }
+.candidate-workspace-shell.candidate-workspace-shell .discovery-hero[data-motion="paused"] :is(.discovery-orbit-system,.discovery-float-card,.discovery-orbit-glow,.discovery-hero-light) { animation-play-state: paused; }
+@keyframes discovery-auto-sway { from { transform: translate3d(calc(var(--discovery-sway) * -1 + var(--banner-x,0px) * -.6), -3px, 0) rotateY(-5deg); } to { transform: translate3d(calc(var(--discovery-sway) + var(--banner-x,0px) * -.6), 3px, 0) rotateY(5deg); } }
+@keyframes discovery-light-sway { from { transform: translate3d(-5%,0,0); } to { transform: translate3d(12%,4%,0); } }
+@media(max-width:760px) { .candidate-workspace-shell.candidate-workspace-shell .discovery-orbit-system { --discovery-sway: 16px; } }
+@media(prefers-reduced-motion:reduce) { .candidate-workspace-shell .discovery-hero-atmosphere *, .candidate-workspace-shell .discovery-orbit-scene * { animation: none !important; } .candidate-workspace-shell .discovery-motion-button { display: none; } }
+.candidate-workspace-shell.candidate-workspace-shell .discovery-orbit-spark { background: var(--mint-wash); box-shadow: none; }
+.candidate-workspace-shell.candidate-workspace-shell .discovery-popular { color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell .discovery-popular button { color: var(--mint-muted); border-color: #ffffff20; }
+.candidate-workspace-shell.candidate-workspace-shell :is(.discovery-search,.discovery-location) { border-color: var(--mint-border); }
+.candidate-workspace-shell.candidate-workspace-shell .discovery-highlight { background: var(--mint-soft); border-color: var(--mint-border); }
+.candidate-workspace-shell.candidate-workspace-shell .highlight-icon { background: var(--mint-border); border-color: var(--mint-wash); color: var(--mint-muted); box-shadow: none; }
+.candidate-workspace-shell.candidate-workspace-shell .discovery-highlight h2 { color: var(--mint-primary); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.discovery-highlight p,.highlight-label) { color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.filter-score-options > button.selected,.filter-skills button.selected,.discovery-active-filters > button,.discovery-pagination button.active) { color: var(--mint-primary); background: var(--mint-soft); border-color: var(--mint-wash); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.filter-types input,.filter-verified > input) { accent-color: var(--mint-primary); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.discovery-results-heading h2 > span,.discovery-filter-heading h2 > span,.discovery-job-skills span) { color: var(--mint-muted); background: var(--mint-soft); border-color: var(--mint-border); }
+.candidate-workspace-shell.candidate-workspace-shell .discovery-job-title { color: var(--mint-primary); font-weight: 500; }
+.candidate-workspace-shell.candidate-workspace-shell :is(.discovery-job-company,.discovery-company-name,.discovery-job-facts) { color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell .discovery-company-mark { background: var(--mint-soft); border-color: var(--mint-border); color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.discovery-job-actions button,.discovery-bookmark) { border-color: var(--mint-border); color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.discovery-highlight > button,.discovery-job-actions > button:not(.discovery-bookmark)) { background: var(--mint-primary); border-color: var(--mint-primary); color: #fff; font-weight: 500; }
+.candidate-workspace-shell.candidate-workspace-shell :is(.discovery-highlight > button,.discovery-job-actions > button:not(.discovery-bookmark)):hover { background: var(--mint-primary-hover); border-color: var(--mint-primary-hover); }
+.candidate-workspace-shell.candidate-workspace-shell .discovery-float-card > span { color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell .discovery-profile-hint { background: #f3f5ef; border-color: #e1e7d9; color: var(--mint-muted); }
+
+/* Applications keep meaningful status colors against white surfaces. */
+.candidate-workspace-shell.candidate-workspace-shell .applications-metric { background: #fff; border-color: var(--mint-border); border-radius: 14px; box-shadow: none; }
+.candidate-workspace-shell.candidate-workspace-shell .applications-metric > span { min-height: 36px; align-items: flex-start; font-size: 12px; font-weight: 500; }
+.candidate-workspace-shell.candidate-workspace-shell .applications-metric > span > svg { flex-shrink: 0; }
+.candidate-workspace-shell.candidate-workspace-shell .applications-metric strong { font-weight: 400; }
+.candidate-workspace-shell.candidate-workspace-shell .applications-metric small { color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell .applications-metric.is-selected { border-color: var(--tone); background: var(--tint); }
+.candidate-workspace-shell.candidate-workspace-shell .tone-blue { --tint: var(--mint-soft); --tone: var(--mint-primary); }
+.candidate-workspace-shell.candidate-workspace-shell .tone-violet { --tint: var(--mint-soft); --tone: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell .tone-amber { --tint: #f8f4ea; --tone: #a18d60; }
+.candidate-workspace-shell.candidate-workspace-shell .tone-green { --tint: var(--mint-soft); --tone: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell .tone-rose { --tint: #f7eeef; --tone: #aa7d85; }
+.candidate-workspace-shell.candidate-workspace-shell .applications-interviews { background: #f7f4ec; border-color: #e9e2d3; }
+.candidate-workspace-shell.candidate-workspace-shell .applications-interviews .applications-section-heading { background: transparent; }
+.candidate-workspace-shell.candidate-workspace-shell .applications-interview-grid article { background: #fffdf8; border-color: #ece6d8; }
+.candidate-workspace-shell.candidate-workspace-shell .applications-row:hover { background: var(--mint-canvas); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.applications-company-mark,.applications-empty-icon) { background: var(--mint-soft); color: var(--mint-muted); border-color: var(--mint-border); }
+.candidate-workspace-shell.candidate-workspace-shell .applications-row-title strong { color: var(--mint-primary); font-weight: 500; }
+.candidate-workspace-shell.candidate-workspace-shell .applications-row-title small { color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell .applications-view-switch button[aria-pressed=true] { color: var(--mint-primary); background: var(--mint-soft); }
+.candidate-workspace-shell.candidate-workspace-shell .applications-preparation { background: var(--mint-soft); border-color: var(--mint-border); }
+
+/* Learning: progress and the next lesson share the sage accent. */
+.candidate-workspace-shell.candidate-workspace-shell .learning-mode-switch { border-color: var(--mint-border); box-shadow: none; }
+.candidate-workspace-shell.candidate-workspace-shell .learning-mode-options > button { font-weight: 500; background: var(--mint-soft); color: var(--mint-muted); box-shadow: none; border-radius: 9px; }
+.candidate-workspace-shell.candidate-workspace-shell .learning-mode-options > button[aria-pressed=true] { background: var(--mint-primary); color: #fff; }
+.candidate-workspace-shell.candidate-workspace-shell .learning-mode-options > button[aria-pressed=true] > span > span,
+.candidate-workspace-shell.candidate-workspace-shell .learning-mode-options .bg-blue-700 { background: #ffffff14; color: var(--mint-border); }
+.candidate-workspace-shell.candidate-workspace-shell .learning-hero-progress { background: #ffffff05; border-color: #ffffff20; color: var(--mint-wash); }
+.candidate-workspace-shell.candidate-workspace-shell .learning-hero-progress h2 { color: var(--mint-border); font-weight: 400; }
+.candidate-workspace-shell.candidate-workspace-shell .learning-progress-ring { background: conic-gradient(var(--mint-mid) var(--progress, 0%),#ffffff12 0); }
+.candidate-workspace-shell.candidate-workspace-shell .learning-progress-ring::before { background: var(--mint-primary-hover); }
+.candidate-workspace-shell.candidate-workspace-shell .learning-progress-ring small { color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell .learning-progress-track > i { background: var(--mint-mid); }
+.candidate-workspace-shell.candidate-workspace-shell .learning-eyebrow { color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell .learning-hero :is(.text-blue-300,.text-blue-100) { color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.learning-track-label,.learning-section-header select) { background: var(--mint-soft); border-color: var(--mint-border); color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell .learning-tabs button[aria-pressed=true] { color: var(--mint-primary); font-weight: 500; }
+.candidate-workspace-shell.candidate-workspace-shell .learning-tabs button[aria-pressed=true] span { background: var(--mint-soft); color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell .learning-lesson.is-next .learning-lesson-content { background: #f4f8f1; border-color: var(--mint-wash); box-shadow: none; }
+.candidate-workspace-shell.candidate-workspace-shell .learning-lesson.is-next .learning-step { background: var(--mint-soft); color: var(--mint-muted); border-color: var(--mint-wash); box-shadow: 0 0 0 4px #f7faf3; }
+.candidate-workspace-shell.candidate-workspace-shell .learning-lesson h3 { color: var(--mint-primary); font-weight: 500; }
+.candidate-workspace-shell.candidate-workspace-shell :is(.learning-next-label,.learning-next-icon) { background: #e7efdf; color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell .learning-lesson.is-next .learning-lesson-actions button { background: var(--mint-primary); border-color: var(--mint-primary); box-shadow: none; color: #fff; }
+.candidate-workspace-shell.candidate-workspace-shell .learning-lesson.is-complete .learning-step { background: var(--mint-soft); color: var(--mint-primary); border-color: var(--mint-wash); }
+.candidate-workspace-shell.candidate-workspace-shell .learning-lesson.is-complete .learning-lesson-content { background: var(--mint-canvas); border-color: var(--mint-border); }
+.candidate-workspace-shell.candidate-workspace-shell .learning-lesson-actions button[aria-pressed=true] { background: var(--mint-soft); border-color: var(--mint-wash); color: var(--mint-primary); font-weight: 500; }
+.candidate-workspace-shell.candidate-workspace-shell .learning-lesson-actions button[aria-pressed=true]:hover { background: var(--mint-border); border-color: var(--mint-mid); }
+.candidate-workspace-shell.candidate-workspace-shell .learning-completed-label { color: var(--mint-primary); font-weight: 500; }
+.candidate-workspace-shell.candidate-workspace-shell .learning-next-card { background: #f1f5ed; border-color: #dce5d5; }
+.candidate-workspace-shell.candidate-workspace-shell .learning-next-card h2 { color: var(--mint-primary); font-weight: 500; }
+.candidate-workspace-shell.candidate-workspace-shell :is(.learning-next-card > p,.learning-next-duration,.learning-overview > p) { color: var(--mint-muted); }
+
+/* Profile: calm form surfaces and a clear save action. */
+.candidate-workspace-shell.candidate-workspace-shell .profile-avatar { background: var(--mint-primary); border-color: color-mix(in srgb, var(--mint-mid) 25.1%, transparent); color: var(--mint-border); box-shadow: none; }
+.candidate-workspace-shell.candidate-workspace-shell .profile-avatar > span { color: var(--mint-border); }
+.candidate-workspace-shell.candidate-workspace-shell .profile-section-icon { background: var(--mint-soft); color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell .profile-field > span { color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.profile-aside-heading,.profile-cv-file button) { color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell .profile-cv-file button { border-color: var(--mint-border); }
+.candidate-workspace-shell.candidate-workspace-shell .profile-avatar button { background: var(--mint-border); color: var(--mint-muted); border-color: var(--mint-wash); }
+.candidate-workspace-shell.candidate-workspace-shell .profile-progress > i { background: var(--mint-mid); }
+.candidate-workspace-shell.candidate-workspace-shell .profile-hero-summary strong { color: var(--mint-border); }
+.candidate-workspace-shell.candidate-workspace-shell .profile-section-number { color: var(--mint-muted); background: #f2f6ef; border-color: var(--mint-border); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.profile-selected-skills,.profile-savebar) { background: var(--mint-soft); border-color: var(--mint-border); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.profile-selected-skills > span,.profile-selected-skills p,.profile-savebar small) { color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell .profile-selected-skills > div > span { color: var(--mint-muted); border-color: var(--mint-border); }
+.candidate-workspace-shell.candidate-workspace-shell .profile-skill-categories button:hover:not(:disabled) { background: #f0f5ec; border-color: var(--mint-wash); color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell .profile-skill-categories button:disabled { background: #f4f7f0; color: var(--mint-muted); border-color: var(--mint-border); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.profile-dropzone,.profile-cv-file) { background: var(--mint-canvas); border-color: var(--mint-border); }
+.candidate-workspace-shell.candidate-workspace-shell .profile-dropzone:hover { background: var(--mint-soft); border-color: var(--mint-mid); }
+.candidate-workspace-shell.candidate-workspace-shell .profile-dropzone > span { color: var(--mint-muted); background: var(--mint-soft); }
+.candidate-workspace-shell.candidate-workspace-shell .profile-dropzone strong { color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell :is(.profile-cv-note,.profile-cv-file p,.profile-dropzone p,.profile-dropzone small,.profile-savebar p) { color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell .profile-checklist { background: var(--mint-soft); border-color: var(--mint-border); }
+.candidate-workspace-shell.candidate-workspace-shell .profile-ai-card { background: var(--mint-primary-hover); border-color: var(--mint-primary); }
+.candidate-workspace-shell.candidate-workspace-shell .profile-ai-card h2 { color: var(--mint-border); font-weight: 400; }
+.candidate-workspace-shell.candidate-workspace-shell .profile-ai-card p { color: var(--mint-muted); }
+.candidate-workspace-shell.candidate-workspace-shell .profile-ai-card button { background: var(--mint-border); color: var(--mint-muted); border-color: var(--mint-wash); }
+
+@media (max-width: 800px) {
+  .candidate-workspace-shell.candidate-workspace-shell :is(.discovery-hero,.applications-hero,.learning-hero,.profile-hero) { padding: 28px; }
+}
+@media (max-width: 550px) {
+  .candidate-workspace-shell.candidate-workspace-shell :is(.discovery-hero,.applications-hero,.learning-hero,.profile-hero) { padding: 26px 22px; border-radius: 16px; }
+  .candidate-workspace-shell.candidate-workspace-shell .discovery-page-heading h1 { font-size: 27px; }
+  .candidate-workspace-shell.candidate-workspace-shell .learning-mode-options { width: 100%; }
+  .candidate-workspace-shell.candidate-workspace-shell .learning-mode-options > button { flex: 1 1 100%; justify-content: flex-start; }
+}

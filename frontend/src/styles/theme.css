@@ -1,0 +1,162 @@
+/* CareerFit mint palette. Reference swatch: #ABF9C8. */
+:root {
+  --mint-base: #abf9c8;
+  --mint-hero-start: #ccf3d3;
+  --mint-hero-end: #edf8e7;
+  --mint-sidebar: #eaf5e7;
+  --mint-selected: #c6edcb;
+  --mint-canvas: #f3f8ef;
+  --mint-soft: #eaf5e7;
+  --mint-wash: #dcefd8;
+  --mint-border: #cfe0ca;
+  --mint-mid: #98b797;
+  --mint-muted: #5b6c5b;
+  --mint-primary: #2d664c;
+  --mint-primary-hover: #214f3a;
+  --mint-ink: #28352b;
+}
+
+@theme {
+  --font-display: 'Inter', sans-serif;
+  --color-background: #f3f8ef;
+  --color-blue-50: #f3f8ef;
+  --color-blue-100: #eaf5e7;
+  --color-blue-200: #d4e9ce;
+  --color-blue-300: #bce9c1;
+  --color-blue-400: #8cbd96;
+  --color-blue-500: #4b8960;
+  --color-blue-600: #2d664c;
+  --color-blue-700: #214f3a;
+  --color-blue-800: #254b36;
+  --color-blue-900: #233c2c;
+  --color-blue-950: #17291d;
+  --color-indigo-50: #f3f8ef;
+  --color-indigo-100: #eaf5e7;
+  --color-indigo-200: #d4e9ce;
+  --color-indigo-300: #bce9c1;
+  --color-indigo-400: #8cbd96;
+  --color-indigo-500: #4b8960;
+  --color-indigo-600: #2d664c;
+  --color-indigo-700: #214f3a;
+  --color-indigo-800: #254b36;
+  --color-indigo-900: #233c2c;
+  --color-indigo-950: #17291d;
+  --color-cyan-50: #f3f8ef;
+  --color-cyan-100: #eaf5e7;
+  --color-cyan-200: #d4e9ce;
+  --color-cyan-300: #bce9c1;
+  --color-cyan-400: #8cbd96;
+  --color-cyan-500: #4b8960;
+  --color-cyan-600: #2d664c;
+  --color-cyan-700: #214f3a;
+  --color-cyan-800: #254b36;
+  --color-cyan-900: #233c2c;
+  --color-cyan-950: #17291d;
+  --color-teal-50: #f3f8ef;
+  --color-teal-100: #eaf5e7;
+  --color-teal-200: #d4e9ce;
+  --color-teal-300: #bce9c1;
+  --color-teal-400: #8cbd96;
+  --color-teal-500: #4b8960;
+  --color-teal-600: #2d664c;
+  --color-teal-700: #214f3a;
+  --color-teal-800: #254b36;
+  --color-teal-900: #233c2c;
+  --color-teal-950: #17291d;
+  --color-emerald-50: #f3f8ef;
+  --color-emerald-100: #eaf5e7;
+  --color-emerald-200: #d4e9ce;
+  --color-emerald-300: #bce9c1;
+  --color-emerald-400: #8cbd96;
+  --color-emerald-500: #4b8960;
+  --color-emerald-600: #2d664c;
+  --color-emerald-700: #214f3a;
+  --color-emerald-800: #254b36;
+  --color-emerald-900: #233c2c;
+  --color-emerald-950: #17291d;
+  --color-green-50: #f3f8ef;
+  --color-green-100: #eaf5e7;
+  --color-green-200: #d4e9ce;
+  --color-green-300: #bce9c1;
+  --color-green-400: #8cbd96;
+  --color-green-500: #4b8960;
+  --color-green-600: #2d664c;
+  --color-green-700: #214f3a;
+  --color-green-800: #254b36;
+  --color-green-900: #233c2c;
+  --color-green-950: #17291d;
+  --color-violet-50: #f3f8ef;
+  --color-violet-100: #eaf5e7;
+  --color-violet-200: #d4e9ce;
+  --color-violet-300: #bce9c1;
+  --color-violet-400: #8cbd96;
+  --color-violet-500: #4b8960;
+  --color-violet-600: #2d664c;
+  --color-violet-700: #214f3a;
+  --color-violet-800: #254b36;
+  --color-violet-900: #233c2c;
+  --color-violet-950: #17291d;
+  --color-purple-50: #f3f8ef;
+  --color-purple-100: #eaf5e7;
+  --color-purple-200: #d4e9ce;
+  --color-purple-300: #bce9c1;
+  --color-purple-400: #8cbd96;
+  --color-purple-500: #4b8960;
+  --color-purple-600: #2d664c;
+  --color-purple-700: #214f3a;
+  --color-purple-800: #254b36;
+  --color-purple-900: #233c2c;
+  --color-purple-950: #17291d;
+  --color-slate-50: #f7f9f8;
+  --color-slate-100: #f0f3f1;
+  --color-slate-200: #e0e6e2;
+  --color-slate-300: #c8d2cb;
+  --color-slate-400: #87968c;
+  --color-slate-500: #65746b;
+  --color-slate-600: #526157;
+  --color-slate-700: #3e4e44;
+  --color-slate-800: #303f35;
+  --color-slate-900: #24332a;
+  --color-slate-950: #16231b;
+  --color-gray-50: #f7f9f8;
+  --color-gray-100: #f0f3f1;
+  --color-gray-200: #e0e6e2;
+  --color-gray-300: #c8d2cb;
+  --color-gray-400: #87968c;
+  --color-gray-500: #65746b;
+  --color-gray-600: #526157;
+  --color-gray-700: #3e4e44;
+  --color-gray-800: #303f35;
+  --color-gray-900: #24332a;
+  --color-gray-950: #16231b;
+  --color-zinc-50: #f7f9f8;
+  --color-zinc-100: #f0f3f1;
+  --color-zinc-200: #e0e6e2;
+  --color-zinc-300: #c8d2cb;
+  --color-zinc-400: #87968c;
+  --color-zinc-500: #65746b;
+  --color-zinc-600: #526157;
+  --color-zinc-700: #3e4e44;
+  --color-zinc-800: #303f35;
+  --color-zinc-900: #24332a;
+  --color-zinc-950: #16231b;
+}
+
+@keyframes fade-rise {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-rise,
+.animate-fade-rise-delay,
+.animate-fade-rise-delay-2 {
+  animation: fade-rise .8s ease-out both;
+}
+.animate-fade-rise-delay { animation-delay: .2s; }
+.animate-fade-rise-delay-2 { animation-delay: .4s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-rise,
+  .animate-fade-rise-delay,
+  .animate-fade-rise-delay-2 { animation: none; }
+}

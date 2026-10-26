@@ -1,3 +1,4 @@
+import { EmployerPageHeader } from '../employer/EmployerPageHeader';
 import React, { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { employerApi } from '../../services/apiService';
@@ -378,8 +379,8 @@ export function EmployerRegister() {
   </div>;
 
   return (
-    <div className={`candidate-onboarding employer-register ${isEmployerUser ? 'employer-verification-page' : ''}`}>
-      <header className="candidate-intro"><p className="candidate-eyebrow">Dành cho doanh nghiệp</p><h1>{isEmployerUser ? 'Xác minh doanh nghiệp' : 'Đăng ký tài khoản Nhà tuyển dụng'}</h1><p>{isEmployerUser ? 'Quản lý thông tin pháp lý và trạng thái xác minh của doanh nghiệp.' : 'Tạo tài khoản để quản lý hồ sơ doanh nghiệp và tuyển dụng nhân sự công nghệ.'}</p></header>
+    <div className={`candidate-onboarding employer-register ${isEmployerUser ? 'employer-page hiring-verification-page' : ''}`}>
+      {isEmployerUser ? <EmployerPageHeader eyebrow="UY TÍN BẮT ĐẦU TỪ MINH BẠCH" title="Xác minh doanh nghiệp" description="Quản lý thông tin pháp lý và trạng thái xác minh của doanh nghiệp." /> : (<header className="candidate-intro"><p className="candidate-eyebrow">Dành cho doanh nghiệp</p><h1>{isEmployerUser ? 'Xác minh doanh nghiệp' : 'Đăng ký tài khoản Nhà tuyển dụng'}</h1><p>{isEmployerUser ? 'Quản lý thông tin pháp lý và trạng thái xác minh của doanh nghiệp.' : 'Tạo tài khoản để quản lý hồ sơ doanh nghiệp và tuyển dụng nhân sự công nghệ.'}</p></header>)}
       {activeProfile && <nav className="employer-tabs" aria-label="Hồ sơ doanh nghiệp"><button type="button" aria-current={activeTab === 'register' ? 'page' : undefined} onClick={() => setActiveTab('register')}>Thông tin đăng ký</button><button type="button" aria-current={activeTab === 'status' ? 'page' : undefined} onClick={() => setActiveTab('status')}>Trạng thái xác minh</button></nav>}
       {activeTab === 'register' && <form noValidate onSubmit={handleNewRegistration} className="candidate-form-card employer-form">
         <section>
@@ -389,7 +390,7 @@ export function EmployerRegister() {
             {isEmployerUser ? (
               <div className="form-group">
                 <label className="form-label">Email tài khoản</label>
-                <input className="form-control" type="email" value={currentUser?.email || formData.email} readOnly disabled style={{background:'#f8f9fa',cursor:'not-allowed',color:'#6c757d'}} />
+                <input className="form-control" type="email" value={currentUser?.email || formData.email} readOnly disabled style={{background:'var(--mint-canvas)',cursor:'not-allowed',color:'var(--mint-muted)'}} />
                 <p className="candidate-input-hint">Email liên kết với tài khoản hiện tại của bạn.</p>
               </div>
             ) : field('email', 'Email c\u00f4ng vi\u1ec7c', 'V\u00ed d\u1ee5: hr@congty.vn', 'email', true)}
@@ -427,10 +428,8 @@ export function EmployerRegister() {
         <div className="space-y-6">
           {/* 1. IF VERIFIED: SHOW VERIFIED CARD */}
           {isVerified && (
-            <div className="verification-result-card bg-white rounded-3xl border border-slate-200 p-8 shadow-sm text-center space-y-5">
-              <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto border border-emerald-200 shadow-inner">
-                <CheckCircle2 size={36} />
-              </div>
+            <div className="hiring-verification-result verification-result-card bg-white rounded-3xl border border-slate-200 p-8 shadow-sm text-center space-y-5">
+              <p className="hiring-verified-caption">HỒ SƠ ĐÃ ĐƯỢC XÁC MINH</p>
 
               <div className="max-w-md mx-auto space-y-2">
                 <div className="flex items-center justify-center gap-2">

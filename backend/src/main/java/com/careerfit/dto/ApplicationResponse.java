@@ -19,4 +19,5 @@ public class ApplicationResponse {
     private String interviewTime;
     private String meetingLink;
     private String interviewNote;
+    private InterviewDetailsDto interviewDetails;
 }

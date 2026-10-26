@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/dev")
 @RequiredArgsConstructor
+@org.springframework.context.annotation.Profile("dev")
 public class DevAuthController {
 
     private final UserRepository userRepository;

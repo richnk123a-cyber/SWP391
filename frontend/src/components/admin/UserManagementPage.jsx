@@ -13,11 +13,13 @@ import {
   AlertCircle,
   X,
   ShieldCheck,
-  Building2
+  Building2,
+  RefreshCw
 } from 'lucide-react';
 
 export function UserManagementPage() {
-  const { usersDB, toggleLockUser, showToast } = useApp();
+  const { usersDB, toggleLockUser, showToast, refreshAdminUsers } = useApp();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
@@ -27,22 +29,34 @@ export function UserManagementPage() {
   const [lockingUser, setLockingUser] = useState(null);
   const [lockReason, setLockReason] = useState('');
 
-  // Metrics
-  const totalUsersCount = usersDB.length;
-  const candidatesCount = usersDB.filter(u => u.role === 'CANDIDATE').length;
-  const employersCount = usersDB.filter(u => u.role === 'EMPLOYER').length;
-  const lockedUsersCount = usersDB.filter(u => u.status === 'LOCKED').length;
+  // Tự động tải danh sách người dùng từ CSDL khi mở trang
+  React.useEffect(() => {
+    if (typeof refreshAdminUsers === 'function') {
+      refreshAdminUsers();
+    }
+  }, [refreshAdminUsers]);
+
+  // Metrics (an toàn với dữ liệu thực từ CSDL)
+  const userList = Array.isArray(usersDB) ? usersDB : [];
+  const totalUsersCount = userList.length;
+  const candidatesCount = userList.filter(u => u && (u.role === 'CANDIDATE' || u.role === 'ROLE_CANDIDATE')).length;
+  const employersCount = userList.filter(u => u && (u.role === 'EMPLOYER' || u.role === 'ROLE_EMPLOYER')).length;
+  const lockedUsersCount = userList.filter(u => u && u.status === 'LOCKED').length;
 
   // Filtered List
-  const filteredUsers = usersDB.filter(u => {
+  const filteredUsers = userList.filter(u => {
+    if (!u) return false;
     const q = searchQuery.toLowerCase().trim();
+    const emailStr = (u.email || '').toLowerCase();
+    const userStr = (u.username || '').toLowerCase();
+    const nameStr = (u.fullName || '').toLowerCase();
     const matchesSearch =
       !q ||
-      u.email.toLowerCase().includes(q) ||
-      (u.username && u.username.toLowerCase().includes(q)) ||
-      (u.fullName && u.fullName.toLowerCase().includes(q));
+      emailStr.includes(q) ||
+      userStr.includes(q) ||
+      nameStr.includes(q);
 
-    const matchesRole = roleFilter === 'ALL' || u.role === roleFilter;
+    const matchesRole = roleFilter === 'ALL' || u.role === roleFilter || u.role === `ROLE_${roleFilter}`;
     const matchesStatus = statusFilter === 'ALL' || u.status === statusFilter;
 
     return matchesSearch && matchesRole && matchesStatus;
@@ -82,6 +96,19 @@ export function UserManagementPage() {
             Giám sát danh sách tài khoản hệ thống, phân quyền vai trò và quản lý trạng thái khóa/mở khóa tài khoản.
           </p>
         </div>
+        <button
+          onClick={async () => {
+            setIsRefreshing(true);
+            await refreshAdminUsers();
+            setIsRefreshing(false);
+            showToast('Đã đồng bộ danh sách người dùng từ cơ sở dữ liệu!', 'success');
+          }}
+          disabled={isRefreshing}
+          className="btn btn-secondary text-sm font-semibold h-10 px-4 rounded-lg flex items-center gap-2 border border-slate-200 shadow-2xs hover:bg-slate-50 cursor-pointer shrink-0 disabled:opacity-60"
+        >
+          <RefreshCw size={15} className={isRefreshing ? 'animate-spin' : ''} />
+          {isRefreshing ? 'Đang đồng bộ...' : 'Đồng bộ từ CSDL'}
+        </button>
       </div>
 
       {/* 2. KPI Summary Cards */}
@@ -237,7 +264,7 @@ export function UserManagementPage() {
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-700 font-bold flex items-center justify-center text-xs shrink-0">
-                          {(u.fullName || u.username || u.email).charAt(0).toUpperCase()}
+                          {((u.fullName || u.username || u.email || "U").charAt(0)).toUpperCase()}
                         </div>
                         <div>
                           <p className="font-bold text-slate-900">{u.fullName || u.username}</p>
@@ -333,7 +360,7 @@ export function UserManagementPage() {
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-base">
-                  {(viewingUser.fullName || viewingUser.username || viewingUser.email).charAt(0).toUpperCase()}
+                  {((viewingUser.fullName || viewingUser.username || viewingUser.email || "U").charAt(0)).toUpperCase()}
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">{viewingUser.fullName || viewingUser.username}</h3>

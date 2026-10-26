@@ -1,22 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import {
-  Search,
-  PlusCircle,
-  Briefcase,
-  Layers,
-  Menu,
-  ChevronRight,
-  Command
-} from 'lucide-react';
+import { Search, Briefcase, Layers, Menu, ChevronRight, Command } from 'lucide-react';
 import { NotificationDropdown } from './NotificationDropdown';
 import { ProfileDropdown } from './ProfileDropdown';
 import { RegisterRoleModal } from '../auth/RegisterRoleModal';
+import { BrandLogo } from './BrandLogo';
 import '../auth/LoginPage.css';
 
 export function Navbar() {
   const {
     currentUser,
+    employerProfile,
     activePage,
     setActivePage,
     toggleMobileDrawer,
@@ -29,9 +23,10 @@ export function Navbar() {
   const searchInputRef = useRef(null);
 
   const openPublicHome = () => {
-    window.history.replaceState({}, '', '/');
     setActivePage('home');
   };
+
+  const isCinematicPage = ['home', 'login'].includes(activePage);
 
   useEffect(() => {
     setGlobalSearch(globalSearchQuery || '');
@@ -53,7 +48,7 @@ export function Navbar() {
     e.preventDefault();
     setGlobalSearchQuery(globalSearch);
     if (!currentUser || currentUser.role === 'CANDIDATE') {
-      setActivePage('job-search');
+      setActivePage('job-search', { query: { keyword: globalSearch.trim() } });
     } else if (currentUser.role === 'EMPLOYER') {
       setActivePage('applicant-management');
     } else if (currentUser.role === 'ADMIN') {
@@ -85,9 +80,10 @@ export function Navbar() {
       case 'learning-roadmap': return 'Lộ trình học tập';
       case 'candidate-security':
       case 'employer-security':
-      case 'admin-security': return 'Bảo mật';
+      case 'admin-security': return 'Cài đặt tài khoản';
       case 'application-kanban': return 'Quản lý Ứng tuyển';
-      case 'employer-dashboard': return 'Employer Dashboard';
+      case 'employer-dashboard': return 'Tổng quan tuyển dụng';
+      case 'employer-register': return 'Xác minh doanh nghiệp';
       case 'job-management': return 'Quản lý tin đăng';
       case 'create-job': return 'Đăng tin mới';
       case 'applicant-management': return 'Quản lý Ứng viên';
@@ -106,14 +102,19 @@ export function Navbar() {
 
   if (!currentUser) {
     return (
-      <header className="login-header">
+      <header className={`login-header ${isCinematicPage ? 'login-header--cinematic' : ''}`}>
         <div className="login-header-inner">
           <button type="button" className="login-brand" onClick={openPublicHome} aria-label="CareerFit — Trang chủ">
-            <img className="login-brand-mark" src="/careerfit-logo.svg" alt="" aria-hidden="true" />
-            <span>CareerFit</span>
+            <BrandLogo />
           </button>
+          {isCinematicPage && <nav className="public-navigation" aria-label="Điều hướng chính">
+            <button type="button" aria-current={activePage === 'home' ? 'page' : undefined} onClick={openPublicHome}>Trang chủ</button>
+            <button type="button" onClick={() => setActivePage('job-search')}>Việc làm</button>
+            <a className="public-navigation-about" href="/#careerfit-opportunities">Khám phá</a>
+            <button type="button" className="public-navigation-employer" onClick={() => setActivePage('employer-register')}>Doanh nghiệp</button>
+          </nav>}
           <div className="login-header-actions">
-            <button type="button" className="login-register" aria-current={activePage === 'login' ? 'page' : undefined} onClick={() => setActivePage('login')}>Đăng nhập</button>
+            <button type="button" className="login-register" aria-current={activePage === 'login' ? 'page' : undefined} onClick={() => setActivePage(activePage === 'login' ? 'home' : 'login')}>{activePage === 'login' ? 'Về trang chủ' : 'Đăng nhập'}{isCinematicPage && <ChevronRight size={14} aria-hidden="true" />}</button>
 
           </div>
         </div>
@@ -139,8 +140,10 @@ export function Navbar() {
           )}
 
           {/* Product Logo & Brand */}
-          <div
+          <button
+            type="button"
             className="flex items-center gap-2 cursor-pointer"
+            aria-label="CareerFit — Trang tổng quan"
             onClick={() => {
               if (!currentUser) openPublicHome();
               else if (currentUser.role === 'CANDIDATE') setActivePage('candidate-dashboard');
@@ -148,11 +151,8 @@ export function Navbar() {
               else if (currentUser.role === 'ADMIN') setActivePage('admin-dashboard');
             }}
           >
-            <img src="/careerfit-logo.svg" alt="" aria-hidden="true" className="w-8 h-8 shrink-0" />
-            <span className="text-base font-black text-slate-900 tracking-tight">
-              CareerFit
-            </span>
-          </div>
+            <BrandLogo />
+          </button>
 
           {/* Public Nav Links (next to logo, matching design) */}
           {!currentUser && (
@@ -187,7 +187,7 @@ export function Navbar() {
                   else if (currentUser.role === 'EMPLOYER') setActivePage('employer-dashboard');
                   else setActivePage('admin-dashboard');
                 }}
-                className="px-2 py-0.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold text-[10px] uppercase tracking-wider border border-blue-200/80 transition-colors"
+                className="workspace-role-badge px-2 py-0.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold text-[10px] uppercase tracking-wider border border-blue-200/80 transition-colors"
               >
                 {{ CANDIDATE: 'Ứng viên', EMPLOYER: 'Nhà tuyển dụng', ADMIN: 'Quản trị viên' }[currentUser.role]}
               </button>
@@ -209,7 +209,7 @@ export function Navbar() {
                 <input
                   ref={searchInputRef}
                   type="text"
-                  className="w-full pl-9 pr-14 py-2 text-xs font-medium bg-slate-100/80 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all placeholder:text-slate-400"
+                  className="workspace-search w-full pl-9 pr-14 py-2 text-xs font-medium bg-slate-100/80 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all placeholder:text-slate-400"
                   placeholder={getPlaceholderText()}
                   value={globalSearch}
                   onChange={(e) => setGlobalSearch(e.target.value)}
@@ -247,15 +247,16 @@ export function Navbar() {
               {currentUser.role === 'EMPLOYER' && (
                 <button
                   onClick={() => setActivePage('create-job')}
+                  disabled={employerProfile?.verificationStatus !== 'Verified'}
                   className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-all shadow-xs hover:-translate-y-0.5 hidden sm:flex items-center gap-1.5"
                 >
-                  <PlusCircle size={15} /> Đăng tin mới
+                  Đăng tin mới
                 </button>
               )}
               {currentUser.role === 'CANDIDATE' && (
                 <button
                   onClick={() => setActivePage('job-search')}
-                  className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-all shadow-xs hover:-translate-y-0.5 hidden sm:flex items-center gap-1.5"
+                  className="workspace-find-jobs px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-all shadow-xs hover:-translate-y-0.5 hidden sm:flex items-center gap-1.5"
                 >
                   <Briefcase size={15} /> Tìm việc ngay
                 </button>

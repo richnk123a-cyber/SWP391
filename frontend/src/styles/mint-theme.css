@@ -1,0 +1,171 @@
+/* Shared visual treatment. Palette and Tailwind shades live in theme.css. */
+:root {
+  --primary: var(--mint-primary);
+  --primary-hover: var(--mint-primary-hover);
+  --primary-dark: var(--mint-ink);
+  --primary-light: var(--mint-soft);
+  --primary-border: var(--mint-border);
+  --accent-purple: var(--mint-primary);
+  --accent-cyan: var(--mint-primary);
+  --bg-secondary: var(--mint-canvas);
+  --bg-tertiary: var(--mint-soft);
+  --text-main: var(--mint-ink);
+  --text-muted: var(--mint-muted);
+  --text-secondary: var(--mint-muted);
+  --border-color: var(--mint-border);
+  --border-hover: var(--mint-mid);
+}
+
+body { background: var(--mint-canvas); }
+::selection { background: var(--mint-base); color: var(--mint-ink); }
+:root :is(input, textarea, select) { accent-color: var(--mint-primary); }
+:root .workspace-shell,
+:root .workspace-shell .workspace-content { background: var(--mint-canvas); color: var(--mint-ink); }
+:root .workspace-shell .workspace-navbar {
+  background: #ffffffed !important;
+  border-bottom-color: var(--mint-border) !important;
+  box-shadow: 0 2px 14px #163d2b05;
+}
+:root .workspace-shell .workspace-navbar input { background: #f6faf3; border-color: var(--mint-border); color: var(--mint-ink); }
+:root .workspace-shell .workspace-sidebar { background: var(--mint-sidebar); border-right-color: var(--mint-border); }
+:root .workspace-shell .workspace-sidebar .sidebar-active-indicator { background: var(--mint-soft); border-color: var(--mint-border); box-shadow: 0 3px 10px #176b4709; }
+:root .workspace-shell .workspace-sidebar :is(.sidebar-item.is-active, .sidebar-item.is-active > svg) { color: var(--mint-ink); }
+:root .workspace-shell .workspace-sidebar .sidebar-item:hover { background: var(--mint-wash); color: var(--mint-ink); }
+:root .workspace-shell .workspace-sidebar .sidebar-item.is-active:hover { background: transparent; color: var(--mint-ink); }
+:root .workspace-shell .workspace-sidebar :is(.sidebar-item, .sidebar-item > svg, .sidebar-group h2, .sidebar-heading-label, .sidebar-account-copy small, .sidebar-career-note > span, .sidebar-career-note p) { color: var(--mint-muted); }
+:root .workspace-shell .workspace-sidebar .sidebar-item.is-active > svg { color: var(--mint-ink); }
+:root .workspace-shell .workspace-sidebar .sidebar-item-dot { background: var(--mint-primary); }
+:root .workspace-shell .workspace-sidebar .sidebar-item.is-active {
+  background: var(--mint-selected);
+  box-shadow: inset 3px 0 var(--mint-primary);
+  color: var(--mint-primary-hover);
+  font-weight: 600;
+}
+:root .workspace-shell .workspace-sidebar .sidebar-item.is-active:hover { background: var(--mint-wash); }
+:root .workspace-shell .workspace-sidebar .sidebar-item { height: 44px; border-radius: 9px; }
+:root .workspace-shell :is(.studio-stat:first-child, .hiring-metric:first-child) { background: linear-gradient(135deg, #e2f5df, #f7fcf4); border-color: var(--mint-border); }
+:root .workspace-shell :is(.studio-stat, .hiring-metric, .applications-metric):hover { background: #edf8e8; border-color: #a9cba6; }
+:root .workspace-shell :is(.profile-section-heading, .learning-section-header, .applications-section-heading, .hiring-panel-heading, .discovery-filter-heading) { background: #f5faf1; }
+
+/* Pastel hero panels keep the same hierarchy in all three workspaces. */
+:root .workspace-shell :is(.studio-hero, .studio-hero-atmosphere, .hiring-hero, .discovery-hero, .applications-hero, .learning-hero, .profile-hero, .security-hero, .hiring-company-banner, .candidate-career-banner) {
+  background: radial-gradient(ellipse at 90% 10%, #ffffff70, transparent 60%), linear-gradient(115deg, var(--mint-hero-start), var(--mint-hero-end));
+  border-color: var(--mint-border);
+  color: var(--mint-ink);
+  box-shadow: 0 6px 24px #176b4706;
+}
+:root .workspace-shell :is(.studio-hero, .hiring-hero, .discovery-hero, .applications-hero, .learning-hero, .profile-hero) :is(h1, h2) { font-weight: 550; line-height: 1.3; }
+:root .workspace-shell :is(.applications-hero, .learning-hero) { gap: 28px; }
+:root .workspace-shell :is(.applications-eyebrow, .learning-eyebrow, .profile-eyebrow) { background: none; border: 0; padding: 0; color: var(--mint-primary); font-size: 10px; letter-spacing: .12em; }
+:root .workspace-shell :is(.applications-hero-meta, .learning-hero-tags) { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 22px; }
+:root .workspace-shell :is(.applications-hero-meta, .learning-hero-tags) > span { display: inline-flex; align-items: center; gap: 7px; min-height: 32px; padding: 6px 11px; border: 1px solid var(--mint-border); border-radius: 8px; background: #ffffffb8; color: var(--mint-muted); font-size: 12px; line-height: 1.5; max-width: 100%; }
+:root .workspace-shell :is(.applications-hero-meta, .learning-hero-tags) > span > svg { flex-shrink: 0; color: var(--mint-primary); }
+:root .workspace-shell .learning-hero-copy { min-width: 0; flex: 1; }
+:root .workspace-shell .learning-hero-progress { flex: 0 0 300px; padding: 22px; background: white; box-shadow: 0 4px 16px #25332c05; }
+:root .workspace-shell .learning-hero-tags > button { background: white; border: 1px solid var(--mint-border); color: var(--mint-primary); min-height: 32px; }
+:root .workspace-shell :is(.studio-hero, .hiring-hero, .discovery-hero, .applications-hero, .learning-hero, .profile-hero, .security-hero, .hiring-company-banner, .candidate-career-banner) :is(h1, h2, h3, .hiring-hero-message, .hiring-hero-message > span, .profile-hero-summary strong, .hiring-recruiter strong, .studio-goal-details strong) { color: var(--mint-ink); }
+:root .workspace-shell :is(.studio-hero, .hiring-hero, .discovery-hero, .applications-hero, .learning-hero, .profile-hero, .security-hero, .hiring-company-banner, .candidate-career-banner) :is(p, small, .studio-goal-label, .studio-goal-details, .studio-orbit-caption, .hiring-kicker, .hiring-company-meta, .hiring-hero-caption, .profile-eyebrow, .discovery-kicker, .applications-eyebrow, .learning-kicker, .profile-hero-summary > span, .learning-hero-tags, .security-kicker) { color: var(--mint-muted); }
+:root .workspace-shell :is(.studio-hero-primary, .hiring-button--light, .applications-hero .applications-primary, .profile-hero-summary .profile-primary, .career-banner-actions button:first-child) { background: var(--mint-primary); border-color: var(--mint-primary); color: white; }
+:root .workspace-shell :is(.studio-hero-primary, .hiring-button--light, .applications-hero .applications-primary, .profile-hero-summary .profile-primary, .career-banner-actions button:first-child):hover:not(:disabled) { background: var(--mint-primary-hover); border-color: var(--mint-primary-hover); color: white; }
+:root .workspace-shell :is(.studio-hero-secondary, .hiring-button--outline, .career-banner-actions button:last-child) { background: #ffffff70; border-color: #c7dacf !important; color: var(--mint-ink); }
+:root .workspace-shell :is(.studio-hero-secondary, .hiring-button--outline, .career-banner-actions button:last-child):hover { background: #ffffffc7; color: var(--mint-ink); }
+:root .workspace-shell :is(.studio-hero .studio-goal-card, .learning-hero-progress, .career-signal-network) { background: #ffffffb8; border-color: var(--mint-border); color: var(--mint-ink); box-shadow: 0 12px 28px #176b4710; }
+:root .workspace-shell :is(.studio-goal-divider, .profile-hero-summary) { border-color: #c7dacf; }
+:root .workspace-shell .studio-goal-divider { background: var(--mint-border); }
+:root .workspace-shell .learning-progress-ring { background: conic-gradient(var(--mint-primary) var(--progress, 0%), #ffffffb3 0); }
+:root .workspace-shell .learning-progress-ring::before { background: #e9fcf1; }
+:root .workspace-shell .learning-progress-ring :is(strong, small) { color: var(--mint-ink); }
+:root .workspace-shell :is(.applications-hero-meta > span, .learning-hero-tags > span, .career-banner-label, .career-banner-badges > span, .hiring-verification.is-verified) { background: #ffffff90; border-color: var(--mint-border); color: var(--mint-primary-hover); }
+:root .workspace-shell .discovery-float-card { background: #ffffffed; border-color: var(--mint-border); color: var(--mint-ink); }
+:root .workspace-shell .discovery-float-card strong { color: var(--mint-ink); }
+:root .workspace-shell .discovery-filter-heading :is(button, svg) { color: var(--mint-primary); }
+:root .workspace-shell .discovery-filter-heading button:hover { background: var(--mint-soft); color: var(--mint-primary-hover); }
+:root .workspace-shell :is(.studio-insight, .profile-ai-card) { background: var(--mint-soft); color: var(--mint-ink); border-color: var(--mint-border); }
+:root .workspace-shell :is(.studio-insight, .profile-ai-card) :is(h2, h3, p, span, small) { color: var(--mint-ink); }
+:root .workspace-shell :is(.studio-insight, .profile-ai-card) button {
+  background: var(--mint-primary);
+  border: 1px solid var(--mint-primary);
+  border-radius: 12px;
+  padding: 10px 18px;
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+:root .workspace-shell .studio-insight button:hover,
+:root .workspace-shell .profile-ai-card button:hover {
+  background: var(--mint-primary-hover);
+  border-color: var(--mint-primary-hover);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Centered circuit artwork replaces the moving ribbons and floating tiles. */
+:root .workspace-shell .studio-hero-visual { min-height: 260px; position: relative; display: flex; align-items: center; justify-content: center; padding: 16px; }
+:root .workspace-shell .studio-goal-stack { position: relative; z-index: 1; width: 100%; max-width: 310px; margin: 0 auto; }
+:root .workspace-shell .studio-hero .studio-goal-card { background: #ffffffed; border: 1px solid var(--mint-border); border-radius: 16px; padding: 24px; box-shadow: 0 10px 28px #25332c0a; animation: none; }
+:root .workspace-shell .studio-orbit-caption { bottom: -8px; color: var(--mint-muted); }
+:root .workspace-shell .hiring-hero-art { align-items: center; text-align: center; min-height: 260px; padding: 24px; }
+:root .workspace-shell .hiring-hero-message { font-size: 30px; line-height: 1.35; }
+:root .workspace-shell .hiring-hero-caption { color: var(--mint-muted); }
+
+@media (max-width: 1000px) {
+  :root .workspace-shell .learning-hero-progress { flex-basis: 250px; }
+}
+@media (max-width: 767px) {
+  :root .workspace-shell .learning-hero-progress { flex: 1 1 auto; width: 100%; }
+  :root .workspace-shell .discovery-hero-copy { max-width: 100%; }
+  :root .workspace-shell .studio-hero-visual { min-height: 220px; padding: 12px 0; }
+}
+
+/* Shared settings and employer editors also use pale panels. */
+:root .account-settings-nav nav button[aria-current="page"] { background: var(--mint-base); color: var(--mint-ink); }
+:root .account-settings-nav nav button[aria-current="page"] small { color: var(--mint-primary-hover); }
+:root .security-page .security-hero-icon { background: #ffffffb3; color: var(--mint-primary); border-color: var(--mint-border); }
+:root .employer-page [class*="from-blue-"][class*="to-indigo-"] { background: linear-gradient(115deg, var(--mint-hero-start), var(--mint-hero-end)); border-color: var(--mint-border); color: var(--mint-ink); }
+:root .employer-page [class*="from-blue-"][class*="to-indigo-"] :is(h1, h2, h3, p, span) { color: var(--mint-ink); }
+:root .employer-metrics-grid .employer-metric-total { background: var(--mint-base); border-color: var(--mint-border); color: var(--mint-ink); }
+:root .employer-metrics-grid .employer-metric-total :is(strong, span, p, svg) { color: var(--mint-ink); }
+:root .employer-metrics-grid .employer-metric-total:hover,
+:root .employer-metrics-grid .employer-metric-total[aria-pressed="true"] { background: var(--mint-wash); border-color: #c7dacf; }
+
+/* Public cinematic pages retain their video and translucent white surfaces. */
+:root :is(.cinematic-hero, .login-page, .getting-started-page) { background: #f9fcf6; color: var(--mint-ink); }
+:root .login-header { background: #ffffffed; color: var(--mint-ink); border-color: var(--mint-border); }
+:root .login-header--cinematic { background: #ffffffbf; }
+:root .login-header--cinematic .careerfit-logo--sage::after { background: var(--mint-primary); }
+:root :is(.cinematic-title, .login-heading) { color: var(--mint-ink); }
+:root :is(.cinematic-title-accent, .login-heading-accent) { color: var(--mint-primary); }
+:root :is(.cinematic-description, .login-subtitle, .login-footer, .login-secondary, .login-legal, .cinematic-hero-bottom, .cinematic-search-note) { color: var(--mint-muted); }
+:root :is(.cinematic-eyebrow, .login-lock) { background: var(--mint-base); border-color: var(--mint-border); color: var(--mint-primary-hover); }
+:root .cinematic-eyebrow > span { color: var(--mint-primary); border-color: var(--mint-border); }
+:root .public-navigation :is(button, a) { color: var(--mint-muted); }
+:root .public-navigation :is([aria-current='page'], button:hover, a:hover) { color: var(--mint-primary); }
+:root :is(.cinematic-button, .cinematic-search > button, .login-header-actions .login-register, .login-provider--google) { background: var(--mint-primary); color: white; border-color: var(--mint-primary); }
+:root :is(.cinematic-button, .cinematic-search > button, .login-header-actions .login-register, .login-provider--google):hover { background: var(--mint-primary-hover); box-shadow: 0 6px 20px #176b471c; }
+:root .login-provider--microsoft { background: white; color: var(--mint-ink); border-color: var(--mint-border); }
+:root .login-provider--microsoft:hover { background: var(--mint-soft); }
+:root :is(.cinematic-search, .login-card, .login-trust) { border-color: #cfe8d8cc; box-shadow: 0 12px 40px #176b4710, inset 0 1px 0 white; }
+:root :is(.cinematic-search-location, .cinematic-search-keyword) { border-color: var(--mint-border); }
+:root :is(.cinematic-search input, .cinematic-search select, .login-trust, .login-legal button, .cinematic-search-note button) { color: var(--mint-ink); }
+:root :is(.login-trust > span > span, .cinematic-search input::placeholder, .cinematic-search label) { color: var(--mint-muted); }
+:root :is(.login-page, .login-header, .cinematic-hero) :is(button, a):focus-visible,
+:root .cinematic-search label:focus-within { outline-color: var(--mint-primary); }
+:root .getting-started-body:not([data-theme="dark"]) {
+  --home-background: var(--mint-canvas);
+  --home-surface: white;
+  --home-surface-muted: var(--mint-soft);
+  --home-surface-hover: var(--mint-wash);
+  --home-text: var(--mint-ink);
+  --home-secondary: var(--mint-ink);
+  --home-muted: var(--mint-muted);
+  --home-border: var(--mint-border);
+  --home-border-strong: var(--mint-mid);
+  --home-selected-background: var(--mint-base);
+  --home-selected-text: var(--mint-ink);
+}

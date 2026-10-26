@@ -21,17 +21,13 @@ export function useDesignInteractions(variant) {
       document.body.style.overflow = open ? 'hidden' : originalOverflow;
       (open ? root.querySelector('#close-filter') : openButton)?.focus();
     };
-    const navigate = (page) => {
-      const url = new URL(window.location.href);
-      url.searchParams.delete('design');
-      url.pathname = '/';
-      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
-      setActivePage(page);
+    const navigate = (page, options) => {
+      setActivePage(page, options);
     };
     const search = () => {
       const input = root.querySelector('#search-keyword, .search-box__input, .search-bar__input');
       setGlobalSearchQuery(input?.value || '');
-      navigate('job-search');
+      navigate('job-search', { query: { keyword: (input?.value || '').trim() } });
     };
     const click = (event) => {
       const target = event.target.closest('a, button, #filter-overlay');

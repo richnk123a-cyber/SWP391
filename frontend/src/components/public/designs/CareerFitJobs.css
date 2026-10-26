@@ -4,19 +4,19 @@
 ============================================================ */
 :scope {
   --color-bg:         #FAFAF7;
-  --color-text:       #14171F;
-  --color-muted:      #5B6472;
-  --color-border:     #E4E4DF;
-  --color-accent:     #1F4FD8;
-  --color-accent-dk:  #1840B8;
-  --color-accent-bg:  #EEF2FD;
-  --color-success:    #1E7A4F;
-  --color-success-bg: #EBF5F0;
+  --color-text:       var(--mint-ink);
+  --color-muted:      var(--mint-muted);
+  --color-border:     var(--mint-border);
+  --color-accent:     var(--mint-muted);
+  --color-accent-dk:  var(--mint-primary);
+  --color-accent-bg:  var(--mint-soft);
+  --color-success:    var(--mint-primary);
+  --color-success-bg: var(--mint-soft);
   --color-warn-bg:    #FFF8E6;
   --color-warn-text:  #92600A;
-  --color-dark-bg:    #14171F;
+  --color-dark-bg:    var(--mint-ink);
   --color-dark-text:  #F0EFEA;
-  --color-dark-muted: #B8BEC9;
+  --color-dark-muted: var(--mint-muted);
   --color-dark-border:rgba(255,255,255,.1);
 
   --fs-xs:   13px;
@@ -222,7 +222,7 @@ select, input { font-family: inherit; }
 .tag--active {
   color: var(--color-accent);
   background: var(--color-accent-bg);
-  border-color: #C5D4F8;
+  border-color: var(--mint-border);
 }
 
 .badge-verified {
@@ -455,7 +455,7 @@ select, input { font-family: inherit; }
   font-weight: 600;
   color: var(--color-success);
   background: var(--color-success-bg);
-  border: 1px solid #C3E8D5;
+  border: 1px solid var(--mint-wash);
   border-radius: var(--radius-btn);
 }
 
@@ -715,11 +715,11 @@ select, input { font-family: inherit; }
   border: 1px solid var(--color-border);
 }
 
-.job-card__logo--teal   { background: #E6F4F4; color: #1A6E6E; }
+.job-card__logo--teal   { background: var(--mint-soft); color: var(--mint-primary); }
 .job-card__logo--amber  { background: #FEF5E7; color: #7D4A00; }
-.job-card__logo--slate  { background: #EFF1F5; color: #3D4A63; }
+.job-card__logo--slate  { background: var(--mint-soft); color: var(--mint-primary); }
 .job-card__logo--rose   { background: #FDEEF0; color: #7D2030; }
-.job-card__logo--sage   { background: #EDF4EE; color: #2C5E31; }
+.job-card__logo--sage   { background: var(--mint-soft); color: var(--mint-primary); }
 
 .job-card__type-badge {
   font-size: var(--fs-xs);
@@ -898,9 +898,9 @@ select, input { font-family: inherit; }
   flex-shrink: 0;
 }
 
-.testimonial-card__avatar--a { background: #E6F4F4; color: #1A6E6E; }
+.testimonial-card__avatar--a { background: var(--mint-soft); color: var(--mint-primary); }
 .testimonial-card__avatar--b { background: #FEF5E7; color: #7D4A00; }
-.testimonial-card__avatar--c { background: #EFF1F5; color: #3D4A63; }
+.testimonial-card__avatar--c { background: var(--mint-soft); color: var(--mint-primary); }
 
 .testimonial-card__name {
   font-size: var(--fs-sm);
@@ -1005,7 +1005,7 @@ select, input { font-family: inherit; }
   outline: none;
 }
 
-.search-bar__input::placeholder { color: #A0A8B4; }
+.search-bar__input::placeholder { color: var(--mint-muted); }
 
 .search-bar__divider {
   width: 1px;

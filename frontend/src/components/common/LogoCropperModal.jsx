@@ -255,7 +255,7 @@ export function LogoCropperModal({ file, onApply, onCancel }) {
 
     // 6. Crop border
     ctx.save();
-    ctx.strokeStyle = '#60a5fa';
+    ctx.strokeStyle = '#abf9c8';
     ctx.lineWidth   = 2;
     ctx.shadowColor = 'rgba(0,0,0,0.5)';
     ctx.shadowBlur  = 4;

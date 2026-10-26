@@ -20,6 +20,14 @@ public class AuthController {
 
     private final AuthService authService;
 
+    @GetMapping("/me")
+    public ResponseEntity<java.util.Map<String, Object>> currentSession(
+            @AuthenticationPrincipal UserDetails principal) {
+        if (principal == null) return ResponseEntity.ok(java.util.Map.of("authenticated", false));
+        return ResponseEntity.ok(java.util.Map.of("authenticated", true,
+                "user", authService.getCurrentUser(principal.getUsername())));
+    }
+
     // POST /api/auth/login
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {

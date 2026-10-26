@@ -1,15 +1,19 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { MatchBadge, VerificationBadge } from '../common/Badge';
-import { calculateSkillMatch } from '../../utils/matching';
+import { calculateSkillMatch, synchronizeMatchedSkills } from '../../utils/matching';
 import { getCompanyLogoUrl, isImageLogo } from '../../utils/logoUtils';
+import './JobDetailPage.css';
+import { cvEvaluationKey } from '../../utils/cvEvaluation';
 import {
   MapPin,
   Briefcase,
   Clock,
   ArrowLeft,
   Bookmark,
-  ShieldAlert
+  ShieldAlert,
+  Sparkles,
+  AlertTriangle
 } from 'lucide-react';
 
 export function JobDetailPage() {
@@ -18,6 +22,7 @@ export function JobDetailPage() {
     jobs = [],
     applications = [],
     candidateProfile,
+    cvEvaluations = {},
     currentUser,
     applyForJob,
     cancelApplication,
@@ -46,6 +51,15 @@ export function JobDetailPage() {
     );
   }
 
+  const isJobApproved = selectedJob && (
+    selectedJob.verificationStatus === 'Verified' ||
+    selectedJob.verificationStatus === 'Approved' ||
+    selectedJob.isVerified ||
+    selectedJob.moderationStatus === 'APPROVED'
+  );
+  const isJobVisible = selectedJob ? selectedJob.isVisible !== false : true;
+  const isJobPublicActive = Boolean(isJobApproved && isJobVisible);
+
   const isSaved = savedJobIds.includes(selectedJob.id);
   const candidateSkills = candidateProfile?.skills || [];
 
@@ -63,19 +77,44 @@ export function JobDetailPage() {
         ? selectedJob.requiredSkills.split(/[,;\n]/).map(s => s.trim()).filter(Boolean)
         : []);
   const match = calculateSkillMatch(candidateSkills, safeRequiredSkills, candidateProfile?.extractedCvText);
+  const evalKey = cvEvaluationKey(candidateProfile || {}, selectedJob, currentUser || {});
+  let evaluation = cvEvaluations[evalKey];
+  // Chỉ fallback theo ID công việc nếu đánh giá đó hợp lệ và không phải là cảnh báo văn bản phi IT cũ
+  if (!evaluation && cvEvaluations[`job_${selectedJob?.id}`]) {
+    const candidateFallback = cvEvaluations[`job_${selectedJob?.id}`];
+    if (candidateFallback?.analysis?.isValidCv !== false && !candidateFallback?.analysis?.unrelatedDocumentWarning) {
+      evaluation = candidateFallback;
+    }
+  }
+  const aiAnalysis = evaluation?.analysis;
 
-  const matchedSkillsList = match.matchedSkills || [];
-  const missingSkillsList = match.missingSkills || [];
+  const isEvaluated = Boolean(aiAnalysis);
+  const isCvInvalid = Boolean(
+    aiAnalysis && (aiAnalysis.isValidCv === false || aiAnalysis.unrelatedDocumentWarning)
+  );
+
+  const rawMatched = aiAnalysis?.matchedSkills || match.matchedSkills || [];
+  const rawMissing = aiAnalysis?.missingSkills || match.missingSkills || [];
+  const syncedSkills = synchronizeMatchedSkills(rawMatched, rawMissing, candidateProfile, selectedJob);
+
+  const matchedSkillsList = syncedSkills.matchedSkills;
+  const missingSkillsList = syncedSkills.missingSkills;
 
   const similarJobs = jobs
     .filter(j => j.id !== selectedJob.id && (j.category === selectedJob.category || j.company === selectedJob.company))
     .slice(0, 3);
 
   return (
-    <div className="w-full max-w-[1280px] mx-auto space-y-6 pb-12 animate-in fade-in duration-200">
+    <div className="job-detail-page animate-in fade-in duration-200">
+      {!isJobPublicActive && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl mb-4 text-xs sm:text-sm font-medium flex items-center gap-2">
+          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+          <span>Tin tuyển dụng này chưa được Quản trị viên phê duyệt hoặc đang bị ẩn. Hiện chưa mở nhận hồ sơ ứng tuyển hay đánh giá AI.</span>
+        </div>
+      )}
       
       {/* 1. BREADCRUMB NAVIGATION */}
-      <nav className="flex items-center justify-between text-xs text-slate-500">
+      <nav className="job-detail-breadcrumb flex items-center justify-between text-xs text-slate-500" aria-label="Điều hướng việc làm">
         <div className="flex items-center gap-1.5 flex-wrap">
           <button onClick={() => setActivePage('home')} className="hover:text-blue-600 transition-colors cursor-pointer">Trang chủ</button>
           <span>/</span>
@@ -95,17 +134,16 @@ export function JobDetailPage() {
       </nav>
 
       {/* 2. TOP JOB HEADER CARD */}
-      <div className="bg-white border border-slate-200/80 shadow-md rounded-3xl overflow-hidden relative">
-        <div className="h-1.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600" />
+      <div className="job-detail-card job-detail-header bg-white border overflow-hidden relative">
         
-        <div className="p-6 sm:p-8 space-y-6">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="flex items-start gap-4">
+        <div className="job-detail-header-content">
+          <div className="job-detail-header-layout">
+            <div className="job-detail-identity flex items-start gap-4">
               {(() => {
                 const companyLogo = selectedJob.logo || companies.find(c => (c.id && c.id === selectedJob.employerId) || (c.companyName && c.companyName === selectedJob.company))?.logo;
                 const hasImgLogo = isImageLogo(companyLogo);
                 return (
-                  <div className={`shrink-0 mt-1 ${hasImgLogo
+                  <div className={`job-detail-logo shrink-0 mt-1 ${hasImgLogo
                     ? 'w-16 h-16 flex items-center justify-center'
                     : 'w-16 h-16 rounded-2xl bg-white text-blue-700 flex items-center justify-center font-black text-2xl shadow-md border border-slate-200 overflow-hidden'
                   }`}>
@@ -123,7 +161,7 @@ export function JobDetailPage() {
                     ) : null}
                     <div
                       style={{ display: hasImgLogo ? 'none' : 'flex' }}
-                      className="w-full h-full bg-gradient-to-br from-blue-600 to-indigo-700 text-white items-center justify-center font-black text-2xl"
+                      className="job-detail-monogram w-full h-full items-center justify-center text-2xl"
                     >
                       {selectedJob.company ? selectedJob.company.charAt(0) : '🏢'}
                     </div>
@@ -132,11 +170,11 @@ export function JobDetailPage() {
               })()}
 
               <div className="space-y-2 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap text-xs">
+                <div className="job-detail-company-line flex items-center gap-2 flex-wrap text-xs">
                   <span className="font-extrabold text-slate-800 text-sm tracking-tight">{selectedJob.company}</span>
-                  <VerificationBadge status={selectedJob.verifiedStatus} />
-                  <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className="job-detail-verification"><VerificationBadge status={selectedJob.verifiedStatus} /></span>
+                  <span className="job-detail-response inline-flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-full border">
+                    <span className="job-detail-response-dot w-1.5 h-1.5 rounded-full"></span>
                     Thường phản hồi nhanh
                   </span>
                 </div>
@@ -145,8 +183,8 @@ export function JobDetailPage() {
                   {selectedJob.title}
                 </h1>
 
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <span className="px-3.5 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 rounded-xl text-xs font-extrabold border border-blue-200 shadow-2xs flex items-center gap-1">
+                <div className="job-detail-facts flex flex-wrap items-center gap-2 pt-1">
+                  <span className="job-detail-salary px-3.5 py-1.5 rounded-xl text-xs border flex items-center gap-1">
                     💰 {selectedJob.salary}
                   </span>
                   <span className="px-3.5 py-1.5 bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold border border-slate-200 flex items-center gap-1">
@@ -163,31 +201,36 @@ export function JobDetailPage() {
             </div>
 
               {/* Top Action CTAs */}
-            <div className="flex items-center gap-3 shrink-0 pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-100 flex-wrap">
+            <div className="job-detail-actions">
               <button
                 onClick={() => toggleSaveJob(selectedJob.id)}
-                className={`p-3 rounded-2xl border transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-bold ${
-                  isSaved 
-                    ? 'bg-blue-50 text-blue-600 border-blue-200' 
-                    : 'text-slate-600 hover:text-slate-900 border-slate-200 hover:bg-slate-50'
-                }`}
+                aria-pressed={isSaved}
+                className={`job-detail-save p-3 border transition-colors cursor-pointer flex items-center gap-1.5 text-xs ${isSaved ? 'is-saved' : ''}`}
               >
-                <Bookmark size={18} className={isSaved ? 'fill-blue-600' : ''} />
+                <Bookmark size={18} className={isSaved ? 'fill-current' : ''} />
                 <span>{isSaved ? 'Đã lưu tin' : 'Lưu tin'}</span>
               </button>
 
-              {hasApplied ? (
+              {!isJobPublicActive ? (
+                <button
+                  disabled
+                  className="job-detail-primary px-7 py-3 text-xs sm:text-sm opacity-50 cursor-not-allowed"
+                  title="Tin tuyển dụng chưa được duyệt hoặc đang bị ẩn"
+                >
+                  Chưa mở ứng tuyển
+                </button>
+              ) : hasApplied ? (
                 <button
                   onClick={() => cancelApplication(selectedJob.id)}
-                  className="px-7 py-3 bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white rounded-2xl text-xs sm:text-sm font-black shadow-lg shadow-rose-500/25 hover:shadow-xl transition-all cursor-pointer flex items-center gap-2"
+                  className="job-detail-primary px-7 py-3 text-xs sm:text-sm transition-colors cursor-pointer flex items-center gap-2"
                 >
                   <span>✓ Đã ứng tuyển</span>
-                  <span className="text-rose-200 font-normal">— Hủy</span>
+                  <span className="job-detail-cancel font-normal">— Hủy</span>
                 </button>
               ) : (
                 <button
                   onClick={() => applyForJob(selectedJob.id)}
-                  className="px-7 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl text-xs sm:text-sm font-black shadow-lg shadow-blue-500/25 hover:shadow-xl transition-all cursor-pointer"
+                  className="job-detail-primary px-7 py-3 text-xs sm:text-sm transition-colors cursor-pointer"
                 >
                   Ứng tuyển ngay
                 </button>
@@ -198,15 +241,15 @@ export function JobDetailPage() {
         </div>
       </div>
 
-      {/* 3. MAIN CONTENT GRID (LEFT 65% / RIGHT 35%) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* Description and company insights share one balanced row. */}
+      <div className="job-detail-main">
         
         {/* LEFT COLUMN: JOB DETAILS */}
-        <div className="lg:col-span-8 space-y-6">
+        <div className="job-detail-main-column">
           
           {/* Job Overview & Description */}
-          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-6">
-            <div className="space-y-3">
+          <div className="job-detail-card job-detail-description border">
+            <div className="job-detail-section space-y-3">
               <h3 className="text-lg font-black text-slate-900 tracking-tight">
                 Mô tả công việc
               </h3>
@@ -216,7 +259,7 @@ export function JobDetailPage() {
             </div>
 
             {/* Responsibilities */}
-            <div className="space-y-3 pt-4 border-t border-slate-100">
+            <div className="job-detail-section space-y-3 border-t border-slate-100">
               <h3 className="text-base font-black text-slate-900 tracking-tight">
                 Trách nhiệm công việc
               </h3>
@@ -239,7 +282,7 @@ export function JobDetailPage() {
             </div>
 
             {/* Requirements */}
-            <div className="space-y-3 pt-4 border-t border-slate-100">
+            <div className="job-detail-section space-y-3 border-t border-slate-100">
               <h3 className="text-base font-black text-slate-900 tracking-tight">
                 Yêu cầu ứng viên
               </h3>
@@ -262,7 +305,7 @@ export function JobDetailPage() {
             </div>
 
             {/* Required Technologies Chips */}
-            <div className="space-y-3 pt-4 border-t border-slate-100">
+            <div className="job-detail-section space-y-3 border-t border-slate-100">
               <h3 className="text-base font-black text-slate-900 tracking-tight">
                 Kỹ năng & Công nghệ yêu cầu
               </h3>
@@ -291,7 +334,7 @@ export function JobDetailPage() {
             </div>
 
             {/* Report Job Trigger Button */}
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+            <div className="job-detail-footer border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
               <span>Mã tin: #{selectedJob.id}</span>
               {(!currentUser || currentUser.role === 'CANDIDATE') && (
                 <button
@@ -314,37 +357,74 @@ export function JobDetailPage() {
         </div>
 
         {/* RIGHT COLUMN: AI MATCH ANALYSIS & COMPANY INFO */}
-        <div className="lg:col-span-4 space-y-6">
+        <aside className="job-detail-aside" aria-label="Độ phù hợp và thông tin công ty">
           
           {/* AI MATCH ANALYSIS CARD */}
-          <div className="bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/40 p-6 rounded-3xl border-2 border-blue-200 shadow-sm space-y-5">
-            <div className="flex items-center justify-between">
+          <div className="job-detail-card job-detail-ai p-6 border space-y-5">
+            <div className="job-detail-ai-heading flex items-center justify-between">
               <div>
-                <span className="text-[10px] font-black uppercase text-blue-600 tracking-wider">AI Evaluation</span>
+                <span className="job-detail-eyebrow text-[10px] uppercase tracking-wider">AI Evaluation</span>
                 <h3 className="font-black text-slate-900 text-base">CareerFit AI Match</h3>
               </div>
-              <MatchBadge score={match.percentage} label={match.label} badgeClass={match.badgeClass} />
+              {isCvInvalid ? (
+                <span className="px-2.5 py-1 bg-rose-50 text-rose-700 text-xs font-bold rounded-lg border border-rose-300 flex items-center gap-1 shadow-sm">
+                  <ShieldAlert size={13} className="text-rose-600 shrink-0" />
+                  CV có vấn đề
+                </span>
+              ) : isEvaluated ? (
+                <MatchBadge score={aiAnalysis?.overallMatch ?? 0} label="AI Match" />
+              ) : (
+                <span className="text-xs text-slate-400">Chưa đánh giá</span>
+              )}
             </div>
 
             {/* Score Progress Bar */}
-            <div className="space-y-1.5 p-3.5 bg-white rounded-2xl border border-blue-100 shadow-2xs">
+            <div className={`job-detail-score space-y-1.5 p-3.5 bg-white border ${isCvInvalid ? 'border-rose-200 bg-rose-50/20' : ''}`}>
               <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-700">Độ phù hợp kỹ thuật:</span>
-                <span className="font-black text-blue-600 text-sm">{match.percentage}%</span>
+                <span className="font-bold text-slate-700">Độ phù hợp theo CV:</span>
+                {isCvInvalid ? (
+                  <span className="font-black text-rose-600 text-xs sm:text-sm flex items-center gap-1">
+                    0% <span className="font-semibold text-[10px] text-rose-500">(Không hợp lệ)</span>
+                  </span>
+                ) : isEvaluated ? (
+                  <span className="font-black text-blue-600 text-sm">{aiAnalysis?.overallMatch ?? 0}%</span>
+                ) : (
+                  <span className="font-black text-slate-400 text-sm">—</span>
+                )}
               </div>
-              <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+              <div className="job-detail-progress w-full rounded-full h-2.5 overflow-hidden bg-slate-100">
                 <div
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 h-2.5 rounded-full transition-all duration-500"
-                  style={{ width: `${match.percentage}%` }}
+                  className={`h-2.5 rounded-full transition-all duration-500 ${isCvInvalid ? 'bg-rose-500' : 'job-detail-progress-fill'}`}
+                  style={{ width: `${isCvInvalid ? 0 : (aiAnalysis?.overallMatch || 0)}%` }}
                 />
               </div>
             </div>
+
+            {isCvInvalid ? (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-1 text-rose-900">
+                <p className="text-xs font-bold flex items-center gap-1.5 text-rose-900">
+                  <AlertTriangle size={14} className="text-rose-600 shrink-0" />
+                  Tài liệu: {aiAnalysis.documentType || 'Biên bản cuộc họp / Phi IT'}
+                </p>
+                <p className="text-[11px] text-rose-700 leading-relaxed font-medium">
+                  {aiAnalysis.unrelatedDocumentWarning || 'Tệp tải lên không phải là CV cá nhân ngành CNTT nên hệ thống từ chối tính điểm (0%). Bấm nút bên dưới để xem chi tiết.'}
+                </p>
+              </div>
+            ) : isEvaluated ? (
+              <p className="text-xs text-slate-500">
+                Đã đánh giá bằng {evaluation?.modelName || 'CareerFit AI'}.
+              </p>
+            ) : (
+              <p className="text-xs text-slate-500">
+                Bấm phân tích để AI đọc CV và thiết kế lộ trình. Danh sách bên dưới chỉ đối chiếu từ khóa sơ bộ.
+              </p>
+            )}
 
             {/* Matched vs Missing Skills */}
             <div className="space-y-3 text-xs">
               <div className="space-y-1.5">
                 <span className="font-extrabold text-emerald-800 text-[11px] uppercase tracking-wider">
-                  Kỹ năng bạn đã đáp ứng ({matchedSkillsList.length})
+                  {aiAnalysis ? 'Kỹ năng bạn đã đáp ứng' : 'Kỹ năng trùng từ khóa'} ({matchedSkillsList.length})
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   {matchedSkillsList.length > 0 ? (
@@ -361,7 +441,7 @@ export function JobDetailPage() {
 
               <div className="space-y-1.5 pt-2 border-t border-slate-100">
                 <span className="font-extrabold text-amber-800 text-[11px] uppercase tracking-wider">
-                  Kỹ năng cần trau dồi ({missingSkillsList.length})
+                  {aiAnalysis ? 'Kỹ năng cần trau dồi' : 'Kỹ năng chưa thấy trong hồ sơ'} ({missingSkillsList.length})
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   {missingSkillsList.length > 0 ? (
@@ -371,7 +451,7 @@ export function JobDetailPage() {
                       </span>
                     ))
                   ) : (
-                    <span className="text-emerald-700 font-bold">Bạn đã đáp ứng 100% kỹ năng yêu cầu!</span>
+                    <span className="text-emerald-700 font-bold">{aiAnalysis ? 'AI chưa xác định kỹ năng cần bổ sung.' : 'Đã thấy các từ khóa kỹ năng yêu cầu.'}</span>
                   )}
                 </div>
               </div>
@@ -380,6 +460,10 @@ export function JobDetailPage() {
             {/* Deep AI Analysis Action */}
             <button
               onClick={() => {
+                if (!isJobPublicActive) {
+                  if (showToast) showToast('Tin tuyển dụng chưa được Quản trị viên duyệt hoặc đang bị ẩn.', 'warning');
+                  return;
+                }
                 if (setSelectedJobOverride && selectedJob) {
                   setSelectedJobOverride(selectedJob);
                 }
@@ -390,14 +474,37 @@ export function JobDetailPage() {
                   setIsAIModalOpen(true);
                 }
               }}
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-2xl text-xs transition-all shadow-md shadow-blue-500/20 cursor-pointer"
+              disabled={!isJobPublicActive}
+              className={`w-full py-3 text-xs font-black rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 ${
+                !isJobPublicActive
+                  ? 'bg-slate-200 text-slate-500 cursor-not-allowed shadow-none'
+                  : isCvInvalid
+                  ? 'bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white shadow-rose-500/20 cursor-pointer'
+                  : isEvaluated
+                  ? 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white shadow-blue-500/20 cursor-pointer'
+                  : 'job-detail-primary cursor-pointer'
+              }`}
             >
-              Phân tích CV chuyên sâu bằng AI
+              {!isJobPublicActive ? (
+                'Tin chưa duyệt - AI tạm khóa'
+              ) : isCvInvalid ? (
+                <>
+                  <ShieldAlert size={14} />
+                  Xem cảnh báo CV & Phân tích chi tiết
+                </>
+              ) : isEvaluated ? (
+                <>
+                  <Sparkles size={14} />
+                  Xem lại kết quả phân tích AI ({aiAnalysis?.overallMatch ?? 0}%)
+                </>
+              ) : (
+                'Phân tích CV chuyên sâu bằng AI'
+              )}
             </button>
           </div>
 
           {/* COMPANY INFO CARD */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+          <div className="job-detail-card job-detail-company bg-white p-6 border space-y-4">
             <h3 className="font-black text-slate-900 text-base tracking-tight">
               Về công ty
             </h3>
@@ -413,41 +520,36 @@ export function JobDetailPage() {
               </div>
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                 <span className="text-slate-500">Trạng thái GPKD:</span>
-                <VerificationBadge status={selectedJob.verifiedStatus} />
+                <span className="job-detail-verification"><VerificationBadge status={selectedJob.verifiedStatus} /></span>
               </div>
             </div>
           </div>
 
-          {/* SIMILAR JOBS */}
-          {similarJobs.length > 0 && (
-            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
-              <h3 className="font-black text-slate-900 text-base tracking-tight">Việc làm tương tự</h3>
-              <div className="space-y-3">
-                {similarJobs.map(sj => (
-                  <div
-                    key={sj.id}
-                    onClick={() => {
-                      setSelectedJobId(sj.id);
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }}
-                    className="p-3 bg-slate-50 hover:bg-blue-50/60 rounded-2xl border border-slate-200/80 hover:border-blue-200 cursor-pointer transition-all space-y-1"
-                  >
-                    <h4 className="font-extrabold text-slate-900 text-xs hover:text-blue-600 transition-colors truncate">
-                      {sj.title}
-                    </h4>
-                    <div className="flex items-center justify-between text-[11px] text-slate-500">
-                      <span>{sj.company}</span>
-                      <span className="font-bold text-blue-700">{sj.salary}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-        </div>
-
+        </aside>
       </div>
+
+      {similarJobs.length > 0 && (
+        <section className="job-detail-related" aria-labelledby="job-detail-related-title">
+          <h3 id="job-detail-related-title">Việc làm tương tự</h3>
+          <div className="job-detail-related-grid">
+            {similarJobs.map(sj => (
+              <button
+                type="button"
+                key={sj.id}
+                onClick={() => {
+                  setSelectedJobId(sj.id);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="job-detail-similar border cursor-pointer transition-colors"
+              >
+                <span className="job-detail-similar-company">{sj.company}</span>
+                <span className="job-detail-similar-title">{sj.title}</span>
+                <span className="job-detail-similar-salary">{sj.salary}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

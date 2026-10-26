@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Modal } from '../common/Modal';
 import { mergeMasterRoadmap, sanitizeRoadmapTopics } from '../../utils/matching';
@@ -47,8 +47,15 @@ export function LearningRoadmapPage() {
     activePersonalJobId,
     setActivePersonalJobId,
     toggleRoadmapTopic,
-    setActivePage
+    setActivePage,
+    refreshPersonalRoadmaps
   } = useApp();
+
+  useEffect(() => {
+    if (typeof refreshPersonalRoadmaps === 'function') {
+      refreshPersonalRoadmaps();
+    }
+  }, [refreshPersonalRoadmaps]);
 
   const [selectedId, setSelectedId] = useState('');
   const [filter, setFilter] = useState('all');
@@ -111,7 +118,7 @@ export function LearningRoadmapPage() {
   const remaining = topics.filter(topic => !topic.completed);
   const knownHours = remaining.map(topic => Number(topic.estimatedHours) > 0 ? Number(topic.estimatedHours) : (/^\s*\d+(?:[.,]\d+)?\s*(?:giờ|hours?|h)\s*$/i.test(topic.estimatedTime || '') ? parseFloat(topic.estimatedTime.replace(',', '.')) : null));
   const totalRemainingHours = knownHours.every(hours => hours !== null) ? knownHours.reduce((sum, hours) => sum + hours, 0) : null;
-  const toggle = topic => toggleRoadmapTopic(roadmap.id, topic.id);
+  const toggle = topic => toggleRoadmapTopic(roadmap?.id, topic.id, topic);
   const lessonRefs = useRef(new Map());
 
   const continueLearning = () => {
@@ -154,9 +161,10 @@ export function LearningRoadmapPage() {
   return (
     <div className="learning-page">
       {/* ROADMAP TYPE SELECTOR TABS (ẢNH 1: ROADMAP CÁ NHÂN vs ẢNH 2: ROADMAP TỔNG THỂ) */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white border border-slate-200/80 rounded-2xl shadow-xs">
-        <div className="flex items-center gap-2">
+      <div className="learning-mode-switch flex flex-wrap items-center justify-between gap-3 p-3 bg-white border border-slate-200/80 rounded-2xl shadow-xs">
+        <div className="learning-mode-options flex flex-wrap items-center gap-2" aria-label="Loại lộ trình">
           <button
+            aria-pressed={currentViewMode === 'ALL'}
             onClick={() => {
               if (setActiveRoadmapType) setActiveRoadmapType('ALL');
               setSelectedId('');
@@ -179,6 +187,7 @@ export function LearningRoadmapPage() {
           </button>
 
           <button
+            aria-pressed={currentViewMode === 'PERSONAL'}
             onClick={() => {
               if (setActiveRoadmapType) setActiveRoadmapType('PERSONAL');
               if (personalRoadmaps.length > 0 && !activePersonalJobId) {
@@ -227,7 +236,7 @@ export function LearningRoadmapPage() {
           <h1>{currentViewMode === 'PERSONAL' ? 'Lộ trình cá nhân.' : 'Học từng bước.'}<br /><span>Tiến gần mục tiêu tuyển dụng.</span></h1>
           <p>{roadmap?.targetRole || 'Lộ trình học tập của bạn'}</p>
           <div className="learning-hero-tags flex-wrap">
-            <span><BookOpen size={14} />{roadmap?.skill || 'Phát triển kỹ năng'}</span>
+            <span title={roadmap?.skill}><BookOpen size={14} />{formatRoadmapSkillLabel(roadmap?.skill) || 'Phát triển kỹ năng'}</span>
             <span><GraduationCap size={15} />{topics.length} bài học</span>
             {roadmap?.company && (
               <span><Briefcase size={14} />{roadmap.company}</span>
@@ -345,6 +354,18 @@ export function LearningRoadmapPage() {
                         <span className="px-2 py-0.5 bg-sky-50 text-sky-800 font-bold rounded-md text-[10px] border border-sky-200 flex items-center gap-1">
                           <Globe size={10} /> AI xác thực Internet
                         </span>
+                      ) : topic.sourceType === 'AI_OFFICIAL_RESOURCE' ? (
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded-md text-[10px] border border-emerald-200 flex items-center gap-1">
+                          <Globe size={10} /> Nguồn học đã kiểm tra
+                        </span>
+                      ) : topic.sourceType === 'AI_WEB_SEARCH' ? (
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded-md text-[10px] border border-emerald-200 flex items-center gap-1">
+                          <Globe size={10} /> Nguồn tìm từ web
+                        </span>
+                      ) : topic.sourceType === 'AI_GENERATED' ? (
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded-md text-[10px] border border-emerald-200 flex items-center gap-1">
+                          <Sparkles size={10} /> Lộ trình do AI thiết kế
+                        </span>
                       ) : null}
                       {active && <span className="learning-next-label">Tiếp theo</span>}
                       {topic.completed && <span className="learning-completed-label">Đã hoàn thành</span>}
@@ -366,6 +387,13 @@ export function LearningRoadmapPage() {
                         </div>
                       </div>
                     )}
+                    {!!topic.resources?.length && <div className="learning-resource-list">
+                      <strong>Nguồn học cho kỹ năng này</strong>
+                      {topic.resources.map(source => resourceUrl(source.url) && <a key={source.url} href={resourceUrl(source.url)} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink size={13} /> {source.title}
+                      </a>)}
+                      <small>Khóa học có thể thu phí; kiểm tra điều kiện tại trang cung cấp.</small>
+                    </div>}
                     <div className="learning-lesson-actions">
                       {resourceUrl(topic.url) && (
                         <a href={resourceUrl(topic.url)} target="_blank" rel="noopener noreferrer">
@@ -373,6 +401,7 @@ export function LearningRoadmapPage() {
                         </a>
                       )}
                       <button
+                        type="button"
                         aria-pressed={!!topic.completed}
                         aria-label={`${topic.completed ? 'Bỏ hoàn thành' : 'Đánh dấu hoàn thành'}: ${topic.title}`}
                         onClick={() => toggle(topic)}

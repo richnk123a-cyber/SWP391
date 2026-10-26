@@ -3,13 +3,8 @@
  */
 
 export const DB_CONFIG = {
-  driver: 'PostgreSQL / SQL',
-  host: 'localhost',
-  port: 5432,
-  database: 'careerfit_db',
-  username: 'tien',
-  password: '123456',
-  connectionString: 'postgresql://tien:123456@localhost:5432/careerfit_db'
+  driver: 'SQL Server',
+  database: 'CareerFitDB'
 };
 
 export const INITIAL_NOTIFICATIONS = [
@@ -506,6 +501,19 @@ export const INITIAL_APPLICATIONS = [
     candidateSkills: ['Java', 'Spring Boot', 'PostgreSQL', 'Git'],
     appliedDate: '14/09/2026',
     lastUpdate: '14/09/2026',
+    status: 'Đã nộp'
+  },
+  {
+    id: 'app-6',
+    jobId: 'job-2',
+    candidateId: 'cand-6',
+    candidateName: 'Hoàng Văn Bách',
+    candidateEmail: 'bach.hoang@gmail.com',
+    candidateUniversity: 'ĐH Kinh Tế Quốc Dân',
+    candidateSkills: ['UI/UX', 'Figma', 'Photoshop', 'Content Writing'],
+    candidateMatchScore: 85,
+    appliedDate: '15/09/2026',
+    lastUpdate: '15/09/2026',
     status: 'Đã nộp'
   },
   {

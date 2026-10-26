@@ -249,7 +249,7 @@ export function EmployerVerificationPage() {
                       <p className="text-xs text-slate-500 mt-0.5">{ver.email || 'Chưa có email'}</p>
                     </td>
                     <td className="py-3.5 px-4 font-mono text-xs font-bold text-slate-800">
-                      {ver.taxId || '0388990011'}
+                      {ver.taxId || 'Chưa cung cấp'}
                     </td>
                     <td className="py-3.5 px-4">
                       <button
@@ -368,7 +368,7 @@ export function EmployerVerificationPage() {
 
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Mã số thuế doanh nghiệp</label>
-                <p className="font-mono font-bold text-slate-900 mt-1">{viewingVerify.taxId || '0388990011'}</p>
+                <p className="font-mono font-bold text-slate-900 mt-1">{viewingVerify.taxId || 'Chưa cung cấp'}</p>
               </div>
 
               <div>

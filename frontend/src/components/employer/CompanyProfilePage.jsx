@@ -1,3 +1,4 @@
+import { EmployerPageHeader } from './EmployerPageHeader';
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { VerificationBadge } from '../common/Badge';
@@ -5,26 +6,7 @@ import { LogoCropperModal } from '../common/LogoCropperModal';
 import { DeleteAccountModal } from '../common/DeleteAccountModal';
 import { employerApi } from '../../services/apiService';
 import { getCompanyLogoUrl, isImageLogo } from '../../utils/logoUtils';
-import {
-  Building2,
-  Globe,
-  Mail,
-  Phone,
-  MapPin,
-  ShieldCheck,
-  Edit3,
-  Save,
-  CheckCircle2,
-  FileText,
-  User,
-  Camera,
-  Upload,
-  Trash2,
-  Image as ImageIcon,
-  ExternalLink,
-  Sparkles,
-  Loader2
-} from 'lucide-react';
+import { Globe, MapPin, ShieldCheck, Edit3, Save, User, Camera, Upload, Trash2, Image as ImageIcon, Sparkles, Loader2 } from 'lucide-react';
 
 export function CompanyProfilePage() {
   const { currentUser, employerProfile, setEmployerProfile, setCompanies, showToast, setActivePage } = useApp();
@@ -243,7 +225,7 @@ export function CompanyProfilePage() {
   const logoUrl = isImage ? getCompanyLogoUrl(currentLogo) : null;
 
   return (
-    <div className="employer-workspace employer-companyprofilepage space-y-6 max-w-5xl mx-auto pb-12">
+    <div className="employer-page hiring-company-page space-y-6 max-w-5xl mx-auto pb-12">
       {/* Logo Cropper Modal */}
       {cropperFile && (
         <LogoCropperModal
@@ -252,8 +234,9 @@ export function CompanyProfilePage() {
           onCancel={() => { setCropperFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
         />
       )}
+      <EmployerPageHeader eyebrow="DẤU ẤN DOANH NGHIỆP" title="Hồ sơ công ty" description="Giới thiệu doanh nghiệp và thông tin liên hệ với những nhân tài tương lai." />
       {/* 1. HEADER BANNER */}
-      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 rounded-2xl p-6 text-white shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-5 relative overflow-hidden">
+      <div className="hiring-company-banner bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 rounded-2xl p-6 text-white shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-5 relative overflow-hidden">
         {/* Background glow effect */}
         <div className="absolute top-0 right-1/4 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -280,7 +263,7 @@ export function CompanyProfilePage() {
                 style={{ display: isImage ? 'none' : 'flex' }}
                 className="w-full h-full items-center justify-center font-black text-3xl"
               >
-                {currentLogo || '🏢'}
+                {formData.companyName?.charAt(0).toUpperCase() || 'C'}
               </div>
             </div>
 
@@ -305,7 +288,7 @@ export function CompanyProfilePage() {
 
           <div>
             <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-2xl font-black tracking-tight">{formData.companyName || employerProfile?.companyName}</h1>
+              <h2 className="text-2xl font-black tracking-tight">{formData.companyName || employerProfile?.companyName}</h2>
               <VerificationBadge status={employerProfile?.verificationStatus} />
             </div>
             <p className="text-xs text-slate-300 mt-1.5 flex items-center gap-2 flex-wrap">
@@ -313,9 +296,9 @@ export function CompanyProfilePage() {
               <span>•</span>
               <span>Lĩnh vực: <strong className="text-white font-medium">{formData.industry || employerProfile?.industry || <span className="text-slate-400 font-normal italic">Chưa cập nhật</span>}</strong></span>
               <span>•</span>
-              <span className="text-blue-300 font-semibold cursor-pointer hover:underline" onClick={() => fileInputRef.current?.click()}>
-                📷 Thay logo
-              </span>
+              <button type="button" className="text-blue-300 font-semibold cursor-pointer hover:underline" onClick={() => fileInputRef.current?.click()}>
+                Thay logo
+              </button>
             </p>
           </div>
         </div>
@@ -404,7 +387,7 @@ export function CompanyProfilePage() {
                   style={{ display: isImage ? 'none' : 'flex' }}
                   className="w-full h-full items-center justify-center font-black text-3xl"
                 >
-                  {currentLogo || '🏢'}
+                  {formData.companyName?.charAt(0).toUpperCase() || 'C'}
                 </div>
               </div>
 
@@ -580,7 +563,7 @@ export function CompanyProfilePage() {
           </div>
         </form>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+        <div className="hiring-company-details grid grid-cols-1 md:grid-cols-12 gap-6">
           {/* Main Info Card */}
           <div className="md:col-span-8 bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-xs space-y-6 text-xs">
             <div>
@@ -679,7 +662,7 @@ export function CompanyProfilePage() {
             </div>
 
             {/* Danger Zone: Xóa tài khoản doanh nghiệp */}
-            <div className="bg-rose-50/70 p-5 rounded-2xl border border-rose-200 shadow-xs space-y-3 text-xs">
+            <div className="hiring-company-danger bg-rose-50/70 p-5 rounded-2xl border border-rose-200 shadow-xs space-y-3 text-xs">
               <div className="flex items-center justify-between">
                 <h4 className="font-bold text-rose-900 flex items-center gap-1.5">
                   <Trash2 size={16} className="text-rose-600" /> Quản lý tài khoản

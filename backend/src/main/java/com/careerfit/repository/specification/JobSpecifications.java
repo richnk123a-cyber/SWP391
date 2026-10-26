@@ -26,7 +26,10 @@ public final class JobSpecifications {
             String salaryCurrency) {
         return (root, query, builder) -> {
             List<Predicate> predicates = new ArrayList<>();
-            predicates.add(builder.equal(root.get("verificationStatus"), "Verified"));
+            predicates.add(builder.or(
+                    builder.equal(root.get("verificationStatus"), "Verified"),
+                    builder.equal(root.get("verificationStatus"), "Approved")
+            ));
             predicates.add(builder.isTrue(root.get("isVisible")));
 
             if (keyword != null) {
@@ -50,7 +53,10 @@ public final class JobSpecifications {
                 predicates.add(builder.like(builder.lower(root.get("jobType")), containsPattern(jobType)));
             }
             if (minSalary != null || maxSalary != null) {
-                predicates.add(builder.equal(builder.upper(root.get("salaryCurrency")), salaryCurrency));
+                String targetCurrency = (salaryCurrency != null && !salaryCurrency.isBlank())
+                        ? salaryCurrency.trim().toUpperCase(Locale.ROOT)
+                        : "VNĐ";
+                predicates.add(builder.equal(builder.upper(root.get("salaryCurrency")), targetCurrency));
                 predicates.add(builder.isNotNull(root.get("salaryMin")));
                 predicates.add(builder.isNotNull(root.get("salaryMax")));
             }

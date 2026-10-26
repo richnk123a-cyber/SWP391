@@ -57,13 +57,12 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     "/api/auth/**",
-                    "/api/dev/**",
                     "/api/jobs",
                     "/api/jobs/filter-options",
                     "/api/jobs/{id}",
                     "/api/skills/**",
                     "/api/roadmaps/**",
-                    "/api/ai/**",
+                    "/api/ai/models",
                     "/uploads/**",
                     "/swagger-ui/**",
                     "/swagger-ui.html",
@@ -74,6 +73,26 @@ public class SecurityConfig {
                 .requestMatchers("/api/employer/**").hasAnyRole("EMPLOYER", "ADMIN")
                 .requestMatchers("/api/candidate/**").hasRole("CANDIDATE")
                 .anyRequest().authenticated()
+            )
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> {
+                    if (request.getRequestURI().startsWith("/api/")) {
+                        response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType("application/json;charset=UTF-8");
+                        response.getWriter().write("{\"success\":false,\"message\":\"Chưa đăng nhập hoặc phiên đã hết hạn.\"}");
+                    } else {
+                        response.sendRedirect("/login");
+                    }
+                })
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    if (request.getRequestURI().startsWith("/api/")) {
+                        response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_FORBIDDEN);
+                        response.setContentType("application/json;charset=UTF-8");
+                        response.getWriter().write("{\"success\":false,\"message\":\"Không có quyền truy cập tài nguyên này.\"}");
+                    } else {
+                        response.sendRedirect("/login");
+                    }
+                })
             )
             .oauth2Login(oauth2 -> oauth2
                 .authorizationEndpoint(auth -> auth.authorizationRequestResolver(resolver))

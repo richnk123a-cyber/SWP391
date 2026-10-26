@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * DTO chứa kết quả AI trả về sau khi hoàn tất quy trình điều phối.
@@ -64,6 +65,11 @@ public class AiExecutionResponse {
      * Thông báo lỗi chi tiết nếu tất cả AI gặp sự cố qua 2 vòng
      */
     private String errorMessage;
+
+    /**
+     * Dữ liệu có cấu trúc bóc tách từ AI (VD: isValidCv, experienceMatch, projectRelevance, ...)
+     */
+     private Map<String, Object> structuredData;
 
     /**
      * Danh sách lịch sử các bước thực thi chi tiết qua các AI

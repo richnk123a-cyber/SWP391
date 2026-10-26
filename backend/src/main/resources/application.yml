@@ -17,6 +17,14 @@ spring:
       continue-on-error: true
   # ==========================================
 
+  # === CAU HINH UPLOAD FILE (Chatbot dinh kem CV/JD toi da 10MB) ===
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 12MB
+      file-size-threshold: 2KB
+  # ==================================================================
   security:
     oauth2:
       client:
@@ -66,8 +74,12 @@ careerfit:
   cors:
     allowed-origins: http://localhost:5173
 
-  # OpenRouter Multi-AI Configuration
+  # Multi-AI Configuration (Groq + OpenRouter)
   ai:
+    groq:
+      api-key: ${GROQ_API_KEY:}
+      model: ${GROQ_MODEL:llama-3.3-70b-versatile}
+      api-url: ${GROQ_API_URL:https://api.groq.com/openai/v1/chat/completions}
     openrouter:
       api-key: ${OPENROUTER_API_KEY:}
       api-url: ${OPENROUTER_API_URL:https://openrouter.ai/api/v1/chat/completions}
@@ -86,3 +98,4 @@ springdoc:
     tags-sorter: alpha
   api-docs:
     path: /v3/api-docs
+

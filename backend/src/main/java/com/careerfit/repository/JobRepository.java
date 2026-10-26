@@ -17,7 +17,8 @@ public interface JobRepository extends JpaRepository<Job, String>, JpaSpecificat
 
     @Query("""
         SELECT j FROM Job j
-        WHERE j.verificationStatus = 'Verified'
+        WHERE (j.verificationStatus = 'Verified' OR j.verificationStatus = 'Approved')
+        AND j.isVisible = true
         AND (:keyword IS NULL OR LOWER(j.title) LIKE LOWER(CONCAT('%', :keyword, '%')))
         AND (:location IS NULL OR LOWER(j.location) LIKE LOWER(CONCAT('%', :location, '%')))
         AND (:category IS NULL OR j.category = :category)
@@ -29,7 +30,7 @@ public interface JobRepository extends JpaRepository<Job, String>, JpaSpecificat
 
     @Query("""
         SELECT DISTINCT j.category FROM Job j
-        WHERE j.verificationStatus = 'Verified' AND j.isVisible = true
+        WHERE (j.verificationStatus = 'Verified' OR j.verificationStatus = 'Approved') AND j.isVisible = true
         AND j.category IS NOT NULL
         ORDER BY j.category
         """)
@@ -37,7 +38,7 @@ public interface JobRepository extends JpaRepository<Job, String>, JpaSpecificat
 
     @Query("""
         SELECT DISTINCT j.jobType FROM Job j
-        WHERE j.verificationStatus = 'Verified' AND j.isVisible = true
+        WHERE (j.verificationStatus = 'Verified' OR j.verificationStatus = 'Approved') AND j.isVisible = true
         AND j.jobType IS NOT NULL
         ORDER BY j.jobType
         """)
@@ -45,7 +46,7 @@ public interface JobRepository extends JpaRepository<Job, String>, JpaSpecificat
 
     @Query("""
         SELECT DISTINCT j.location FROM Job j
-        WHERE j.verificationStatus = 'Verified' AND j.isVisible = true
+        WHERE (j.verificationStatus = 'Verified' OR j.verificationStatus = 'Approved') AND j.isVisible = true
         AND j.location IS NOT NULL
         ORDER BY j.location
         """)

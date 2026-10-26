@@ -1,0 +1,147 @@
+.hiring-studio { width:100%; max-width:1280px; margin:0 auto; color:var(--mint-primary-hover); --hiring-line:var(--mint-border); }
+.employer-studio-shell.employer-studio-shell .workspace-content { background:var(--mint-canvas); padding:32px; }
+.employer-studio-shell .workspace-navbar button:disabled { opacity:.45; cursor:not-allowed; }
+@media(min-width:1600px) { .employer-studio-shell.employer-studio-shell .workspace-content { padding:38px 42px; } }
+@media(max-width:1150px) { .employer-studio-shell.employer-studio-shell .workspace-content { padding:26px; } }
+@media(max-width:767px) { .employer-studio-shell.employer-studio-shell .workspace-content { padding:22px 18px; } }
+.hiring-studio button:focus-visible,.hiring-studio a:focus-visible { outline:2px solid var(--mint-muted); outline-offset:4px; }
+.hiring-studio .hiring-hero { position:relative; isolation:isolate; display:grid; grid-template-columns:minmax(0,1.35fr) minmax(0,1fr); align-items:center; gap:38px; padding:40px 46px; min-height:300px; border:1px solid var(--mint-primary-hover); border-radius:20px; overflow:hidden; color:#fff; background:linear-gradient(115deg,var(--mint-ink),var(--mint-primary-hover)); }
+.hiring-studio .hiring-hero-light { position:absolute; z-index:-1; inset:-40% -10% -70% 15%; background:radial-gradient(ellipse,color-mix(in srgb, var(--mint-mid) 14.51%, transparent),transparent 60%); pointer-events:none; animation:hiring-light 24s ease-in-out infinite alternate; }
+.hiring-studio .hiring-hero-copy { position:relative; min-width:0; z-index:1; }
+.hiring-studio .hiring-eyebrow { margin:0 0 16px; color:var(--mint-muted); font-size:10px; letter-spacing:.17em; line-height:1.6; }
+.hiring-studio .hiring-company-heading { display:flex; align-items:center; gap:15px; }
+.hiring-studio .hiring-company-heading h1 { margin:0; font-size:clamp(28px,2.6vw,38px); line-height:1.2; font-weight:400; letter-spacing:-.045em; overflow-wrap:anywhere; }
+.hiring-studio .hiring-company-logo { display:grid; place-items:center; width:54px; height:54px; border-radius:12px; background:#fff; padding:7px; flex-shrink:0; }
+.hiring-studio .hiring-company-logo[hidden] { display:none; }
+.hiring-studio .hiring-company-logo img { width:100%; height:100%; object-fit:contain; }
+.hiring-studio .hiring-verification { display:inline-flex; align-items:center; gap:6px; margin-top:13px; padding:4px 8px; border:1px solid #ffffff20; border-radius:5px; color:#d4cbb1; font-size:10px; background:#ffffff05; }
+.hiring-studio .hiring-verification::before { content:''; width:4px; height:4px; border-radius:50%; background:currentColor; }
+.hiring-studio .hiring-verification.is-verified { color:var(--mint-muted); }
+.hiring-studio .hiring-recruiter { display:flex; flex-wrap:wrap; gap:6px 12px; margin:16px 0 0; font-size:13px; color:var(--mint-muted); line-height:1.7; overflow-wrap:anywhere; }
+.hiring-studio .hiring-recruiter strong { font-weight:500; color:var(--mint-border); }
+.hiring-studio .hiring-company-meta { margin:5px 0 0; color:var(--mint-muted); font-size:12px; line-height:1.7; }
+.hiring-studio .hiring-hero-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:25px; }
+.hiring-studio .hiring-button { display:inline-flex; align-items:center; justify-content:center; min-height:42px; padding:10px 15px; border:1px solid transparent; border-radius:8px; font-size:12px; line-height:1.5; font-weight:500; transition:background .2s,border-color .2s; }
+.hiring-studio .hiring-button:disabled { opacity:.45; cursor:not-allowed; }
+.hiring-studio .hiring-button--light { background:var(--mint-border); color:var(--mint-primary-hover); }
+.hiring-studio .hiring-button--light:hover:not(:disabled) { background:var(--mint-soft); }
+.hiring-studio .hiring-button--outline { color:var(--mint-border); border-color:#ffffff26; background:transparent; }
+.hiring-studio .hiring-button--outline:hover { background:#ffffff08; border-color:#ffffff4d; }
+.hiring-studio .hiring-button--primary { background:var(--mint-primary); color:#fff; border-color:var(--mint-primary); }
+.hiring-studio .hiring-button--primary:hover:not(:disabled) { background:var(--mint-primary-hover); }
+.hiring-studio .hiring-button--secondary { background:#fff; color:var(--mint-muted); border-color:var(--mint-border); }
+.hiring-studio .hiring-button--secondary:hover { background:var(--mint-soft); border-color:var(--mint-mid); }
+.hiring-studio .hiring-motion-control { position:absolute; z-index:3; top:15px; right:18px; padding:5px 8px; font-size:9px; color:var(--mint-muted); border:1px solid #ffffff1c; border-radius:6px; background:#ffffff04; }
+.hiring-studio .hiring-motion-control:hover { background:#ffffff0d; color:var(--mint-border); }
+.hiring-studio .hiring-hero-art { position:relative; min-height:225px; min-width:0; display:flex; flex-direction:column; justify-content:center; }
+.hiring-studio .hiring-sculpture { position:absolute; inset:-20px -70px -20px 25%; display:flex; align-items:center; justify-content:center; gap:9px; --hiring-sway:32px; transform:rotate(-20deg); perspective:900px; opacity:.5; pointer-events:none; animation:hiring-sculpture-sway 7s ease-in-out infinite alternate; }
+.hiring-studio .hiring-slat { flex-shrink:0; width:35px; height:calc(138px + var(--slat-index) * 16px); border-radius:24px 4px 25px 4px; border:1px solid color-mix(in srgb, var(--mint-wash) 18.04%, transparent); background:linear-gradient(105deg,var(--mint-primary-hover),var(--mint-muted) 42%,var(--mint-mid) 57%,var(--mint-primary) 80%,var(--mint-primary-hover)); box-shadow:6px 12px 18px color-mix(in srgb, var(--mint-ink) 13.33%, transparent); animation:hiring-slat-wave 18s ease-in-out infinite; animation-delay:calc(var(--slat-index) * -1400ms); }
+.hiring-studio .hiring-hero-message { position:relative; z-index:1; margin:0; color:var(--mint-border); font-size:32px; line-height:1.2; letter-spacing:-.035em; font-weight:400; pointer-events:none; }
+.hiring-studio .hiring-hero-message > span { color:var(--mint-muted); }
+.hiring-studio .hiring-hero-caption { position:relative; margin-top:20px; color:var(--mint-muted); font-size:10px; letter-spacing:.02em; }
+.hiring-studio .hiring-hero[data-motion='paused'] :is(.hiring-hero-light,.hiring-sculpture,.hiring-slat) { animation-play-state:paused; }
+.hiring-studio .hiring-verification-notice { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:20px; margin-top:20px; padding:22px 24px; border:1px solid #e7dcc5; border-radius:14px; background:#faf7ee; }
+.hiring-studio .hiring-verification-notice > div { flex:1 1 500px; }
+.hiring-studio .hiring-verification-notice h2 { margin:0 0 6px; font-size:14px; color:#86724d; font-weight:500; line-height:1.5; }
+.hiring-studio .hiring-verification-notice p { margin:0; font-size:12px; line-height:1.8; color:#9f9073; }
+.hiring-studio .hiring-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin:22px 0 28px; }
+.hiring-studio .hiring-metric { display:flex; flex-direction:column; min-width:0; text-align:left; padding:22px 24px; border:1px solid var(--hiring-line); border-radius:14px; background:#fff; transition:border-color .2s,box-shadow .2s; }
+.hiring-studio .hiring-metric:hover { border-color:var(--mint-wash); box-shadow:0 6px 18px color-mix(in srgb, var(--mint-primary-hover) 3.14%, transparent); }
+.hiring-studio .hiring-metric-label { min-height:36px; color:var(--mint-muted); font-size:12px; line-height:1.7; }
+.hiring-studio .hiring-metric strong { display:block; margin:13px 0 11px; color:var(--mint-primary-hover); font-weight:400; font-size:37px; line-height:1; letter-spacing:-.05em; font-variant-numeric:tabular-nums; }
+.hiring-studio .hiring-metric-note { color:var(--mint-muted); font-size:11px; line-height:1.7; }
+.hiring-studio .hiring-columns { display:grid; grid-template-columns:minmax(0,1fr) 330px; gap:24px; align-items:start; }
+.hiring-studio .hiring-panel { min-width:0; border:1px solid var(--hiring-line); border-radius:16px; background:#fff; overflow:hidden; }
+.hiring-studio .hiring-panel-heading { display:flex; justify-content:space-between; align-items:center; gap:20px; padding:24px; border-bottom:1px solid var(--mint-soft); }
+.hiring-studio .hiring-kicker { display:block; font-size:9px; font-weight:500; letter-spacing:.14em; color:var(--mint-muted); line-height:1.6; }
+.hiring-studio .hiring-panel-heading h2,.hiring-studio .hiring-interviews h2 { margin:6px 0 0; color:var(--mint-primary); font-size:17px; line-height:1.4; font-weight:500; letter-spacing:-.02em; }
+.hiring-studio .hiring-panel-heading p { margin:7px 0 0; color:var(--mint-muted); font-size:12px; line-height:1.7; }
+.hiring-studio .hiring-text-link { color:var(--mint-muted); font-size:12px; white-space:nowrap; flex-shrink:0; padding-block:6px; }
+.hiring-studio .hiring-text-link:hover { color:var(--mint-primary); text-decoration:underline; text-underline-offset:3px; }
+.hiring-studio .hiring-empty { margin:22px; padding:34px 28px; text-align:left; border-radius:12px; background:#f8faf6; border:1px solid #edf1e9; }
+.hiring-studio .hiring-empty-index { color:var(--mint-muted); font-size:9px; letter-spacing:.14em; }
+.hiring-studio .hiring-empty h3 { margin:23px 0 12px; color:var(--mint-muted); font-size:22px; line-height:1.4; font-weight:400; letter-spacing:-.03em; max-width:380px; }
+.hiring-studio .hiring-empty p { margin:0 0 25px; color:var(--mint-muted); font-size:13px; line-height:1.9; max-width:440px; }
+.hiring-studio .hiring-job-list { padding:6px 24px; }
+.hiring-studio .hiring-job { padding:22px 0; }
+.hiring-studio .hiring-job + .hiring-job { border-top:1px solid var(--mint-soft); }
+.hiring-studio .hiring-job-top { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+.hiring-studio .hiring-job-top > div { min-width:0; }
+.hiring-studio .hiring-job h3 { margin:0; font-size:14px; font-weight:500; line-height:1.6; color:var(--mint-primary); }
+.hiring-studio .hiring-job-top p { margin:6px 0 0; color:var(--mint-muted); font-size:11px; line-height:1.6; }
+.hiring-studio .hiring-job-status { flex-shrink:0; padding:5px 7px; border:1px solid #e5ddc8; border-radius:5px; background:#faf7ee; color:#aa9572; font-size:9px; }
+.hiring-studio .hiring-job-status[data-status='approved'] { background:var(--mint-soft); color:var(--mint-muted); border-color:#dce8d2; }
+.hiring-studio .hiring-job-status[data-status='rejected'] { background:#faf0f1; color:#ac7884; border-color:#edd7dc; }
+.hiring-studio .hiring-rejection { margin-top:8px; text-align:left; color:#af7b84; font-size:10px; line-height:1.7; }
+.hiring-studio .hiring-job-bottom { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-top:20px; }
+.hiring-studio .hiring-job-bottom > span { margin-right:auto; color:var(--mint-muted); font-size:12px; line-height:1.7; }
+.hiring-studio .hiring-applicant-count { color:var(--mint-muted); font-size:11px; }
+.hiring-studio .hiring-job-bottom .hiring-button { min-height:32px; padding:6px 10px; font-size:10px; }
+.hiring-studio .hiring-rail { display:flex; flex-direction:column; gap:22px; min-width:0; }
+.hiring-studio .hiring-rail .hiring-panel-heading { gap:10px; padding:22px; }
+.hiring-studio .hiring-rail-empty { margin:0; padding:25px 22px; color:var(--mint-muted); font-size:12px; line-height:1.9; }
+.hiring-studio .hiring-applicant-list { padding:0 22px; }
+.hiring-studio .hiring-applicant { display:flex; flex-direction:column; width:100%; padding:18px 0; text-align:left; gap:7px; }
+.hiring-studio .hiring-applicant + .hiring-applicant { border-top:1px solid var(--mint-soft); }
+.hiring-studio .hiring-applicant:hover .hiring-applicant-top strong { color:var(--mint-primary); }
+.hiring-studio .hiring-applicant-top { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.hiring-studio .hiring-applicant-top strong { color:var(--mint-muted); font-size:12px; line-height:1.6; font-weight:500; }
+.hiring-studio .hiring-application-status { flex-shrink:0; color:var(--mint-muted); background:var(--mint-soft); border:1px solid var(--mint-border); border-radius:5px; font-size:9px; padding:3px 6px; }
+.hiring-studio .hiring-application-status[data-status='Phỏng vấn'] { color:#a89976; background:#faf7f0; border-color:#eee8d9; }
+.hiring-studio .hiring-application-status[data-status='Từ chối'] { color:#b58b93; background:#faf1f3; border-color:#eee0e4; }
+.hiring-studio .hiring-applicant-role { color:var(--mint-muted); font-size:11px; line-height:1.7; }
+.hiring-studio .hiring-applicant-meta { display:flex; justify-content:space-between; gap:10px; color:var(--mint-muted); font-size:9px; line-height:1.6; }
+.hiring-studio .hiring-applicant-meta > span { min-width:0; overflow-wrap:anywhere; }
+.hiring-studio .hiring-applicant-meta time { flex-shrink:0; }
+.hiring-studio .hiring-interviews { padding:24px 22px; border:1px solid #e8e3d5; border-radius:16px; background:#f9f7f0; }
+.hiring-studio .hiring-interviews .hiring-kicker { color:#b0a793; }
+.hiring-studio .hiring-interviews h2 { color:#94866a; }
+.hiring-studio .hiring-interviews .hiring-rail-empty { padding:18px 0 0; color:#b0a68f; }
+.hiring-studio .hiring-interview-list { display:grid; gap:10px; margin-top:20px; }
+.hiring-studio .hiring-interview { padding:14px; border:1px solid #eee8da; border-radius:9px; background:#fffdf8; }
+.hiring-studio .hiring-interview > div { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.hiring-studio .hiring-interview strong { font-size:12px; font-weight:500; color:#8e8166; }
+.hiring-studio .hiring-interview > div > span { font-size:10px; color:#b1a07e; }
+.hiring-studio .hiring-interview p { margin:8px 0 0; font-size:10px; line-height:1.8; color:#afa087; }
+.hiring-studio .hiring-interview a { display:inline-block; margin-top:10px; color:var(--mint-muted); font-size:10px; text-decoration:underline; text-underline-offset:3px; }
+@keyframes hiring-light { from { transform:translate3d(-8%,-5%,0); } to { transform:translate3d(12%,8%,0); } }
+@keyframes hiring-slat-wave { 0%,100% { transform:rotateY(-16deg) translateY(0); } 50% { transform:rotateY(22deg) translateY(-9px); } }
+@keyframes hiring-sculpture-sway {
+  from { transform:translate3d(calc(var(--hiring-sway) * -1 + var(--banner-x,0px) * -.5),calc(-5px + var(--banner-y,0px) * -.5),0) rotate(-22deg); }
+  to { transform:translate3d(calc(var(--hiring-sway) + var(--banner-x,0px) * -.5),calc(5px + var(--banner-y,0px) * -.5),0) rotate(-16deg); }
+}
+@media(max-width:1150px) {
+  .hiring-studio .hiring-hero { padding:38px 32px; gap:26px; }
+  .hiring-studio .hiring-hero-message { font-size:29px; }
+  .hiring-studio .hiring-columns { grid-template-columns:1fr; }
+  .hiring-studio .hiring-rail { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; }
+  .hiring-studio .hiring-metric { padding:20px; }
+}
+@media(max-width:767px) {
+  .hiring-studio .hiring-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  .hiring-studio .hiring-hero { padding:32px 27px; grid-template-columns:1fr; gap:30px; }
+  .hiring-studio .hiring-hero-art { min-height:170px; }
+  .hiring-studio .hiring-sculpture { inset:-40px -60px -30px 35%; opacity:.35; --hiring-sway:20px; }
+  .hiring-studio .hiring-hero-message { font-size:27px; }
+  .hiring-studio .hiring-hero-caption { margin-top:16px; }
+}
+@media(max-width:550px) {
+  .hiring-studio .hiring-metric { padding:18px; }
+  .hiring-studio .hiring-metric-label { min-height:38px; font-size:10px; }
+  .hiring-studio .hiring-metric strong { font-size:32px; }
+  .hiring-studio .hiring-metric-note { font-size:9px; }
+  .hiring-studio .hiring-company-heading h1 { font-size:28px; }
+  .hiring-studio .hiring-rail { grid-template-columns:1fr; }
+  .hiring-studio .hiring-panel-heading { align-items:flex-start; flex-wrap:wrap; gap:12px; padding:22px; }
+  .hiring-studio .hiring-empty { margin:18px; padding:28px 22px; }
+  .hiring-studio .hiring-empty h3 { font-size:21px; }
+  .hiring-studio .hiring-empty .hiring-button { width:100%; }
+  .hiring-studio .hiring-job-top { flex-wrap:wrap; gap:10px; }
+  .hiring-studio .hiring-job-list { padding-inline:22px; }
+  .hiring-studio .hiring-job-bottom > span { width:100%; margin-bottom:2px; }
+  .hiring-studio .hiring-job-bottom .hiring-button { margin-left:auto; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .hiring-studio *,.hiring-studio *::before { animation:none !important; transition:none !important; }
+  .hiring-studio .hiring-motion-control { display:none; }
+}

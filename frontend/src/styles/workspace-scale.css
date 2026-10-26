@@ -1,0 +1,23 @@
+/* A comfortable desktop density, including pixel-based labels and controls. */
+@media (min-width: 1280px) {
+  .workspace-shell {
+    --workspace-scale: 1.1;
+    --workspace-viewport-height: calc(100dvh / var(--workspace-scale));
+    zoom: var(--workspace-scale);
+    min-height: var(--workspace-viewport-height);
+  }
+
+  /* Viewport units stay unscaled, so compensate sticky panels explicitly. */
+  .workspace-shell .workspace-desktop-sidebar,
+  .workspace-shell .workspace-sidebar:not(.is-mobile) {
+    height: calc(var(--workspace-viewport-height) - 64px);
+  }
+
+  .workspace-shell .discovery-filters {
+    max-height: calc(var(--workspace-viewport-height) - 112px);
+  }
+
+  .workspace-shell .modal-content {
+    max-height: calc(var(--workspace-viewport-height) - 48px);
+  }
+}

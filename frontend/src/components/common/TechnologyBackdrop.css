@@ -1,0 +1,23 @@
+.technology-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--mint-primary);
+  pointer-events: none;
+  user-select: none;
+}
+
+.technology-backdrop--animated { overflow: visible; }
+.technology-backdrop--animated .technology-orbit { transform-origin: 240px 160px; animation: technology-orbit-drift 22s ease-in-out infinite alternate; }
+.technology-backdrop--animated .technology-satellites { transform-origin: 240px 160px; opacity: .55; animation: technology-satellite-turn 48s linear infinite; }
+.technology-backdrop--animated .technology-signal { stroke-dasharray: 24 420; stroke-dashoffset: 444; opacity: .6; animation: technology-signal-flow 9s linear infinite; }
+.technology-backdrop--animated .technology-signal--second { animation-delay: -3s; animation-duration: 11s; }
+.technology-backdrop--animated .technology-signal--third { animation-delay: -6s; animation-duration: 13s; opacity: .35; }
+.technology-backdrop[data-motion="paused"] * { animation-play-state: paused; }
+@keyframes technology-orbit-drift { from { transform: rotate(-4deg) scale(.98); } to { transform: rotate(4deg) scale(1.02); } }
+@keyframes technology-satellite-turn { to { transform: rotate(360deg); } }
+@keyframes technology-signal-flow { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .technology-backdrop--animated * { animation: none !important; }
+}

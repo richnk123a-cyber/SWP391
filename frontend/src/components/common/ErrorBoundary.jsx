@@ -17,17 +17,9 @@ export class ErrorBoundary extends React.Component {
 
   handleResetStorageAndReload = () => {
     try {
-      // Clear view-related caches if corrupted, but preserve user session and auth token
-      const token = localStorage.getItem('careerfit_token');
-      const currentUser = localStorage.getItem('careerfit_current_user');
-      const companies = localStorage.getItem('careerfit_companies');
-      
       localStorage.removeItem('careerfit_selected_job');
-      
-      // If token and user existed, preserve them so user is not logged out abruptly
-      if (token) localStorage.setItem('careerfit_token', token);
-      if (currentUser) localStorage.setItem('careerfit_current_user', currentUser);
-      if (companies) localStorage.setItem('careerfit_companies', companies);
+      localStorage.removeItem('careerfit_users_db');
+      localStorage.removeItem('careerfit_reported_jobs');
     } catch (e) {
       console.error("ErrorBoundary cleanup note:", e);
     }
@@ -48,6 +40,11 @@ export class ErrorBoundary extends React.Component {
               <p className="text-xs text-slate-300 leading-relaxed">
                 Ứng dụng gặp lỗi tạm thời do bộ nhớ cache trình duyệt chưa được đồng bộ. Nhấn nút bên dưới để khôi phục và tiếp tục sử dụng.
               </p>
+              {this.state.error && (
+                <div className="text-left bg-black/40 p-2.5 rounded-lg border border-slate-700 text-rose-300 text-[11px] font-mono break-all max-h-24 overflow-y-auto">
+                  {String(this.state.error?.message || this.state.error)}
+                </div>
+              )}
             </div>
 
             <div className="pt-2">

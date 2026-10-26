@@ -70,7 +70,8 @@ export function JobSearchPage() {
   const initialUrlState = useRef(readUrlState()).current;
 
   // Search & Autocomplete
-  const [searchQuery, setSearchQuery] = useState(initialUrlState.keyword || globalSearchQuery || '');
+  const [searchQuery, setSearchQuery] = useState(initialUrlState.keyword);
+  const lastGlobalSearch = useRef(globalSearchQuery);
   const [searchLocation, setSearchLocation] = useState(initialUrlState.location);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchInputRef = useRef(null);
@@ -109,6 +110,12 @@ export function JobSearchPage() {
   });
 
   useEffect(() => {
+    setGlobalSearchQuery(initialUrlState.keyword);
+  }, [initialUrlState.keyword, setGlobalSearchQuery]);
+
+  useEffect(() => {
+    if (lastGlobalSearch.current === globalSearchQuery) return;
+    lastGlobalSearch.current = globalSearchQuery;
     if (globalSearchQuery === searchQuery) return;
     setSearchQuery(globalSearchQuery || '');
     setPage(0);
@@ -128,6 +135,7 @@ export function JobSearchPage() {
   }, []);
 
   useEffect(() => {
+    if (window.location.pathname !== '/jobs') return;
     const params = new URLSearchParams();
     const setIfPresent = (name, value) => { if (value !== '' && value != null) params.set(name, value); };
     setIfPresent('keyword', searchQuery.trim());
@@ -139,11 +147,12 @@ export function JobSearchPage() {
     if (sortBy !== 'newest') params.set('sort', sortBy);
     if (page > 0) params.set('page', String(page));
     const queryString = params.toString();
-    window.history.replaceState({}, '', `${window.location.pathname}${queryString ? `?${queryString}` : ''}${window.location.hash}`);
+    window.history.replaceState({ ...window.history.state }, '', `${window.location.pathname}${queryString ? `?${queryString}` : ''}${window.location.hash}`);
   }, [searchQuery, searchLocation, selectedCategory, selectedJobType, apiMinSalary, apiMaxSalary, sortBy, page]);
 
   useEffect(() => {
     const handlePopState = () => {
+      if (window.location.pathname !== '/jobs') return;
       const state = readUrlState();
       setSearchQuery(state.keyword);
       setGlobalSearchQuery(state.keyword);
@@ -172,13 +181,13 @@ export function JobSearchPage() {
   const candidateSkills = candidateProfile?.skills || EMPTY_SKILLS;
 
   const updateFilter = (setter, value) => {
-    window.history.pushState({}, '', window.location.href);
+    window.history.pushState({ ...window.history.state }, '', window.location.href);
     setter(value);
     setPage(0);
   };
 
   const handleResetFilters = () => {
-    window.history.pushState({}, '', window.location.href);
+    window.history.pushState({ ...window.history.state }, '', window.location.href);
     setSearchQuery('');
     setSearchLocation('');
     setSelectedCategory('');
@@ -223,10 +232,22 @@ export function JobSearchPage() {
       return job;
     }).filter(Boolean);
 
-    // 2. Also ensure any locally approved jobs appear if backend search didn't return them yet
+    // 2. Only include locally approved jobs if they match the active search filter criteria
     appJobs.forEach(aj => {
       if ((aj.moderationStatus === 'APPROVED' || aj.verificationStatus === 'Verified') &&
           !mergedList.some(mj => mj.id === aj.id)) {
+        if (searchQuery && !((aj.title || '') + ' ' + (aj.company || '') + ' ' + (aj.description || '')).toLowerCase().includes(searchQuery.toLowerCase())) {
+          return;
+        }
+        if (searchLocation && !((aj.location || '')).toLowerCase().includes(searchLocation.toLowerCase())) {
+          return;
+        }
+        if (selectedCategory && (aj.category || '').toLowerCase() !== selectedCategory.toLowerCase()) {
+          return;
+        }
+        if (selectedJobType && !(aj.jobType || '').toLowerCase().includes(selectedJobType.toLowerCase())) {
+          return;
+        }
         mergedList.push(aj);
       }
     });
@@ -264,7 +285,7 @@ export function JobSearchPage() {
 
   const submitSearch = (event) => {
     event.preventDefault();
-    window.history.pushState({}, '', window.location.href);
+    window.history.pushState({ ...window.history.state }, '', window.location.href);
     setPage(0);
     setShowSuggestions(false);
     setGlobalSearchQuery(searchQuery.trim());
@@ -282,7 +303,7 @@ export function JobSearchPage() {
   const changePage = (nextPage) => {
     const safePage = Math.max(0, Math.min(nextPage, Math.max(totalPages - 1, 0)));
     if (safePage === page) return;
-    window.history.pushState({}, '', window.location.href);
+    window.history.pushState({ ...window.history.state }, '', window.location.href);
     setPage(safePage);
     resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -319,7 +340,7 @@ export function JobSearchPage() {
               placeholder="Vị trí, mô tả hoặc kỹ năng: Java, React, SQL…"
               value={searchQuery}
               onChange={event => { setSearchQuery(event.target.value); setGlobalSearchQuery(event.target.value); setPage(0); setShowSuggestions(true); }}
-              onFocus={() => { window.history.pushState({}, '', window.location.href); setShowSuggestions(true); }}
+              onFocus={() => setShowSuggestions(true)}
               onKeyDown={event => { if (event.key === 'Escape') setShowSuggestions(false); }}
             />
             {searchQuery && (
@@ -345,7 +366,6 @@ export function JobSearchPage() {
               aria-label="Địa điểm làm việc"
               placeholder="Địa điểm"
               value={searchLocation}
-              onFocus={() => window.history.pushState({}, '', window.location.href)}
               onChange={event => { setSearchLocation(event.target.value); setPage(0); }}
             />
             <datalist id="job-location-options">
@@ -413,7 +433,6 @@ export function JobSearchPage() {
                     inputMode="decimal"
                     placeholder="Ví dụ: 8"
                     value={minSalary}
-                    onFocus={() => window.history.pushState({}, '', window.location.href)}
                     onChange={event => { setMinSalary(event.target.value); setPage(0); }}
                   />
                 </label>
@@ -427,7 +446,6 @@ export function JobSearchPage() {
                     inputMode="decimal"
                     placeholder="Ví dụ: 20"
                     value={maxSalary}
-                    onFocus={() => window.history.pushState({}, '', window.location.href)}
                     onChange={event => { setMaxSalary(event.target.value); setPage(0); }}
                   />
                 </label>
@@ -624,3 +642,5 @@ export function JobSearchPage() {
     </div>
   );
 }
+
+

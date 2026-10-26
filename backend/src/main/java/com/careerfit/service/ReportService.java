@@ -133,7 +133,7 @@ public class ReportService {
         }
         validateTransition(report.getStatus(), targetStatus);
         if ((RESOLVED.equals(targetStatus) || DISMISSED.equals(targetStatus)) && adminNote == null) {
-            throw new BadRequestException("Ghi chú xử lý là bắt buộc khi kết thúc báo cáo.", "adminNote");
+            adminNote = DISMISSED.equals(targetStatus) ? "Bác bỏ báo cáo vi phạm." : "Đã xử lý giải quyết báo cáo.";
         }
 
         String previousStatus = report.getStatus();
@@ -155,7 +155,7 @@ public class ReportService {
     }
 
     private void validateTransition(String current, String target) {
-        boolean valid = (PENDING.equals(current) && REVIEWING.equals(target))
+        boolean valid = (PENDING.equals(current) && (REVIEWING.equals(target) || RESOLVED.equals(target) || DISMISSED.equals(target)))
                 || (REVIEWING.equals(current) && (RESOLVED.equals(target) || DISMISSED.equals(target)));
         if (!valid) {
             throw new BadRequestException(
