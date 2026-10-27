@@ -44,6 +44,66 @@ function stripEmojiIcons(text) {
   return text.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}]/gu, '').replace(/  +/g, ' ');
 }
 
+
+// Nhận diện ý định muốn THOÁT / HỦY / DỪNG luồng hướng dẫn khi người dùng gõ tin nhắn
+function isExitOrCancelGuide(text) {
+  if (!text) return false;
+  const raw = text.trim().toLowerCase();
+  const normalized = raw
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/\s+/g, ' ');
+
+  // 1. Các từ khóa ngắn dứt khoát
+  const exactWords = new Set([
+    'thoat', 'thoat ra', 'exit', 'quit', 'dung', 'dung lai', 'stop',
+    'huy', 'huy bo', 'cancel', 'thoi', 'thoi bo di', 'tro ve', 've lai',
+    'ko lam nua', 'khong lam nua', 'ko tao nua', 'khong tao nua', 'bo di',
+    'ngung', 'ngung lai'
+  ]);
+  if (exactWords.has(normalized)) return true;
+
+  // 2. Mẫu câu thể hiện ý muốn thoát, hủy, dừng, không muốn tiếp tục (hỗ trợ cả gõ tắt ko/không và typo nữa/mữa)
+  const patterns = [
+    /(toi\s+)?(muon|cho\s+toi|giup\s+toi)?\s*thoat/i,
+    /(toi\s+)?(muon|cho\s+toi)?\s*(huy|cancel|stop|dung|ngung)(\s+lai|\s+bo)?/i,
+    /(toi\s+)?(ko|khong|dung)\s*(muon|can)?\s*(tao|lam|viet|dang|nhap|tiep|dung)/i,
+    /(ko|khong)\s+can\s*(nua|mua)?/i,
+    /thoi\s+(khong|ko|dung|nghi|bo|ve|thoi|dep)/i,
+    /(dung|huy|thoat|ngung)\s+(huong\s+dan|quy\s+trinh|flow|bot)/i
+  ];
+
+  return patterns.some(p => p.test(normalized) || p.test(raw));
+}
+
+// Nhận diện ý định muốn quay lại bước trước bằng tin nhắn
+function isBackOrPreviousStep(text) {
+  if (!text) return false;
+  const raw = text.trim().toLowerCase();
+  const normalized = raw
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/\s+/g, ' ');
+
+  const backWords = ['quay lai', 'back', 'quay ve', 'buoc truoc', 'quay lai buoc truoc'];
+  return backWords.includes(normalized) || /(quay\s+lai|quay\s+ve|back)/i.test(normalized);
+}
+
+// Nhận diện ý định muốn bỏ qua bước hiện tại bằng tin nhắn
+function isSkipStepIntent(text) {
+  if (!text) return false;
+  const raw = text.trim().toLowerCase();
+  const normalized = raw
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/\s+/g, ' ');
+
+  const skipWords = ['bo qua', 'skip', 'bo qua buoc nay', 'chua co', 'pass'];
+  return skipWords.includes(normalized) || /(bo\s+qua|skip)/i.test(normalized);
+}
 export function CareerFitChatbot() {
  const { currentUser, setActivePage } = useApp();
  const [isOpen, setIsOpen] = useState(false);
@@ -165,6 +225,7 @@ export function CareerFitChatbot() {
 
  // Hủy luồng hướng dẫn hiện tại
  const handleCancelGuide = () => {
+ const isJobMode = session.mode === CHATBOT_MODES.JOB_POST_GUIDE;
  setSession(prev => ({
  ...prev,
  mode: CHATBOT_MODES.GENERAL,
@@ -173,13 +234,18 @@ export function CareerFitChatbot() {
  isComplete: false
  }));
 
+ const cancelMsgContent = isJobMode
+ ? 'Đã dừng quy trình hướng dẫn soạn tin tuyển dụng. Mình đã quay lại chế độ hỗ trợ thông thường. Quý doanh nghiệp có thể hỏi bất kỳ câu hỏi nào hoặc chọn gợi ý bên dưới nhé!'
+ : 'Đã dừng quy trình hướng dẫn tạo CV. Mình đã quay lại chế độ hỗ trợ thông thường. Bạn có thể hỏi bất kỳ thắc mắc nào về IT, định hướng việc làm hoặc chọn gợi ý bên dưới nhé!';
+
  const botMsg = {
  id: `msg-bot-${Date.now()}`,
  sender: 'bot',
  time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
- content: 'Đã hủy quy trình hướng dẫn. Bạn có thể hỏi mình bất cứ điều gì hoặc chọn các gợi ý bên dưới nhé!'
+ content: cancelMsgContent
  };
  setMessages(prev => [...prev, botMsg]);
+ setIsTyping(false);
  };
 
  // Bắt đầu lại quy trình hướng dẫn từ Bước 1
@@ -207,7 +273,10 @@ export function CareerFitChatbot() {
 
  // Quay lại bước trước đó trong luồng hướng dẫn
  const handlePreviousStep = () => {
- if (session.stepIndex <= 0) return;
+ if (session.stepIndex <= 0) {
+ setIsTyping(false);
+ return;
+ }
 
  const prevIndex = session.stepIndex - 1;
  const prevStepDef = currentGuideSteps[prevIndex];
@@ -234,6 +303,7 @@ export function CareerFitChatbot() {
  totalSteps: currentGuideSteps.length
  };
  setMessages(prev => [...prev, botMsg]);
+ setIsTyping(false);
  };
 
  // Bỏ qua bước tùy chọn (Kinh nghiệm, Chứng chỉ ở CV Guide)
@@ -823,8 +893,51 @@ export function CareerFitChatbot() {
  setInputValue('');
  setIsTyping(true);
 
- // 1. Nếu đang trong luồng hướng dẫn và chưa hoàn tất -> Xử lý câu trả lời cho bước hiện tại
+ // 1. Nếu đang trong luồng hướng dẫn và chưa hoàn tất -> Kiểm tra xem người dùng có muốn THOÁT / HỦY hoặc ĐIỀU HƯỚNG bằng câu trả lời không
  if (session.mode !== CHATBOT_MODES.GENERAL && !session.isComplete) {
+ if (isExitOrCancelGuide(query)) {
+ setTimeout(() => {
+ handleCancelGuide();
+ }, 300);
+ return;
+ }
+
+ if (isBackOrPreviousStep(query)) {
+ setTimeout(() => {
+ if (session.stepIndex > 0) {
+ handlePreviousStep();
+ } else {
+ setIsTyping(false);
+ const botMsg = {
+ id: `msg-bot-${Date.now()}`,
+ sender: 'bot',
+ time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+ content: 'Bạn đang ở bước đầu tiên của hướng dẫn rồi. Nếu muốn dừng hướng dẫn, bạn có thể nhắn "thoát" hoặc bấm nút "Hủy" trên thanh công cụ nhé!'
+ };
+ setMessages(prev => [...prev, botMsg]);
+ }
+ }, 300);
+ return;
+ }
+
+ if (isSkipStepIntent(query)) {
+ setTimeout(() => {
+ if (currentStepDef && currentStepDef.canSkip) {
+ handleSkipStep();
+ } else {
+ setIsTyping(false);
+ const botMsg = {
+ id: `msg-bot-${Date.now()}`,
+ sender: 'bot',
+ time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+ content: 'Bước này là thông tin cần thiết trong biểu mẫu. Bạn vui lòng chọn gợi ý hoặc nhập thông tin nhé (hoặc nhắn "thoát" để dừng hướng dẫn).'
+ };
+ setMessages(prev => [...prev, botMsg]);
+ }
+ }, 300);
+ return;
+ }
+
  setTimeout(() => {
  processNextGuideStep(query);
  }, 350);
@@ -1188,6 +1301,14 @@ export function CareerFitChatbot() {
  {opt}
  </button>
  ))}
+ <button
+ type="button"
+ onClick={handleCancelGuide}
+ className="cf-quick-btn !border-rose-200 !text-rose-600 hover:!bg-rose-50 font-medium"
+ title="Dừng hướng dẫn và quay lại chế độ chat thường"
+ >
+ ✕ Dừng hướng dẫn
+ </button>
  </div>
  )}
 
