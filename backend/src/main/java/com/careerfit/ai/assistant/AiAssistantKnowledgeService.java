@@ -348,14 +348,45 @@ public class AiAssistantKnowledgeService {
         return false;
     }
 
-    private boolean isGreetingOrPolite(String text) {
+    public boolean isGreetingOrPolite(String text) {
         if (text == null || text.isBlank()) return false;
-        String t = text.trim();
-        return t.equals("hi") || t.startsWith("hi ") || t.equals("hello") || t.startsWith("hello ")
+        String raw = text.trim().toLowerCase();
+        String t = VietnameseTextNormalizer.normalizeText(text).toLowerCase().trim();
+
+        // 1. Kiểm tra regex nhận diện chào hỏi (kể cả typo, gõ kéo dài như helo, hello, hii, heyy, alo...)
+        if (t.matches("^(h+i+|h+e+l+o+|h+a+l+o+|h+e+y+|yo+|a+l+o+|c+h+a+o+|x+i+n+\\s+c+h+a+o+|h+e+\\s*l+o+|g+o+o+d+\\s*(morning|afternoon|evening)|bonjour)(\\s+.*)?$")
+                || raw.matches("^(h+i+|h+e+l+o+|h+a+l+o+|h+e+y+|yo+|a+l+o+|c+h+a+o+|x+i+n+\\s+c+h+a+o+|h+e+\\s*l+o+|g+o+o+d+\\s*(morning|afternoon|evening)|bonjour)(\\s+.*)?$")) {
+            return true;
+        }
+
+        // 2. Chào hỏi xã giao thông dụng bằng tiếng Việt / tiếng Anh
+        if (t.equals("hi") || t.startsWith("hi ") || t.equals("hello") || t.startsWith("hello ")
+                || t.equals("helo") || t.startsWith("helo ") || t.equals("halo") || t.startsWith("halo ")
+                || t.equals("hey") || t.startsWith("hey ") || t.equals("alo") || t.startsWith("alo ")
                 || t.equals("chao") || t.startsWith("chao ") || t.startsWith("xin chao")
-                || t.contains("cam on") || t.contains("tks") || t.contains("thank")
-                || t.equals("tam biet") || t.startsWith("tam biet")
-                || t.equals("ban la ai") || t.contains("ban la ai");
+                || t.equals("he lo") || t.startsWith("he lo ")
+                || t.equals("hoi") || t.startsWith("cho hoi") || t.startsWith("cho minh hoi") 
+                || t.startsWith("cho em hoi") || t.startsWith("cho toi hoi")) {
+            return true;
+        }
+
+        // 3. Cảm ơn, tạm biệt, phản hồi ngắn lịch sự
+        if (t.contains("cam on") || t.contains("tks") || t.contains("thank") || t.contains("thx")
+                || t.equals("tam biet") || t.startsWith("tam biet") || t.equals("bye") || t.startsWith("bye ")
+                || t.equals("goodbye") || t.startsWith("goodbye ")
+                || t.equals("ok") || t.equals("oke") || t.equals("okay") || t.equals("da") || t.equals("vang")) {
+            return true;
+        }
+
+        // 4. Hỏi bot là ai, giới thiệu khả năng
+        if (t.contains("ban la ai") || t.contains("may la ai") || t.contains("em la ai") 
+                || t.contains("bot la ai") || t.contains("ai day") || t.contains("who are you")
+                || t.contains("gioi thieu") || t.contains("lam duoc gi") || t.contains("giup duoc gi")
+                || t.contains("ho tro gi") || t.contains("chuc nang gi")) {
+            return true;
+        }
+
+        return false;
     }
 
     /**

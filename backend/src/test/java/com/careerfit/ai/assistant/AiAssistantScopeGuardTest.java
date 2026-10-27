@@ -49,6 +49,12 @@ class AiAssistantScopeGuardTest {
         assertTrue(knowledgeService.isWithinScope("Lộ trình học Spring Boot cho Fresher"));
         assertTrue(knowledgeService.isWithinScope("Thuộc tính ACID trong database"));
         assertTrue(knowledgeService.isWithinScope("Chào bạn, bạn có thể giúp gì cho tôi?"));
+        assertTrue(knowledgeService.isWithinScope("helo"));
+        assertTrue(knowledgeService.isWithinScope("helo bot"));
+        assertTrue(knowledgeService.isWithinScope("hello"));
+        assertTrue(knowledgeService.isWithinScope("hi"));
+        assertTrue(knowledgeService.isWithinScope("alo"));
+        assertTrue(knowledgeService.isWithinScope("cho em hỏi"));
     }
 
     @Test
