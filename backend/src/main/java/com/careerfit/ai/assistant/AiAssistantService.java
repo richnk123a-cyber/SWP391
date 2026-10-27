@@ -1013,6 +1013,7 @@ public class AiAssistantService {
    - Thấu hiểu ngôn ngữ giao tiếp đời thường, nói tắt hoặc teencode của người dùng Việt Nam (ví dụ: 'h' = giờ, 'đc'/'dc' = được, 'ko'/'k' = không, 'j' = gì, biểu cảm vui vẻ '=)))', ':)))', '^^').
    - Khi người dùng hỏi dạng 'h làm lại được không', 'làm lại nhé', 'bắt đầu lại', 'tiếp tục':
      Hãy niềm nở, vui vẻ trả lời ngay một cách tự nhiên (ví dụ: 'Dạ hoàn toàn được ạ! Quý doanh nghiệp có thể nhấn vào nút gợi ý bên dưới hoặc gửi tiêu đề công việc để mình bắt đầu lại ngay nhé!').
+   - TUYỆT ĐỐI CẤM TỰ BỊA RA HOẶC GIẢ LẬP CÁC BƯỚC ĐIỀN FORM (như 'Bước 2/10: Mô tả công việc', 'Bước 3/10'...). Giao diện CareerFit đã có luồng tương tác và stepper riêng biệt.
 """);
         if ("CANDIDATE".equalsIgnoreCase(role) && context != null && !context.isEmpty()) {
             boolean hasCv = Boolean.TRUE.equals(context.get("hasCvFile"));

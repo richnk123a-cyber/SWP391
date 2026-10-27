@@ -121,14 +121,34 @@ function isBackOrPreviousStep(text) {
 function isSkipStepIntent(text) {
   if (!text) return false;
   const raw = text.trim().toLowerCase();
-  const normalized = raw
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/\s+/g, ' ');
+  const normalized = normalizeTeencodeAndSlang(text);
 
   const skipWords = ['bo qua', 'skip', 'bo qua buoc nay', 'chua co', 'pass'];
   return skipWords.includes(normalized) || /(bo\s+qua|skip)/i.test(normalized);
+}
+
+// Nhận diện ý định muốn QUAY LẠI BƯỚC VỪA THOÁT / LÀM LẠI / TIẾP TỤC ("lại đi", "làm lại", "tiếp tục", "làm tiếp"...)
+function isResumeOrRestartIntent(text) {
+  if (!text) return false;
+  const raw = text.trim().toLowerCase();
+  const normalized = normalizeTeencodeAndSlang(text);
+
+  const exactWords = new Set([
+    'lai di', 'lam lai', 'lam lai di', 'tiep tuc', 'lam tiep', 'tao tiep',
+    'bat dau lai', 'quay lai buoc thoat', 'lam lai tu dau', 'tao lai', 'lai',
+    'gio lam lai duoc khong', 'lam lai duoc khong', 'tiep', 'tiep di',
+    'lam tiep di', 'mo lai', 'lam tiep nhe', 'lai di nhe', 'tiep tuc nhe'
+  ]);
+  if (exactWords.has(normalized) || exactWords.has(raw)) return true;
+
+  const patterns = [
+    /^(gio\s+)?(lam\s+|tao\s+)?lai(\s+di|\s+nhe|\s+nha|\s+duoc\s+khong)?$/i,
+    /^(tiep\s+tuc|lam\s+tiep|tao\s+tiep)(\s+di|\s+nhe|\s+nha)?$/i,
+    /^(bat\s+dau\s+lai|lam\s+lai\s+tu\s+dau|tao\s+lai\s+tu\s+dau)$/i,
+    /^quay\s+lai\s+(buoc\s+thoat|buoc\s+nay|buoc\s+cu|lam|tao)$/i
+  ];
+
+  return patterns.some(p => p.test(normalized) || p.test(raw));
 }
 export function CareerFitChatbot() {
  const { currentUser, setActivePage } = useApp();
@@ -157,6 +177,7 @@ export function CareerFitChatbot() {
  const messagesEndRef = useRef(null);
  const inputRef = useRef(null);
  const fileInputRef = useRef(null);
+ const lastInterruptedGuideRef = useRef(null);
 
  useEffect(() => {
  setMounted(true);
@@ -252,6 +273,16 @@ export function CareerFitChatbot() {
  // Hủy luồng hướng dẫn hiện tại
  const handleCancelGuide = () => {
  const isJobMode = session.mode === CHATBOT_MODES.JOB_POST_GUIDE;
+ const isCvMode = session.mode === CHATBOT_MODES.CV_GUIDE;
+
+ // Lưu lại chính xác bước vừa thoát ra để khi người dùng nhắn 'lại đi' sẽ quay lại đúng bước đó
+ if (isJobMode || isCvMode) {
+ lastInterruptedGuideRef.current = {
+ mode: session.mode,
+ stepIndex: session.stepIndex,
+ collectedData: { ...session.collectedData }
+ };
+ }
  setSession(prev => ({
  ...prev,
  mode: CHATBOT_MODES.GENERAL,
@@ -991,6 +1022,91 @@ export function CareerFitChatbot() {
  processNextGuideStep(query);
  }, 250);
  return;
+ }
+
+ // 1.5 Nhận diện ý định QUAY LẠI BƯỚC VỪA THOÁT / LÀM LẠI / TIẾP TỤC ("lại đi", "làm lại", "tiếp tục", "làm tiếp"...)
+ if (isResumeOrRestartIntent(query)) {
+ const interrupted = lastInterruptedGuideRef.current;
+ if (interrupted) {
+ const isJob = interrupted.mode === CHATBOT_MODES.JOB_POST_GUIDE;
+ const steps = isJob ? JOB_POST_GUIDE_STEPS : CV_GUIDE_STEPS;
+ const targetStepIndex = Math.min(Math.max(0, interrupted.stepIndex), steps.length - 1);
+ const stepDef = steps[targetStepIndex];
+
+ setSession({
+ sessionId: `session-${Date.now()}`,
+ role: role,
+ mode: interrupted.mode,
+ stepIndex: targetStepIndex,
+ collectedData: { ...interrupted.collectedData },
+ isComplete: false
+ });
+
+ const botReply = {
+ id: `msg-bot-resume-${Date.now()}`,
+ sender: 'bot',
+ time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+ content: `Dạ, mình quay lại đúng Bước ${targetStepIndex + 1}/${steps.length} (${stepDef.title}) mà bạn vừa dừng nhé:\n\n${stepDef.prompt}`,
+ quickOptions: stepDef.quickOptions,
+ isStepPrompt: true,
+ stepNumber: targetStepIndex + 1,
+ totalSteps: steps.length
+ };
+ setMessages(prev => [...prev, botReply]);
+ setIsTyping(false);
+ return;
+ }
+
+ // Nếu chưa có bước dừng trước đó -> Khởi động lại từ Bước 1 phù hợp vai trò
+ if (isEmployer) {
+ const firstStep = JOB_POST_GUIDE_STEPS[0];
+ setSession({
+ sessionId: `session-${Date.now()}`,
+ role: 'EMPLOYER',
+ mode: CHATBOT_MODES.JOB_POST_GUIDE,
+ stepIndex: 0,
+ collectedData: {},
+ isComplete: false
+ });
+
+ const botReply = {
+ id: `msg-bot-start-${Date.now()}`,
+ sender: 'bot',
+ time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+ content: `Dạ, mình bắt đầu soạn tin tuyển dụng từ Bước 1 nhé:\n\n${firstStep.prompt}`,
+ quickOptions: firstStep.quickOptions,
+ isStepPrompt: true,
+ stepNumber: 1,
+ totalSteps: JOB_POST_GUIDE_STEPS.length
+ };
+ setMessages(prev => [...prev, botReply]);
+ setIsTyping(false);
+ return;
+ } else {
+ const firstStep = CV_GUIDE_STEPS[0];
+ setSession({
+ sessionId: `session-${Date.now()}`,
+ role: 'CANDIDATE',
+ mode: CHATBOT_MODES.CV_GUIDE,
+ stepIndex: 0,
+ collectedData: {},
+ isComplete: false
+ });
+
+ const botReply = {
+ id: `msg-bot-start-${Date.now()}`,
+ sender: 'bot',
+ time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+ content: `Dạ, mình bắt đầu tạo CV từ Bước 1 nhé:\n\n${firstStep.prompt}`,
+ quickOptions: firstStep.quickOptions,
+ isStepPrompt: true,
+ stepNumber: 1,
+ totalSteps: CV_GUIDE_STEPS.length
+ };
+ setMessages(prev => [...prev, botReply]);
+ setIsTyping(false);
+ return;
+ }
  }
 
  // 2. Nhận diện ý định tạo CV (Ứng viên)
