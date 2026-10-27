@@ -1,0 +1,44 @@
+[
+  {
+    "id": "faq_01",
+    "question": "Làm thế nào để ứng tuyển một công việc trên CareerFit?",
+    "answer": "Để ứng tuyển, ứng viên đăng nhập tài khoản CANDIDATE, hoàn thiện hồ sơ hoặc tải lên tệp CV (PDF/DOCX). Sau đó truy cập trang Tìm việc làm, chọn công việc phù hợp và nhấn nút 'Ứng tuyển ngay'. Bạn có thể theo dõi tiến độ xử lý hồ sơ trên bảng Kanban ở mục Quản lý ứng tuyển.",
+    "topic": "CAREERFIT_FEATURE",
+    "keywords": ["ứng tuyển", "nộp đơn", "tìm việc", "quy trình ứng tuyển"]
+  },
+  {
+    "id": "faq_02",
+    "question": "Điểm Match Score trên CareerFit được tính như thế nào?",
+    "answer": "Điểm Match Score được tính dựa trên mức độ trùng khớp giữa các kỹ năng bạn có trong CV với yêu cầu của tin tuyển dụng. Kỹ năng bắt buộc chiếm 70% trọng số, kỹ năng ưu tiên chiếm 20% và sự phù hợp về vị trí/học vấn chiếm 10%. Điểm số càng cao thì cơ hội được nhà tuyển dụng xem xét càng lớn.",
+    "topic": "CAREERFIT_FEATURE",
+    "keywords": ["match score", "tính điểm", "độ phù hợp", "so khớp kỹ năng"]
+  },
+  {
+    "id": "faq_03",
+    "question": "Tại sao tin tuyển dụng của doanh nghiệp chưa hiển thị công khai?",
+    "answer": "Mọi tin tuyển dụng mới đăng tải đều phải trải qua bước kiểm duyệt của Quản trị viên (Admin) để đảm bảo tính xác thực và chất lượng. Sau khi Admin phê duyệt, tin tuyển dụng sẽ chuyển sang trạng thái ACTIVE và xuất hiện công khai trên sàn tìm việc.",
+    "topic": "CAREERFIT_FEATURE",
+    "keywords": ["kiểm duyệt tin", "duyệt tin tuyển dụng", "tin chưa hiển thị", "trạng thái tin"]
+  },
+  {
+    "id": "faq_04",
+    "question": "Làm thế nào để hẹn lịch phỏng vấn với ứng viên?",
+    "answer": "Nhà tuyển dụng truy cập mục Quản lý ứng viên, kéo thả hồ sơ ứng viên sang cột 'Phỏng vấn' (INTERVIEW). Hệ thống sẽ hiển thị hộp thoại yêu cầu nhập ngày giờ phỏng vấn và link phòng họp Google Meet. Sau khi xác nhận, hệ thống sẽ tự động gửi thông báo lịch phỏng vấn đến ứng viên.",
+    "topic": "CAREERFIT_FEATURE",
+    "keywords": ["hẹn lịch phỏng vấn", "google meet", "lịch phỏng vấn", "kanban phỏng vấn"]
+  },
+  {
+    "id": "faq_05",
+    "question": "Tính năng AI Polish CV giúp ích gì cho sinh viên IT?",
+    "answer": "Tính năng AI Polish CV giúp sinh viên rà soát lỗi chính tả, chuẩn hóa các thuật ngữ công nghệ quốc tế (ví dụ: 'microsoft sqlserver' thành 'Microsoft SQL Server'), tách riêng kỹ năng kỹ thuật và kỹ năng mềm, nâng cấp mô tả đồ án môn học thành kinh nghiệm chuyên nghiệp và xuất bản mẫu CV chuẩn định dạng Times New Roman tối ưu cho các hệ thống quét hồ sơ ATS.",
+    "topic": "CV_GUIDE",
+    "keywords": ["ai polish cv", "chuẩn hóa cv", "tối ưu cv", "cv cho sinh viên", "sửa cv"]
+  },
+  {
+    "id": "faq_06",
+    "question": "Doanh nghiệp mới đăng ký cần làm gì để được xác minh tài khoản?",
+    "answer": "Doanh nghiệp sau khi đăng ký tài khoản cần vào phần Cài đặt công ty để cập nhật thông tin doanh nghiệp (Tên công ty, địa chỉ, người đại diện HR, website, quy mô) và tải lên tệp Giấy phép kinh doanh (GPKD). Admin hệ thống sẽ thẩm định hồ sơ và phê duyệt sang trạng thái Verified trong vòng 24-48 giờ làm việc.",
+    "topic": "CAREERFIT_FEATURE",
+    "keywords": ["xác minh doanh nghiệp", "verified company", "giấy phép kinh doanh", "gpkd"]
+  }
+]

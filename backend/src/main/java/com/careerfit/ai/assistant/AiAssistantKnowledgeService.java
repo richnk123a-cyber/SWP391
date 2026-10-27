@@ -1,149 +1,483 @@
 package com.careerfit.ai.assistant;
 
+import com.careerfit.model.AiLearnedKnowledge;
+import com.careerfit.model.Skill;
+import com.careerfit.repository.AiLearnedKnowledgeRepository;
+import com.careerfit.repository.SkillRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.ResourceLoader;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.*;
-import java.util.regex.Pattern;
 
+/**
+ * Dịch vụ Quản lý Tri thức (Knowledge Base Service) thông minh cho CareerFit AI:
+ * 1. Nạp và lập chỉ mục (index) tự động toàn bộ tài nguyên nội bộ khi khởi động (Markdown, FAQ JSON, DB data.sql/Skills).
+ * 2. Phân đoạn tri thức (Chunking) với metadata: nguồn, tiêu đề, chủ đề, từ khóa, thời gian cập nhật.
+ * 3. Scope Guard: Kiểm soát phạm vi câu hỏi dựa trên độ tương đồng BM25 và từ điển chủ đề dự án.
+ * 4. Học hỏi & Ghi nhớ bền vững (Persistent Learning Store) vào cơ sở dữ liệu với TTL và chống trùng lặp.
+ */
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class AiAssistantKnowledgeService {
 
     public static final String STANDARD_OUT_OF_SCOPE_REFUSAL =
-            "Xin lỗi bạn, mình là trợ lý chuyên môn của CareerFit, chỉ hỗ trợ các câu hỏi liên quan đến việc làm IT, kiến thức và kỹ năng Công nghệ thông tin, tạo và chỉnh sửa CV, đăng tin tuyển dụng, quy trình phỏng vấn và sử dụng nền tảng CareerFit. Bạn vui lòng đặt câu hỏi liên quan đến các chủ đề này nhé!";
+            "Xin lỗi bạn, tôi là trợ lý chuyên trách của hệ thống CareerFit (SWP3911), chỉ hỗ trợ các nội dung liên quan đến:\n" +
+            "1. Hướng dẫn sử dụng nền tảng CareerFit (tạo CV chuẩn ATS, quản lý ứng tuyển Kanban, đăng tin tuyển dụng, quy trình phỏng vấn Google Meet).\n" +
+            "2. Kiến thức chuyên môn Công nghệ thông tin (Thuật toán, Lập trình Java/Spring Boot, SQL, Cloud, DevOps, QA/QC).\n" +
+            "3. Lộ trình phát triển sự nghiệp và kỹ năng CNTT cho sinh viên và Fresher.\n\n" +
+            "Gợi ý câu hỏi mẫu bạn có thể hỏi:\n" +
+            "- Làm thế nào để tạo CV chuẩn ATS 7 bước trên CareerFit?\n" +
+            "- Điểm Match Score giữa CV và tin tuyển dụng được tính như thế nào?\n" +
+            "- Giải thích kỹ thuật Tree Pruning trong Cấu trúc dữ liệu và Machine Learning.\n" +
+            "- Lộ trình trở thành Java Backend Developer từ số 0 gồm những gì?";
+
+    private final Bm25Retriever bm25Retriever;
+    private final AiLearnedKnowledgeRepository learnedKnowledgeRepository;
+    private final ResourceLoader resourceLoader;
+    private final ObjectMapper objectMapper;
+
+    @Autowired(required = false)
+    private SkillRepository skillRepository;
 
     // Danh sách các mẫu tấn công Prompt Injection / Jailbreak cần từ chối ngay lập tức
     private static final List<String> INJECTION_PATTERNS = List.of(
-            "bỏ qua quy định", "bỏ qua mọi quy định", "bỏ qua luật", "bỏ qua tất cả",
+            "bo qua quy dinh", "bo qua moi quy dinh", "bo qua luat", "bo qua tat ca",
             "ignore previous instructions", "ignore all instructions", "disregard instructions",
-            "system prompt", "trả lời mọi chủ đề", "không bị giới hạn", "bỏ qua hạn chế",
-            "bỏ qua các ràng buộc", "jailbreak", "đóng vai không giới hạn"
+            "system prompt", "tra loi moi chu de", "khong bi gioi han", "bo qua han che",
+            "bo qua cac rang buoc", "jailbreak", "dong vai khong gioi han", "bypass restrictions"
     );
 
-    // Danh sách các chủ đề hoàn toàn ngoài phạm vi CNTT & Tuyển dụng (Nấu ăn, cá cược, y tế, chính trị, giải trí thuần túy...)
+    // Danh sách các chủ đề hoàn toàn ngoài phạm vi CNTT & Tuyển dụng
     private static final List<String> OBVIOUS_OUT_OF_SCOPE = List.of(
-            "nấu phở", "nấu ăn", "cách làm bánh", "món ăn ngon", "công thức nấu", "pha nước chấm",
-            "bún bò", "bánh mì", "kho thịt", "luộc gà", "xổ số", "lô đề", "soi cầu", "cá độ",
-            "đoán điềm", "tử vi", "chiêm tinh", "cung hoàng đạo", "bói toán",
-            "uống thuốc gì", "chữa bệnh", "khám bệnh", "triệu chứng bệnh",
-            "bầu cử", "chính trị gia", "chiến tranh", "scandal giới trẻ", "tin đồn showbiz"
+            // Ẩm thực & Nấu ăn
+            "nau pho", "nau an", "cach lam banh", "mon an ngon", "cong thuc nau", "pha nuoc cham",
+            "bun bo", "banh mi", "kho thit", "luoc ga", "an gi hom nay", "quan an",
+            // Thời tiết & Đời sống thường nhật (Fix triệt để câu hỏi trời mưa, nắng, nhiệt độ)
+            "thoi tiet", "troi mua", "troi nang", "co mua khong", "mua khong", "troi co mua khong",
+            "mua to", "mua rao", "du bao thoi tiet", "nhiet do hom nay", "nang nong",
+            // Giải trí, Thể thao, Showbiz, Du lịch, Mua sắm
+            "bong da", "the thao", "ngoai hang anh", "xem phim", "mua sam", "quan ao", "du lich",
+            "gia vang", "gia xang", "xe co", "scandal", "tin don showbiz", "dien vien", "ca si",
+            // Cờ bạc, Bói toán, Mê tín
+            "xo so", "lo de", "soi cau", "ca do", "doan diem", "tu vi", "chiem tinh", "cung hoang dao", "boi toan",
+            // Y tế & Thuốc men
+            "uong thuoc gi", "chua benh", "kham benh", "trieu chung benh", "dau dau", "dau bung",
+            // Chính trị & Xã hội nhạy cảm
+            "bau cu", "chinh tri gia", "chien tranh"
     );
 
-    // Danh sách các thuật ngữ đa nghĩa (Polysemous terms) giữa đời sống thông thường và chuyên ngành CNTT
-    private static final Map<String, String> POLYSEMOUS_TERMS = Map.of(
-            "đám mây", "Cloud Computing (Điện toán đám mây)",
-            "tỉa cây", "Tree Pruning (Cắt tỉa cây quyết định / Tối ưu thuật toán trong ML & DSA)",
-            "cây đỏ đen", "Red-Black Tree (Cấu trúc dữ liệu cây tự cân bằng)",
-            "luồng", "Thread (Đơn vị thực thi độc lập trong lập trình đa luồng)",
-            "con trỏ", "Pointer (Biến lưu địa chỉ ô nhớ trong C/C++)",
-            "socket", "Network Socket (Điểm cuối truyền thông mạng TCP/UDP)",
-            "đóng băng", "UI/Process Freeze (Treo giao diện / Tiến trình bị chặn)",
-            "rò rỉ", "Memory Leak (Rò rỉ bộ nhớ trong phát triển phần mềm)",
-            "sâu", "Software Bug / Web Crawler",
-            "chuột rút", "Deadlock / Thread Starvation"
-    );
-
-    // Bộ nhận diện ngữ cảnh kỹ thuật / CNTT rõ ràng
-    private static final List<String> IT_CONTEXT_MARKERS = List.of(
-            "it", "cntt", "lập trình", "phần mềm", "thuật toán", "công nghệ", "máy tính",
-            "decision tree", "cây quyết định", "ml", "ai", "machine learning", "code",
-            "developer", "kỹ thuật", "cấu trúc dữ liệu", "mạng", "database", "backend", "frontend"
-    );
-
-    // Bộ từ khóa bao phủ toàn diện các lĩnh vực CNTT (DSA, Web, DB, Cloud, DevOps, QA, Security, AI...)
+    // Bộ từ khóa bao phủ toàn diện các lĩnh vực CNTT & Tuyển dụng của dự án
     private static final List<String> IT_DOMAIN_KEYWORDS = List.of(
-            // Lập trình & Ngôn ngữ
             "java", "python", "javascript", "typescript", "c++", "c#", "golang", "rust", "php", "swift",
-            "kotlin", "dart", "ruby", "html", "css", "sql", "oop", "hướng đối tượng",
-            // DSA & Giải thuật
-            "cấu trúc dữ liệu", "giải thuật", "thuật toán", "cây", "tree", "pruning", "tỉa cây", "cây avl", "avl",
-            "cây đỏ đen", "red-black", "binary search tree", "bst", "đồ thị", "graph", "ngăn xếp", "stack",
-            "hàng đợi", "queue", "heap", "hash table", "bảng băm", "sắp xếp", "quicksort", "mergesort",
-            "độ phức tạp", "big-o", "o(n)", "o(log n)", "quy hoạch động", "dynamic programming", "đệ quy",
-            // AI, Machine Learning & Data
-            "ai", "trí tuệ nhân tạo", "machine learning", "deep learning", "decision tree", "cây quyết định",
-            "random forest", "overfitting", "underfitting", "neural network", "mạng nơ-ron", "nlp", "llm",
-            "data science", "khoa học dữ liệu", "scikit-learn", "tensorflow", "pytorch",
-            // Cloud, DevOps & Mạng
-            "cloud", "cloud computing", "điện toán đám mây", "đám mây", "aws", "gcp", "azure", "docker",
-            "container", "kubernetes", "k8s", "ci/cd", "devops", "linux", "bash", "tcp/ip", "tcp", "udp",
-            "dns", "http", "https", "socket", "websocket", "rest", "restful", "api", "graphql", "microservices",
-            // Cơ sở dữ liệu & Security
-            "cơ sở dữ liệu", "database", "mysql", "postgresql", "mongodb", "redis", "acid", "index", "chỉ mục",
-            "transaction", "b-tree", "jwt", "oauth", "oauth2", "token", "xác thực", "phân quyền", "bảo mật",
-            "an toàn thông tin", "sql injection", "xss", "csrf", "mã hóa",
-            // Software Engineering & Testing QA
-            "software engineering", "kỹ thuật phần mềm", "design pattern", "singleton", "factory", "solid",
-            "clean code", "unit test", "integration test", "tester", "qa", "qc", "kiểm thử", "test case",
-            "automation test", "agile", "scrum", "sprint", "git", "github", "gitlab",
-            // CareerFit Platform & Nghề nghiệp
-            "cv", "hồ sơ", "tuyển dụng", "việc làm", "job", "careerfit", "đăng tin", "tạo tin", "tạo cv",
-            "viết cv", "làm cv", "tìm việc", "phỏng vấn", "interview", "star", "fresher", "intern",
-            "thực tập", "lương", "salary", "jd", "mô tả công việc", "match score", "kanban", "lộ trình"
+            "kotlin", "dart", "ruby", "html", "css", "sql", "oop", "huong doi tuong",
+            "cau truc du lieu", "giai thuat", "thuat toan", "cay", "tree", "pruning", "tia cay", "cay avl", "avl",
+            "cay do den", "red black", "binary search tree", "bst", "do thi", "graph", "ngan xep", "stack",
+            "hang doi", "queue", "heap", "hash table", "bang bam", "sap xep", "quicksort", "mergesort",
+            "do phuc tap", "big o", "o(n)", "quy hoach dong", "de quy",
+            "ai", "tri tue nhan tao", "machine learning", "deep learning", "decision tree",
+            "random forest", "overfitting", "underfitting", "neural network", "nlp", "llm",
+            "cloud", "dien toan dam may", "dam may", "aws", "gcp", "azure", "docker",
+            "container", "kubernetes", "k8s", "ci/cd", "devops", "linux", "bash", "socket", "websocket",
+            "rest", "restful", "api", "graphql", "microservices",
+            "co so du lieu", "database", "mysql", "postgresql", "mongodb", "redis", "acid", "index", "chi muc",
+            "transaction", "b tree", "jwt", "oauth", "token", "xac thuc", "phan quyen", "bao mat",
+            "software engineering", "design pattern", "singleton", "factory", "solid", "clean code",
+            "unit test", "tester", "qa", "qc", "kiem thu", "test case", "agile", "scrum", "git", "github",
+            "cv", "ho so", "tuyen dung", "viec lam", "job", "careerfit", "dang tin", "tao tin", "tao cv",
+            "viet cv", "lam cv", "tim viec", "phong van", "interview", "star", "fresher", "intern",
+            "thuc tap", "luong", "salary", "jd", "mo ta cong viec", "match score", "kanban", "lo trinh"
     );
 
     /**
-     * Kiểm tra xem câu hỏi có nằm trong phạm vi hỗ trợ (hoặc cần làm rõ) hay không.
-     * Trả về false CHỈ KHI câu hỏi rõ ràng là OUT_OF_SCOPE hoặc vi phạm Prompt Injection.
+     * Khởi động nạp và lập chỉ mục toàn bộ tài nguyên nội bộ
      */
-    public boolean isWithinScope(String message) {
-        if (message == null || message.isBlank()) return false;
-        String lower = message.toLowerCase(Locale.ROOT).trim();
+    @PostConstruct
+    public void initKnowledgeBase() {
+        log.info("Bắt đầu nạp và xây dựng Knowledge Base nội bộ cho CareerFit AI Assistant...");
+        List<KnowledgeChunk> allChunks = new ArrayList<>();
 
-        // 1. Kiểm tra Prompt Injection / Phá vỡ quy tắc
-        for (String pattern : INJECTION_PATTERNS) {
-            if (lower.contains(pattern)) {
-                return false;
-            }
-        }
+        // 1. Nạp từ các file trong classpath:knowledge/
+        allChunks.addAll(loadMarkdownResource("classpath:knowledge/careerfit_system_guide.md", "CAREERFIT_SYSTEM"));
+        allChunks.addAll(loadJsonFaqResource("classpath:knowledge/careerfit_faq.json"));
+        allChunks.addAll(loadMarkdownResource("classpath:knowledge/it_technical_handbook.md", "IT_TECHNICAL"));
 
-        // 2. Kiểm tra chủ đề hoàn toàn ngoài phạm vi (ẩm thực, giải trí, bói toán...)
-        for (String out : OBVIOUS_OUT_OF_SCOPE) {
-            if (lower.contains(out)) {
-                return false;
-            }
-        }
+        // 2. Nạp từ cơ sở dữ liệu (Skills đang active)
+        allChunks.addAll(loadDatabaseSkillChunks());
 
-        // 3. Câu chào hỏi thông thường
-        if (lower.startsWith("chào") || lower.startsWith("hi") || lower.startsWith("hello")
-                || lower.startsWith("ơi") || lower.contains("cảm ơn") || lower.contains("tks")
-                || lower.contains("thank") || lower.contains("tạm biệt") || lower.contains("bạn là ai")) {
-            return true;
-        }
+        // 3. Nạp kiến thức bền vững đã học trước đó từ DB (còn hạn)
+        allChunks.addAll(loadPersistedLearnedKnowledge());
 
-        // 4. Kiểm tra thuật ngữ đa nghĩa (Ví dụ: "đám mây", "tỉa cây", "luồng", "con trỏ", "socket")
-        for (String polyKey : POLYSEMOUS_TERMS.keySet()) {
-            if (lower.contains(polyKey)) {
-                return true;
-            }
-        }
-
-        // 5. Kiểm tra từ khóa kỹ thuật CNTT & CareerFit
-        for (String kw : IT_DOMAIN_KEYWORDS) {
-            if (lower.contains(kw)) {
-                return true;
-            }
-        }
-
-        // 6. Câu hỏi ngắn hoặc có dấu hiệu học tập/nghề nghiệp
-        if (lower.length() < 25 && !containsObviousNonItWord(lower)) {
-            return true;
-        }
-
-        // Mặc định: nếu không rơi vào các chủ đề bị cấm rõ ràng thì vẫn cho phép xử lý ngữ nghĩa
-        return true;
+        // 4. Xây dựng chỉ mục BM25
+        bm25Retriever.reindex(allChunks);
+        log.info("Knowledge Base đã sẵn sàng với tổng cộng {} chunks tri thức.", allChunks.size());
     }
 
     /**
-     * Phân loại ý định ngữ nghĩa theo 5 nhóm chuẩn:
-     * - CAREERFIT_TASK
-     * - IT_KNOWLEDGE
-     * - IT_CAREER
-     * - AMBIGUOUS
-     * - OUT_OF_SCOPE
+     * Nạp và phân đoạn (chunking) file tài liệu Markdown theo các đề mục (##)
      */
+    private List<KnowledgeChunk> loadMarkdownResource(String location, String defaultTopic) {
+        List<KnowledgeChunk> chunks = new ArrayList<>();
+        try {
+            Resource resource = resourceLoader.getResource(location);
+            if (!resource.exists()) {
+                log.warn("Không tìm thấy tài nguyên: {}", location);
+                return chunks;
+            }
+
+            String content;
+            try (InputStream is = resource.getInputStream()) {
+                content = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+            }
+
+            // Tách theo tiêu đề cấp 2 (##)
+            String[] sections = content.split("(?m)^##\\s+");
+            String filename = resource.getFilename() != null ? resource.getFilename() : "document.md";
+
+            int index = 0;
+            for (String section : sections) {
+                if (section.trim().isBlank()) continue;
+                String[] lines = section.split("\n", 2);
+                String title = lines[0].trim();
+                String body = lines.length > 1 ? lines[1].trim() : "";
+
+                List<String> keywords = VietnameseTextNormalizer.tokenizeAndFilterStopWords(title);
+
+                chunks.add(KnowledgeChunk.builder()
+                        .id(filename.replace(".", "_") + "_chunk_" + (++index))
+                        .source("resources/knowledge/" + filename)
+                        .title(title)
+                        .topic(defaultTopic)
+                        .content(body)
+                        .keywords(keywords)
+                        .confidence(1.0)
+                        .learned(false)
+                        .updatedAt(LocalDateTime.now())
+                        .build());
+            }
+        } catch (Exception ex) {
+            log.error("Lỗi khi đọc file tài nguyên {}: {}", location, ex.getMessage());
+        }
+        return chunks;
+    }
+
+    /**
+     * Nạp và phân đoạn FAQ từ tệp JSON
+     */
+    private List<KnowledgeChunk> loadJsonFaqResource(String location) {
+        List<KnowledgeChunk> chunks = new ArrayList<>();
+        try {
+            Resource resource = resourceLoader.getResource(location);
+            if (!resource.exists()) return chunks;
+
+            try (InputStream is = resource.getInputStream()) {
+                JsonNode root = objectMapper.readTree(is);
+                if (root.isArray()) {
+                    for (JsonNode item : root) {
+                        String id = item.path("id").asText("faq_" + UUID.randomUUID().toString().substring(0, 8));
+                        String question = item.path("question").asText();
+                        String answer = item.path("answer").asText();
+                        String topic = item.path("topic").asText("CAREERFIT_FAQ");
+
+                        List<String> keywords = new ArrayList<>();
+                        if (item.has("keywords") && item.get("keywords").isArray()) {
+                            item.get("keywords").forEach(k -> keywords.add(k.asText()));
+                        }
+
+                        chunks.add(KnowledgeChunk.builder()
+                                .id(id)
+                                .source("resources/knowledge/careerfit_faq.json")
+                                .title(question)
+                                .topic(topic)
+                                .content(answer)
+                                .keywords(keywords)
+                                .confidence(1.0)
+                                .learned(false)
+                                .updatedAt(LocalDateTime.now())
+                                .build());
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            log.error("Lỗi khi đọc file FAQ {}: {}", location, ex.getMessage());
+        }
+        return chunks;
+    }
+
+    /**
+     * Nạp danh mục kỹ năng từ Database
+     */
+    private List<KnowledgeChunk> loadDatabaseSkillChunks() {
+        List<KnowledgeChunk> chunks = new ArrayList<>();
+        if (skillRepository == null) return chunks;
+
+        try {
+            List<Skill> skills = skillRepository.findByIsActiveTrue();
+            if (skills != null && !skills.isEmpty()) {
+                Map<String, List<String>> skillsByCategory = new HashMap<>();
+                for (Skill s : skills) {
+                    String cat = s.getCategory() != null ? s.getCategory() : "Công nghệ chung";
+                    skillsByCategory.computeIfAbsent(cat, k -> new ArrayList<>()).add(s.getName());
+                }
+
+                for (Map.Entry<String, List<String>> entry : skillsByCategory.entrySet()) {
+                    String cat = entry.getKey();
+                    List<String> skillNames = entry.getValue();
+                    String content = "Danh mục kỹ năng " + cat + " hiện có trên hệ thống CareerFit: " + String.join(", ", skillNames);
+
+                    chunks.add(KnowledgeChunk.builder()
+                            .id("db_skill_cat_" + VietnameseTextNormalizer.normalizeText(cat).replace(" ", "_"))
+                            .source("database:dbo.skills")
+                            .title("Danh mục kỹ năng " + cat)
+                            .topic("SKILL_CATALOG")
+                            .content(content)
+                            .keywords(skillNames)
+                            .confidence(1.0)
+                            .learned(false)
+                            .updatedAt(LocalDateTime.now())
+                            .build());
+                }
+            }
+        } catch (Exception ex) {
+            log.debug("Không thể đọc skills từ DB khi khởi động: {}", ex.getMessage());
+        }
+        return chunks;
+    }
+
+    /**
+     * Nạp các tri thức đã học từ bên ngoài được lưu trong bảng ai_learned_knowledge
+     */
+    private List<KnowledgeChunk> loadPersistedLearnedKnowledge() {
+        List<KnowledgeChunk> chunks = new ArrayList<>();
+        if (learnedKnowledgeRepository == null) return chunks;
+
+        try {
+            List<AiLearnedKnowledge> activeList = learnedKnowledgeRepository.findActiveKnowledge(LocalDateTime.now());
+            for (AiLearnedKnowledge lk : activeList) {
+                chunks.add(toKnowledgeChunk(lk));
+            }
+            log.info("Đã nạp {} đoạn kiến thức đã học từ cơ sở dữ liệu bền vững.", chunks.size());
+        } catch (Exception ex) {
+            log.debug("Không thể đọc kiến thức đã học từ DB: {}", ex.getMessage());
+        }
+        return chunks;
+    }
+
+    private KnowledgeChunk toKnowledgeChunk(AiLearnedKnowledge lk) {
+        List<String> keywords = VietnameseTextNormalizer.tokenizeAndFilterStopWords(
+                lk.getOriginalQuery() + " " + (lk.getTitle() != null ? lk.getTitle() : ""));
+
+        return KnowledgeChunk.builder()
+                .id("learned_" + lk.getId())
+                .source("learned_database:" + (lk.getSourceUrl() != null ? lk.getSourceUrl() : "external_verified"))
+                .title(lk.getTitle() != null ? lk.getTitle() : lk.getOriginalQuery())
+                .topic(lk.getTopic() != null ? lk.getTopic() : "LEARNED_KNOWLEDGE")
+                .content(lk.getSummaryContent())
+                .keywords(keywords)
+                .confidence(lk.getConfidenceScore() != null ? lk.getConfidenceScore() : 0.85)
+                .sourceUrl(lk.getSourceUrl())
+                .learned(true)
+                .updatedAt(lk.getLearnedAt())
+                .build();
+    }
+
+    // =========================================================================
+    // SCOPE GUARD & RETRIEVAL
+    // =========================================================================
+
+    /**
+     * Kiểm tra xem câu hỏi có nằm trong phạm vi hỗ trợ của hệ thống SWP3911 / CareerFit hay không.
+     * Sử dụng kết hợp:
+     * - Phát hiện tấn công Prompt Injection / Jailbreak
+     * - Blacklist các chủ đề hoàn toàn ngoài lề (nấu ăn, xổ số, chính trị, y tế...)
+     * - Độ tương đồng BM25 với Knowledge Base và bộ từ khóa chuyên môn CNTT
+     */
+    public boolean isWithinScope(String message) {
+        if (message == null || message.isBlank()) return false;
+        String normalized = VietnameseTextNormalizer.normalizeText(message);
+
+        // 1. Kiểm tra Prompt Injection
+        for (String pattern : INJECTION_PATTERNS) {
+            if (normalized.contains(pattern)) {
+                log.warn("[Scope Guard] Phát hiện Prompt Injection: '{}'", message);
+                return false;
+            }
+        }
+
+        // 2. Kiểm tra chủ đề hoàn toàn ngoài lề
+        for (String out : OBVIOUS_OUT_OF_SCOPE) {
+            if (normalized.contains(out)) {
+                log.info("[Scope Guard] Câu hỏi ngoài phạm vi rõ ràng: '{}'", message);
+                return false;
+            }
+        }
+
+        // 3. Câu chào hỏi thông thường / cảm ơn
+        if (isGreetingOrPolite(normalized)) {
+            return true;
+        }
+
+        // 4. Kiểm tra từ khóa kỹ thuật CNTT & CareerFit
+        for (String kw : IT_DOMAIN_KEYWORDS) {
+            String normKw = VietnameseTextNormalizer.normalizeText(kw);
+            if (normalized.contains(normKw)) {
+                return true;
+            }
+        }
+
+        // 5. Kiểm tra điểm truy xuất BM25 với Knowledge Base
+        List<RetrievalResult> topChunks = bm25Retriever.search(message, 1);
+        if (!topChunks.isEmpty() && topChunks.get(0).getScore() >= 1.0) {
+            return true;
+        }
+
+        // Tuyệt đối không fallback theo độ dài chuỗi (tránh lọt câu hỏi đời sống ngắn như "Trời có mưa không")
+        log.info("[Scope Guard] Từ chối câu hỏi do không liên quan đến hệ thống CareerFit hoặc CNTT: '{}'", message);
+        return false;
+    }
+
+    private boolean isGreetingOrPolite(String text) {
+        if (text == null || text.isBlank()) return false;
+        String t = text.trim();
+        return t.equals("hi") || t.startsWith("hi ") || t.equals("hello") || t.startsWith("hello ")
+                || t.equals("chao") || t.startsWith("chao ") || t.startsWith("xin chao")
+                || t.contains("cam on") || t.contains("tks") || t.contains("thank")
+                || t.equals("tam biet") || t.startsWith("tam biet")
+                || t.equals("ban la ai") || t.contains("ban la ai");
+    }
+
+    /**
+     * Truy xuất Top-K đoạn tri thức liên quan nhất từ BM25 Index
+     */
+    public List<RetrievalResult> retrieveTopChunks(String query, int topK) {
+        return bm25Retriever.search(query, topK);
+    }
+
+    /**
+     * Tra cứu kiến thức đã học từ cơ sở dữ liệu dựa trên mã hash câu hỏi
+     */
+    @Transactional
+    public Optional<AiLearnedKnowledge> findLearnedKnowledge(String query) {
+        if (query == null || query.isBlank() || learnedKnowledgeRepository == null) {
+            return Optional.empty();
+        }
+        String normalized = VietnameseTextNormalizer.normalizeText(query);
+        String hash = VietnameseTextNormalizer.sha256Hex(normalized);
+
+        Optional<AiLearnedKnowledge> opt = learnedKnowledgeRepository.findByQueryHash(hash);
+        if (opt.isPresent()) {
+            AiLearnedKnowledge lk = opt.get();
+            if (lk.getExpiresAt() != null && lk.getExpiresAt().isBefore(LocalDateTime.now())) {
+                log.debug("Kiến thức đã học mã [{}] đã hết hạn TTL.", lk.getId());
+                return Optional.empty();
+            }
+            // Cập nhật số lần truy xuất và thời điểm dùng gần nhất
+            lk.setAccessCount(lk.getAccessCount() + 1);
+            lk.setLastAccessedAt(LocalDateTime.now());
+            learnedKnowledgeRepository.save(lk);
+            return Optional.of(lk);
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Lưu kiến thức mới học được vào kho lưu trữ bền vững (Cơ sở dữ liệu) và nạp tức thì vào BM25 Index.
+     * Cơ chế:
+     * - Lọc sạch PII (email, phone, password, token).
+     * - Chống trùng lặp qua SHA-256 hash của query chuẩn hóa.
+     * - Thiết lập TTL (mặc định 30 ngày) để định kỳ làm mới.
+     */
+    @Transactional
+    public AiLearnedKnowledge learnAndPersist(String query, String summary, String sourceUrl, double confidence) {
+        if (query == null || query.isBlank() || summary == null || summary.isBlank()) {
+            return null;
+        }
+
+        String normalizedQuery = VietnameseTextNormalizer.normalizeText(query);
+        String queryHash = VietnameseTextNormalizer.sha256Hex(normalizedQuery);
+        String cleanSummary = VietnameseTextNormalizer.sanitizePiiAndSecrets(summary.trim());
+
+        Optional<AiLearnedKnowledge> existingOpt = learnedKnowledgeRepository.findByQueryHash(queryHash);
+        AiLearnedKnowledge knowledge;
+
+        if (existingOpt.isPresent()) {
+            knowledge = existingOpt.get();
+            log.info("Cập nhật lại kiến thức đã học cho queryHash: {}", queryHash);
+            knowledge.setSummaryContent(cleanSummary);
+            knowledge.setSourceUrl(sourceUrl);
+            knowledge.setConfidenceScore(confidence);
+            knowledge.setLastAccessedAt(LocalDateTime.now());
+            knowledge.setExpiresAt(LocalDateTime.now().plusDays(30));
+            knowledge.setAccessCount(knowledge.getAccessCount() + 1);
+        } else {
+            knowledge = AiLearnedKnowledge.builder()
+                    .id("lk_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16))
+                    .queryHash(queryHash)
+                    .originalQuery(query.trim())
+                    .normalizedQuery(normalizedQuery)
+                    .topic(detectTopic(normalizedQuery))
+                    .title("Kiến thức: " + (query.length() > 60 ? query.substring(0, 60) + "..." : query))
+                    .summaryContent(cleanSummary)
+                    .sourceUrl(sourceUrl)
+                    .confidenceScore(confidence)
+                    .learnedAt(LocalDateTime.now())
+                    .expiresAt(LocalDateTime.now().plusDays(30))
+                    .lastAccessedAt(LocalDateTime.now())
+                    .accessCount(1)
+                    .build();
+        }
+
+        AiLearnedKnowledge saved = learnedKnowledgeRepository.save(knowledge);
+
+        // Nạp ngay vào BM25 Index để dùng cho các câu hỏi kế tiếp
+        bm25Retriever.addChunk(toKnowledgeChunk(saved));
+        log.info("Lưu thành công kiến thức mới học được vào DB (id: {}, hash: {})", saved.getId(), queryHash);
+        return saved;
+    }
+
+    private String detectTopic(String normalizedText) {
+        if (normalizedText.contains("java") || normalizedText.contains("spring")) return "JAVA_BACKEND";
+        if (normalizedText.contains("sql") || normalizedText.contains("database") || normalizedText.contains("csdl")) return "DATABASE";
+        if (normalizedText.contains("tree") || normalizedText.contains("cay") || normalizedText.contains("thuat toan")) return "ALGORITHMS";
+        if (normalizedText.contains("cloud") || normalizedText.contains("dam may") || normalizedText.contains("docker")) return "CLOUD_DEVOPS";
+        if (normalizedText.contains("cv") || normalizedText.contains("tuyen dung") || normalizedText.contains("job")) return "CAREERFIT_GUIDE";
+        return "IT_GENERAL";
+    }
+
+    /**
+     * Dọn dẹp các tri thức đã hết hạn (TTL) định kỳ hàng ngày lúc 3:00 sáng
+     */
+    @Scheduled(cron = "0 0 3 * * ?")
+    @Transactional
+    public void cleanupExpiredKnowledge() {
+        if (learnedKnowledgeRepository != null) {
+            int deleted = learnedKnowledgeRepository.deleteExpiredKnowledge(LocalDateTime.now());
+            if (deleted > 0) {
+                log.info("Đã dọn dẹp {} bản ghi kiến thức quá hạn TTL trong cơ sở dữ liệu.", deleted);
+                initKnowledgeBase(); // Tái lập chỉ mục sau khi dọn dẹp
+            }
+        }
+    }
+
+    // =========================================================================
+    // INTENT CLASSIFICATION (BACKWARD COMPATIBLE)
+    // =========================================================================
+
     public String classifySemanticIntent(String message, String role) {
         if (message == null || message.isBlank()) return "GENERAL_CHAT";
-        String lower = message.toLowerCase(Locale.ROOT).trim();
+        String lower = VietnameseTextNormalizer.normalizeText(message);
 
         // 1. Kiểm tra ngoài phạm vi hoặc Prompt Injection
         for (String pattern : INJECTION_PATTERNS) {
@@ -153,118 +487,68 @@ public class AiAssistantKnowledgeService {
             if (lower.contains(out)) return "OUT_OF_SCOPE";
         }
 
-        // 2. Nhóm CAREERFIT_TASK (Tác vụ trên nền tảng)
+        // 2. Nhóm CAREERFIT_TASK
         boolean isEmployer = "EMPLOYER".equalsIgnoreCase(role);
         if (isEmployer) {
-            if (lower.contains("đăng tin") || lower.contains("tạo tin") || lower.contains("tuyển dụng mới")
-                    || lower.contains("tuyển thực tập sinh") || lower.contains("cần tuyển") || lower.contains("muốn tuyển")
-                    || lower.contains("viết jd") || lower.contains("mô tả công việc")) {
+            if (lower.contains("dang tin") || lower.contains("tao tin") || lower.contains("tuyen dung moi")
+                    || lower.contains("tuyen thuc tap") || lower.contains("can tuyen") || lower.contains("muon tuyen")
+                    || lower.contains("viet jd") || lower.contains("mo ta cong viec")) {
                 return "JOB_CREATE";
             }
-            if (lower.contains("sửa tin") || lower.contains("chỉnh sửa tin") || lower.contains("cải thiện tin")) {
+            if (lower.contains("sua tin") || lower.contains("chinh sua tin") || lower.contains("cai thien tin")) {
                 return "JOB_IMPROVE";
             }
         } else {
-            if (lower.contains("tạo cv") || lower.contains("làm cv") || lower.contains("viết cv")
-                    || lower.contains("chưa có hồ sơ") || lower.contains("chưa biết viết cv")
-                    || lower.contains("làm hồ sơ") || lower.contains("hướng dẫn cv")) {
+            if (lower.contains("tao cv") || lower.contains("lam cv") || lower.contains("viet cv")
+                    || lower.contains("chua co ho so") || lower.contains("chua biet viet cv")
+                    || lower.contains("lam ho so") || lower.contains("huong dan cv")) {
                 return "CV_CREATE";
             }
-            if (lower.contains("cải thiện cv") || lower.contains("sửa cv") || lower.contains("chuẩn hóa cv")
-                    || lower.contains("tối ưu cv") || lower.contains("chỉnh cv")) {
+            if (lower.contains("cai thien cv") || lower.contains("sua cv") || lower.contains("chuan hoa cv")
+                    || lower.contains("toi uu cv") || lower.contains("chinh cv")) {
                 return "CV_IMPROVE";
             }
         }
 
-        // 3. Nhóm AMBIGUOUS (Thuật ngữ nhiều nghĩa hoặc chưa đủ ngữ cảnh)
-        for (String polyKey : POLYSEMOUS_TERMS.keySet()) {
-            if (lower.contains(polyKey)) {
-                // Kiểm tra xem người dùng có cung cấp ngữ cảnh IT hay không
-                boolean hasItContext = false;
-                for (String marker : IT_CONTEXT_MARKERS) {
-                    if (lower.contains(marker)) {
-                        hasItContext = true;
-                        break;
-                    }
-                }
-                if (!hasItContext && isIsolatedTermQuery(lower, polyKey)) {
-                    return "AMBIGUOUS";
-                }
-                // Nếu đã có ngữ cảnh IT rõ ràng (như "Tỉa cây trong IT là gì?", "Pruning trong Decision Tree là gì?")
-                return "IT_KNOWLEDGE";
-            }
-        }
-
-        // 4. Nhóm IT_CAREER (Lộ trình học, nghề nghiệp, phỏng vấn, fresher)
-        if (lower.contains("lộ trình") || lower.contains("roadmap") || lower.contains("học gì")
-                || lower.contains("muốn học") || lower.contains("học java") || lower.contains("học backend")
-                || lower.contains("học frontend") || lower.contains("phỏng vấn") || lower.contains("interview")
-                || lower.contains("chưa có kinh nghiệm") || lower.contains("tìm việc phù hợp") || lower.contains("mẹo phỏng vấn")) {
+        // 3. Nhóm IT_CAREER
+        if (lower.contains("lo trinh") || lower.contains("roadmap") || lower.contains("hoc gi")
+                || lower.contains("muon hoc") || lower.contains("hoc java") || lower.contains("hoc backend")
+                || lower.contains("hoc frontend") || lower.contains("phong van") || lower.contains("interview")
+                || lower.contains("chua co kinh nghiem") || lower.contains("tim viec phu hop") || lower.contains("meo phong van")) {
             return "IT_CAREER";
         }
 
-        // 5. Nhóm IT_KNOWLEDGE (Kiến thức công nghệ, thuật toán, cấu trúc dữ liệu, cloud, v.v.)
+        // 4. Nhóm IT_KNOWLEDGE
         for (String kw : IT_DOMAIN_KEYWORDS) {
-            if (lower.contains(kw)) {
+            if (lower.contains(VietnameseTextNormalizer.normalizeText(kw))) {
                 return "IT_KNOWLEDGE";
             }
         }
 
-        // 6. Chào hỏi hoặc giao tiếp thông thường
-        if (lower.startsWith("chào") || lower.startsWith("hi") || lower.startsWith("hello") || lower.length() < 15) {
+        // 5. Chào hỏi xã giao hợp lệ
+        if (isGreetingOrPolite(lower)) {
             return "GENERAL_CHAT";
+        }
+
+        // 6. Nếu không nằm trong phạm vi dự án hoặc không có từ khóa CNTT -> OUT_OF_SCOPE
+        if (!isWithinScope(message)) {
+            return "OUT_OF_SCOPE";
         }
 
         return "IT_KNOWLEDGE";
     }
 
-    /**
-     * Backward-compatible alias cho classifyIntent
-     */
     public String classifyIntent(String message, String role) {
         return classifySemanticIntent(message, role);
     }
 
-    /**
-     * Kiểm tra xem câu hỏi có phải dạng hỏi từ khóa cô lập không (VD: "Đám mây là gì?", "Tỉa cây là gì?")
-     */
-    private boolean isIsolatedTermQuery(String text, String term) {
-        String cleaned = text.replaceAll("[?.,!]", "").trim();
-        return cleaned.equals(term)
-                || cleaned.equals(term + " là gì")
-                || cleaned.equals("khái niệm " + term)
-                || cleaned.equals(term + " nghĩa là gì")
-                || cleaned.equals("thế nào là " + term)
-                || cleaned.length() <= term.length() + 10;
-    }
-
-    private boolean containsObviousNonItWord(String text) {
-        for (String out : OBVIOUS_OUT_OF_SCOPE) {
-            if (text.contains(out)) return true;
-        }
-        return false;
-    }
-
     public String getCareerFitKnowledge() {
         return """
-            === KIẾN THỨC NỀN TẢNG CAREERFIT ===
-            1. GIỚI THIỆU:
-               CareerFit là nền tảng kết nối sinh viên IT, Fresher và Nhà tuyển dụng.
-            2. VAI TRÒ ỨNG VIÊN (CANDIDATE):
-               - Quản lý hồ sơ: Thông tin cá nhân, vị trí mục tiêu, học vấn, kỹ năng, đồ án, tải file CV (PDF/DOCX).
-               - Match Score: Hệ thống tự động tính điểm phù hợp giữa kỹ năng ứng viên và yêu cầu tin tuyển dụng.
-               - Phân tích CV chuyên sâu: AI so sánh CV với JD, chỉ ra kỹ năng thiếu và thiết kế lộ trình học tập.
-               - Quản lý đơn ứng tuyển: Theo dõi trạng thái đơn nộp qua Kanban (Đã nộp, Đang duyệt, Phỏng vấn, Trúng tuyển, Từ chối).
-               - Phỏng vấn: Nhận lịch hẹn và link Google Meet trực tiếp từ nhà tuyển dụng.
-            3. VAI TRÒ DOANH NGHIỆP (EMPLOYER):
-               - Đăng tin tuyển dụng: Cung cấp đầy đủ Chức danh, Danh mục, Cấp bậc, Địa điểm, Lương, Kỹ năng (Required & Preferred), Mô tả và Quyền lợi.
-               - Kiểm duyệt: Mọi tin đăng mới phải được Admin phê duyệt trước khi công khai.
-               - Quản lý ứng viên: Xem danh sách ứng viên, điểm Match Score, tải CV gốc PDF/DOCX.
-               - Pipeline tuyển dụng: Kéo thả ứng viên qua các cột trạng thái. Khi chuyển sang Phỏng vấn, hệ thống yêu cầu nhập thời gian và link Google Meet để gửi thông báo cho ứng viên.
-            4. NGUYÊN TẮC HƯỚNG DẪN CV SINH VIÊN:
-               - Không đòi hỏi kinh nghiệm làm việc thực tế cho vị trí Intern/Fresher.
-               - Đồ án môn học, dự án cá nhân (kèm GitHub) và kiến thức nền tảng (OOP, SQL, Git) là bằng chứng quan trọng nhất.
-               - Không tự bịa chứng chỉ, kỹ năng hoặc số năm kinh nghiệm.
+            === KIẾN THỨC NỀN TẢNG CAREERFIT (SWP3911) ===
+            1. GIỚI THIỆU: CareerFit là nền tảng kết nối sinh viên IT, Fresher và Nhà tuyển dụng công nghệ.
+            2. VAI TRÒ ỨNG VIÊN: Quản lý hồ sơ, Match Score, AI Polish CV chuẩn ATS, quản lý đơn qua Kanban, phỏng vấn Google Meet.
+            3. VAI TRÒ DOANH NGHIỆP: Đăng tin tuyển dụng (Required & Preferred skills), AI Polish JD, Pipeline ứng viên, xếp lịch phỏng vấn Google Meet.
+            4. QUY TRÌNH CV 7 BƯỚC: Target Role -> Liên hệ -> Học vấn & GPA -> Kỹ năng kỹ thuật -> Đồ án môn học -> Kỹ năng mềm -> Chứng chỉ.
             """;
     }
 }

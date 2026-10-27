@@ -156,3 +156,26 @@ IF NOT EXISTS (SELECT 1 FROM dbo.roadmap_topics WHERE id = 'tp-2')
 IF NOT EXISTS (SELECT 1 FROM dbo.roadmap_topics WHERE id = 'tp-3')
     INSERT INTO dbo.roadmap_topics (id, roadmap_id, title, completed, estimated_time, resource_name, url)
     VALUES ('tp-3', 'rd-1', N'3. Spring Boot REST API & JPA', 0, N'8 giờ', 'Spring Official Guide', 'https://spring.io/guides');
+
+-- 9. Seed / Create Table AI Learned Knowledge
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'ai_learned_knowledge')
+BEGIN
+    CREATE TABLE dbo.ai_learned_knowledge (
+        id VARCHAR(64) PRIMARY KEY,
+        query_hash VARCHAR(64) NOT NULL UNIQUE,
+        original_query NVARCHAR(1000),
+        normalized_query NVARCHAR(1000),
+        topic NVARCHAR(100),
+        title NVARCHAR(255),
+        summary_content NVARCHAR(MAX) NOT NULL,
+        source_url NVARCHAR(1000),
+        confidence_score FLOAT,
+        access_count INT DEFAULT 1,
+        learned_at DATETIME2,
+        expires_at DATETIME2,
+        last_accessed_at DATETIME2
+    );
+    CREATE INDEX idx_learned_query_hash ON dbo.ai_learned_knowledge(query_hash);
+    CREATE INDEX idx_learned_topic ON dbo.ai_learned_knowledge(topic);
+    CREATE INDEX idx_learned_expires_at ON dbo.ai_learned_knowledge(expires_at);
+END;

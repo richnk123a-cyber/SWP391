@@ -4,9 +4,7 @@ import com.careerfit.ai.CareerAiClient;
 import com.careerfit.dto.CandidateProfileResponse;
 import com.careerfit.dto.JobResponse;
 import com.careerfit.service.CandidateService;
-import com.careerfit.service.JobService;
-import com.careerfit.model.User;
-import com.careerfit.repository.UserRepository;
+import com.careerfit.service.JobService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,30 +27,12 @@ public class AiAssistantService {
     private final SearchProvider searchProvider;
     private final DocumentParserService documentParserService;
     private final ObjectMapper mapper;
-    private final UserRepository userRepository;
 
     /**
      * Xử lý hội thoại thông minh cho Chatbot CareerFit AI theo mô hình bậc thang 3 AI:
      * Groq -> Gemma 4 31B -> Nemotron 3 Super (tối đa 2 vòng lặp).
      */
     public AssistantChatResponse chat(String username, String role, AssistantChatRequest request) {
-        // 0. Kiểm tra tài khoản bị khóa
-        if (username != null && !username.isBlank() && !"user".equalsIgnoreCase(username)) {
-            User user = userRepository.findById(username)
-                    .or(() -> userRepository.findByUsername(username))
-                    .or(() -> userRepository.findFirstByEmail(username.toLowerCase()))
-                    .orElse(null);
-            if (user != null && user.getStatus() != null && "LOCKED".equalsIgnoreCase(user.getStatus().trim())) {
-                return AssistantChatResponse.builder()
-                        .intent("ACCOUNT_LOCKED")
-                        .reply("Tài khoản của bạn hiện đang bị khóa bởi Quản trị viên. Bạn không thể sử dụng trợ lý CareerFit AI. Vui lòng liên hệ bộ phận hỗ trợ.")
-                        .providerUsed("Account Lock Guard")
-                        .quotaExceeded(false)
-                        .quickActions(Collections.emptyList())
-                        .build();
-            }
-        }
-
         String userMsg = request.getMessage() != null ? request.getMessage().trim() : "";
         if (userMsg.length() > 4000) {
             userMsg = userMsg.substring(0, 4000);
@@ -61,25 +41,39 @@ public class AiAssistantService {
         // 1. Phân loại ý định ngữ nghĩa (Semantic Intent Classification)
         String intent = knowledgeService.classifySemanticIntent(userMsg, role);
 
-        // 2. Kiểm tra câu hỏi ngoài phạm vi (OUT_OF_SCOPE) hoặc Prompt Injection
+        // 2. Scope Guard: Kiểm tra câu hỏi ngoài phạm vi (OUT_OF_SCOPE) hoặc Prompt Injection
         if ("OUT_OF_SCOPE".equals(intent) || !knowledgeService.isWithinScope(userMsg)) {
+            log.info("[AI Assistant] Scope Guard REJECT: User '{}' hỏi ngoài phạm vi dự án: '{}'", username, userMsg);
             return AssistantChatResponse.builder()
                     .intent("OUT_OF_SCOPE")
                     .reply(AiAssistantKnowledgeService.STANDARD_OUT_OF_SCOPE_REFUSAL)
                     .providerUsed("Rule-Based Scope Guard")
+                    .knowledgeSource("OUT_OF_SCOPE_REFUSAL")
                     .quotaExceeded(false)
                     .quickActions(getDefaultQuickActions(role))
                     .build();
         }
 
-        // 3. Tra cứu kiến thức kiểm chứng (Mức 1 -> Mức 2 -> Mức 3)
-        SearchResult searchResult = searchProvider.search(userMsg, 1);
+        // 3. Tra cứu kiến thức kiểm chứng (Mức 1 Nội bộ / Đã học -> Mức 2 Tìm ngoài -> Mức 3)
+        SearchResult searchResult = searchProvider.search(userMsg, 2);
+        List<RetrievalResult> topChunks = knowledgeService.retrieveTopChunks(userMsg, 3);
+
+        // Xác định nguồn tri thức cụ thể để đưa vào log và phản hồi
+        String knowledgeSource = "INTERNAL_KB";
+        if (searchResult != null && searchResult.getSource() != null) {
+            if (searchResult.getSource().contains("Learned Knowledge") || searchResult.getSource().contains("đã học")) {
+                knowledgeSource = "LEARNED_KB";
+            } else if (searchResult.getLevel() == KnowledgeLevel.LEVEL_2_EXTERNAL_SEARCH) {
+                knowledgeSource = "EXTERNAL_SEARCH";
+            }
+        }
 
         // 4. Thu thập ngữ cảnh người dùng an toàn
         Map<String, Object> userContext = getUserContext(username, role);
 
         // 5. Xây dựng System Prompt với quy tắc chuyên môn CNTT
-                // Lấy danh mục ngành nghề và các tin tuyển dụng active liên quan
+        // 5. Xây dựng System Prompt với quy tắc chuyên môn CNTT
+        // Lấy danh mục ngành nghề và các tin tuyển dụng active liên quan
         List<String> activeCategories = Collections.emptyList();
         List<String> matchingJobSummaries = new ArrayList<>();
         try {
@@ -87,25 +81,40 @@ public class AiAssistantService {
             if (filterOpts != null && filterOpts.getCategories() != null) {
                 activeCategories = filterOpts.getCategories();
             }
-            var matchingJobs = jobService.searchJobs(userMsg, null, null);
+
+            // Tìm kiếm việc làm thông minh: Nếu người dùng hỏi chung chung về tìm việc/việc phù hợp/CV...
+            // Tìm kiếm dựa trên vị trí mong muốn hoặc kỹ năng thực tế của ứng viên
+            String searchKeyword = userMsg;
+            if (isGeneralJobSearchOrCvQuery(userMsg) && userContext != null) {
+                Object desiredRole = userContext.get("desiredRole");
+                if (desiredRole != null && !desiredRole.toString().isBlank() && !"Chưa xác định".equalsIgnoreCase(desiredRole.toString())) {
+                    searchKeyword = desiredRole.toString();
+                } else {
+                    searchKeyword = ""; // Lấy danh sách việc làm active
+                }
+            }
+
+            var matchingJobs = jobService.searchJobs(searchKeyword.isBlank() ? null : searchKeyword, null, null);
+            if ((matchingJobs == null || matchingJobs.isEmpty()) && !searchKeyword.isBlank()) {
+                matchingJobs = jobService.searchJobs(null, null, null);
+            }
+
             if (matchingJobs != null && !matchingJobs.isEmpty()) {
                 int count = 0;
                 for (var j : matchingJobs) {
-                    boolean isApproved = j.getVerificationStatus() != null &&
-                            ("Verified".equalsIgnoreCase(j.getVerificationStatus()) || "Approved".equalsIgnoreCase(j.getVerificationStatus()));
-                    boolean isVisible = Boolean.TRUE.equals(j.getIsVisible());
-                    if (!isApproved || !isVisible) {
-                        continue;
-                    }
-                    if (count++ >= 4) break;
-                    matchingJobSummaries.add(j.getTitle() + " tại " + j.getCompanyName() + " (" + j.getLocation() + ", Lương: " + j.getSalary() + ")");
+                    if (count++ >= 5) break;
+                    String reqSkills = (j.getRequiredSkills() != null && !j.getRequiredSkills().isEmpty())
+                            ? String.join(", ", j.getRequiredSkills()) : "N/A";
+                    matchingJobSummaries.add(j.getTitle() + " tại " + j.getCompanyName()
+                            + " (Địa điểm: " + j.getLocation() + ", Lương: " + j.getSalary()
+                            + ", Kỹ năng yêu cầu: " + reqSkills + ")");
                 }
             }
         } catch (Exception ex) {
             log.debug("Lấy tin tuyển dụng chủ động cho AI chat thất bại: {}", ex.getMessage());
         }
 
-        String systemPrompt = buildSystemPrompt(role, intent, userContext, searchResult, activeCategories, matchingJobSummaries);
+        String systemPrompt = buildSystemPrompt(role, intent, userContext, searchResult, topChunks, activeCategories, matchingJobSummaries);
 
         // 6. Chuẩn bị lịch sử hội thoại (giới hạn tối đa 6 lượt gần nhất)
         List<Map<String, String>> messages = new ArrayList<>();
@@ -134,23 +143,34 @@ public class AiAssistantService {
         // 7. Gọi mô hình hình bậc thang 3 AI (Groq -> Gemma 4 31B -> Nemotron 3 Super, lặp tối đa 2 vòng)
         try {
             CareerAiClient.LadderChatResult result = aiClient.chatLadder(messages, 45, false);
+            log.info("[AI Chatbot] Trả lời thành công | Query: '{}' | Intent: {} | Source: {} | Provider: {}",
+                    userMsg, intent, knowledgeSource, result.getDecisiveProvider());
+
+            // Loại bỏ sạch sẽ mọi icon, emoji khỏi câu trả lời của AI
+            String cleanReply = VietnameseTextNormalizer.stripEmojis(result.getContent());
+
             return AssistantChatResponse.builder()
-                    .reply(result.getContent())
+                    .reply(cleanReply)
                     .intent(intent)
                     .providerUsed(result.getDecisiveProvider())
+                    .knowledgeSource(knowledgeSource)
+                    .citations(searchResult != null ? searchResult.getReferences() : Collections.emptyList())
                     .quotaExceeded(false)
-                    .quickActions(getQuickActionsForIntent(intent, role))
+                    .quickActions(getQuickActionsForIntent(intent, role, userContext))
                     .structuredData(userContext)
                     .build();
         } catch (Exception ex) {
             log.warn("Cả 3 AI đều không khả dụng ({}), chuyển sang phản hồi kiểm chứng có cấu trúc.", ex.getMessage());
             String fallbackReply = generateFallbackReply(userMsg, intent, role, userContext, searchResult);
+            String cleanFallback = VietnameseTextNormalizer.stripEmojis(fallbackReply);
             return AssistantChatResponse.builder()
-                    .reply(fallbackReply)
+                    .reply(cleanFallback)
                     .intent(intent)
                     .providerUsed("Rule-Based Fallback")
+                    .knowledgeSource(knowledgeSource)
+                    .citations(searchResult != null ? searchResult.getReferences() : Collections.emptyList())
                     .quotaExceeded(true)
-                    .quickActions(getQuickActionsForIntent(intent, role))
+                    .quickActions(getQuickActionsForIntent(intent, role, userContext))
                     .structuredData(userContext)
                     .build();
         }
@@ -184,54 +204,74 @@ public class AiAssistantService {
                - Xóa sạch các ký tự thừa như "...", ",,", "ko", "không".
 
             3. TÁCH KỸ NĂNG KỸ THUẬT VÀ KỸ NĂNG MỀM:
-                - Kỹ năng kỹ thuật (Java, C, SQL Server, JS, HTML/CSS...) -> đưa vào "skills" (gán level mặc định là 0 để người dùng tự điều chỉnh trên thanh trượt theo năng lực thực tế).
-                - Kỹ năng mềm & quản lý -> đưa vào "otherSkills" (VD: ["Quản lý dự án (Agile/Scrum)", "Giao tiếp & Thuyết trình", "Tư duy phản biện", "Giải quyết vấn đề"]).
+               - Kỹ năng kỹ thuật (Java, C, SQL Server, JS, HTML/CSS...) -> đưa vào "skills" (gán level 70 - 90%).
+               - Kỹ năng mềm & quản lý -> đưa vào "otherSkills" (VD: ["Quản lý dự án (Agile/Scrum)", "Giao tiếp & Thuyết trình", "Tư duy phản biện", "Giải quyết vấn đề"]).
 
-             4. TẠO CÁC MỤC ĐỒ ÁN / KINH NGHIỆM TỪ "DỰ ÁN" VÀ "KINH NGHIỆM" (QUY TẮC BẮT BUỘC CHỐNG BỊA ĐẶT DỮ LIỆU - ZERO-HALLUCINATION):
-                - TUYỆT ĐỐI KHÔNG tự tiện phóng đại hoặc bịa đặt các con số thống kê hoặc số liệu khống (như số lượng người dùng '10.000 lượt truy cập/tháng', doanh thu, traffic, % tăng trưởng) nếu người dùng không cung cấp.
-                - Nếu thông tin dự án ngắn (chỉ có tên dự án), chỉ chuẩn hóa tên đồ án và mô tả tính năng cơ bản, dùng thẻ placeholder "[Điền số liệu thực tế nếu có]" để người dùng tự bổ sung.
-                - Mô tả đồ án và kỹ năng phải bám sát chính xác vị trí mục tiêu của ứng viên (VD: ứng viên Data Analyst thì không biến dự án thành Fullstack/Backend Web kiến trúc .NET Core, mà tập trung vào xử lý, làm sạch và phân tích dữ liệu).
-                - Nếu người dùng ghi "ko", "chưa", "bỏ qua" hoặc không cập nhật kinh nghiệm -> TUYỆT ĐỐI KHÔNG tự ý điền ví dụ sẵn về kinh nghiệm cũng như thành tích khống. Để mảng "experiences" là mảng rỗng [] hoặc chỉ chứa đồ án thực tế người dùng đã nhập.
+            4. TẠO CÁC MỤC ĐỒ ÁN / KINH NGHIỆM TỪ "DỰ ÁN" VÀ "KINH NGHIỆM":
+               - Nếu người dùng liệt kê đồ án (VD: "IOT smart farmer, careerfit, API AI"):
+                 Chuyển thành các mục kinh nghiệm chuyên nghiệp trong "experiences" với:
+                 * company: Tên đồ án chuẩn (VD: "Đồ án IoT Smart Farmer", "Dự án Nền tảng CareerFit", "Dự án API AI Integration")
+                 * period: "2024 - 2025"
+                 * role: Vai trò phù hợp với vị trí mục tiêu (VD: "Project Manager / Developer")
+                 * bullets: 2-3 gạch đầu dòng mô tả tính năng, công nghệ áp dụng và trách nhiệm cụ thể
+                 * achievement: Kết quả đo lường được hoặc thành tích tốt
+               - Nếu kinh nghiệm ghi "ko", tập trung nâng cấp các đồ án trên thành điểm nhấn cốt lõi.
 
-             5. MỤC TIÊU NGHỀ NGHIỆP ("bio"):
-                - Viết 2-3 câu trau chuốt, ấn tượng, phù hợp chính xác với vị trí mục tiêu và thế mạnh của ứng viên.
+            5. MỤC TIÊU NGHỀ NGHIỆP ("bio"):
+               - Viết 2-3 câu trau chuốt, ấn tượng, phù hợp chính xác với vị trí mục tiêu và thế mạnh của ứng viên.
 
-             6. CHỨNG CHỈ & NGOẠI NGỮ ("languages"):
-                - Nếu người dùng không khai báo ngoại ngữ, hoặc ghi "chưa có chứng chỉ", "không", "ko", "chưa", "none", "bỏ qua" -> Để mảng "languages" là mảng rỗng []. TUYỆT ĐỐI KHÔNG tự ý gán "Tiếng Anh 75%".
-                - Chỉ đưa vào "languages" khi người dùng thực sự khai báo chứng chỉ hoặc ngoại ngữ (VD: "ielst" -> IELTS, TOEIC, Tiếng Anh, Tiếng Nhật), với level mặc định là 0 để người dùng tự điều chỉnh.
+            6. CHỨNG CHỈ & NGOẠI NGỮ ("languages"):
+               - Nếu có chứng chỉ ngoại ngữ (VD: "ielst" -> IELTS): đưa vào "languages" (VD: [{"name": "Tiếng Anh (IELTS)", "level": 80}]).
 
-             TRẢ VỀ DUY NHẤT ĐỊNH DẠNG JSON HỢP LỆ THEO CẤU TRÚC:
-             {
-               "normalizedSkills": ["Java", "C/C++", "Microsoft SQL Server", "JavaScript", "HTML5/CSS3"],
-               "suggestedBio": "Mục tiêu nghề nghiệp 2-3 câu trau chuốt...",
-               "improvedProjects": "Mô tả đồ án trung thực, không bịa đặt số liệu...",
-               "improvedExperience": "Kinh nghiệm thực tế (hoặc để trống nếu chưa có)...",
-               "improvements": ["Đã sửa lỗi gõ phím & chuẩn hóa thuật ngữ IT", "Bóc tách chính xác Họ tên, Email, Số điện thoại", "Tối ưu hóa mục tiêu nghề nghiệp theo chuẩn ATS"],
-               "missingSkills": ["Git", "Agile/Scrum", "Jira"],
-               "readabilityTips": ["Trình bày thông tin rõ ràng, mạch lạc"],
-               "templateCvData": {
-                 "name": "Họ và tên đã bóc tách sạch sẽ",
-                 "desiredRole": "Vị trí ứng tuyển chuẩn hóa",
-                 "phone": "Số điện thoại riêng biệt",
-                 "email": "Email riêng biệt",
-                 "location": "TP.HCM",
-                 "university": "Trường đại học đã tách",
-                 "major": "Chuyên ngành đã tách",
-                 "graduationYear": "2028",
-                 "bio": "Mục tiêu nghề nghiệp đã trau chuốt",
-                 "skills": [
-                   {"name": "Java", "level": 0},
-                   {"name": "C/C++", "level": 0},
-                   {"name": "Microsoft SQL Server", "level": 0},
-                   {"name": "JavaScript", "level": 0},
-                   {"name": "HTML5/CSS3", "level": 0}
-                 ],
-                 "languages": [],
-                 "experiences": [],
-                 "otherSkills": ["Quản lý dự án (Agile/Scrum)", "Giao tiếp & Làm việc nhóm", "Tư duy phản biện", "Giải quyết vấn đề"]
-               }
-             }
-             """;
+            TRẢ VỀ DUY NHẤT ĐỊNH DẠNG JSON HỢP LỆ THEO CẤU TRÚC:
+            {
+              "normalizedSkills": ["Java", "C/C++", "Microsoft SQL Server", "JavaScript", "HTML5/CSS3"],
+              "suggestedBio": "Mục tiêu nghề nghiệp 2-3 câu trau chuốt...",
+              "improvedProjects": "Mô tả đồ án nâng cao...",
+              "improvedExperience": "Kinh nghiệm thực tế...",
+              "improvements": ["Đã sửa lỗi gõ phím & chuẩn hóa thuật ngữ IT", "Bóc tách chính xác Họ tên, Email, Số điện thoại", "Tối ưu hóa mục tiêu nghề nghiệp theo chuẩn ATS"],
+              "missingSkills": ["Git", "Agile/Scrum", "Jira"],
+              "readabilityTips": ["Trình bày thông tin rõ ràng, mạch lạc"],
+              "templateCvData": {
+                "name": "Họ và tên đã bóc tách sạch sẽ",
+                "desiredRole": "Vị trí ứng tuyển chuẩn hóa",
+                "phone": "Số điện thoại riêng biệt",
+                "email": "Email riêng biệt",
+                "location": "TP.HCM",
+                "university": "Trường đại học đã tách",
+                "major": "Chuyên ngành đã tách",
+                "graduationYear": "2028",
+                "bio": "Mục tiêu nghề nghiệp đã trau chuốt",
+                "skills": [
+                  {"name": "Java", "level": 80},
+                  {"name": "C/C++", "level": 75},
+                  {"name": "Microsoft SQL Server", "level": 80},
+                  {"name": "JavaScript", "level": 75},
+                  {"name": "HTML5/CSS3", "level": 70}
+                ],
+                "languages": [
+                  {"name": "Tiếng Anh (IELTS)", "level": 80}
+                ],
+                "experiences": [
+                  {
+                    "company": "Đồ án IoT Smart Farmer",
+                    "period": "2024 - 2025",
+                    "role": "Project Manager / Developer",
+                    "bullets": ["Quản lý tiến độ dự án và phối hợp nhóm triển khai hệ thống IoT nông nghiệp", "Thiết kế cơ sở dữ liệu và tích hợp cảm biến thông minh"],
+                    "achievement": "Đồ án đạt điểm A xuất sắc"
+                  },
+                  {
+                    "company": "Dự án Nền tảng CareerFit",
+                    "period": "2025",
+                    "role": "Developer / PM Assistant",
+                    "bullets": ["Phát triển chức năng tạo CV thông minh và kết nối tuyển dụng IT", "Tối ưu truy vấn SQL Server và kiểm thử chất lượng API"],
+                    "achievement": "Triển khai thử nghiệm thành công với phản hồi tích cực"
+                  }
+                ],
+                "otherSkills": ["Quản lý dự án (Agile/Scrum)", "Giao tiếp & Làm việc nhóm", "Tư duy phản biện", "Giải quyết vấn đề"]
+              }
+            }
+            """;
 
         String context = String.format("""
             Vị trí mục tiêu: %s
@@ -579,9 +619,13 @@ public class AiAssistantService {
                     context.put("university", profile.getUniversity());
                     context.put("major", profile.getMajor());
                     context.put("skills", profile.getSkills());
+                    context.put("skillList", profile.getSkillList());
+                    context.put("bio", profile.getBio());
+                    context.put("location", profile.getLocation());
                     context.put("hasCvFile", Boolean.TRUE.equals(profile.getHasCv()));
                     context.put("cvFileName", profile.getCvFileName());
                     context.put("extractedCvText", profile.getExtractedCvText());
+                    context.put("expectedSalary", profile.getExpectedSalary());
                 }
             } catch (Exception ex) {
                 log.debug("Không thể lấy hồ sơ ứng viên: {}", ex.getMessage());
@@ -804,23 +848,25 @@ public class AiAssistantService {
                 ));
             }
         }
-        // Không tự ý điền kinh nghiệm hay thành tích giả lập nếu người dùng không cập nhật
-        // Ngoại ngữ / Chứng chỉ: Tuyệt đối không tự gán ngoại ngữ nếu người dùng chưa có hoặc bỏ qua
+        if (experiences.isEmpty()) {
+            experiences.add(Map.of(
+                "company", "Đồ án chuyên ngành CNTT",
+                "period", "2024 - 2025",
+                "role", role.contains("Quản lý") ? "Project Manager / Developer" : "Developer",
+                "bullets", List.of("Thiết kế và triển khai ứng dụng thực tế theo chuẩn công nghiệp", "Phối hợp làm việc nhóm theo mô hình Agile/Scrum"),
+                "achievement", "Đạt kết quả xuất sắc môn học"
+            ));
+        }
+
+        // Ngoại ngữ / Chứng chỉ
         List<Map<String, Object>> languages = new ArrayList<>();
-        String cert = request.getCertifications() != null ? request.getCertifications().toLowerCase().trim() : "";
-        boolean isNegativeCert = cert.isEmpty() || List.of("chưa", "không", "ko", "chua", "khong", "none", "bỏ qua", "chưa có").stream().anyMatch(cert::contains);
-        if (!isNegativeCert) {
-            if (cert.contains("ielts") || cert.contains("ielst")) {
-                languages.add(Map.of("name", "Tiếng Anh (IELTS)", "level", 0));
-            } else if (cert.contains("toeic")) {
-                languages.add(Map.of("name", "Tiếng Anh (TOEIC)", "level", 0));
-            } else if (cert.contains("tiếng anh") || cert.contains("english")) {
-                languages.add(Map.of("name", "Tiếng Anh", "level", 0));
-            } else if (cert.contains("tiếng nhật") || cert.contains("japanese")) {
-                languages.add(Map.of("name", "Tiếng Nhật", "level", 0));
-            } else if (cert.contains("tiếng trung") || cert.contains("chinese")) {
-                languages.add(Map.of("name", "Tiếng Trung", "level", 0));
-            }
+        String cert = request.getCertifications() != null ? request.getCertifications().toLowerCase() : "";
+        if (cert.contains("ielts") || cert.contains("ielst")) {
+            languages.add(Map.of("name", "Tiếng Anh (IELTS)", "level", 80));
+        } else if (cert.contains("toeic")) {
+            languages.add(Map.of("name", "Tiếng Anh (TOEIC)", "level", 80));
+        } else {
+            languages.add(Map.of("name", "Tiếng Anh", "level", 75));
         }
 
         // Tạo templateCvData hoàn chỉnh
@@ -834,10 +880,9 @@ public class AiAssistantService {
         templateCv.put("graduationYear", gradYear);
         templateCv.put("bio", "Sinh viên ngành " + major + " tại " + uni + ", định hướng phát triển sự nghiệp chuyên sâu ở vị trí " + role + ". Có tư duy hệ thống vững vàng, kỹ năng quản lý dự án hiệu quả và tinh thần trách nhiệm cao.");
 
-        // Mức độ kỹ năng 0% để người dùng tự điều chỉnh
         List<Map<String, Object>> skillList = new ArrayList<>();
         for (String sk : techSkills) {
-            skillList.add(Map.of("name", sk, "level", 0));
+            skillList.add(Map.of("name", sk, "level", 75));
         }
         templateCv.put("skills", skillList);
         templateCv.put("languages", languages);
@@ -930,43 +975,55 @@ public class AiAssistantService {
         return map;
     }
 
-    private String buildSystemPrompt(String role, String intent, Map<String, Object> context, SearchResult searchResult, List<String> activeCategories, List<String> matchingJobSummaries) {
+    private String buildSystemPrompt(String role, String intent, Map<String, Object> context, SearchResult searchResult, List<RetrievalResult> topChunks, List<String> activeCategories, List<String> matchingJobSummaries) {
         StringBuilder sb = new StringBuilder();
-        sb.append("BẠN LÀ TRỢ LÝ AI CAREERFIT CHUYÊN GIA CNTT VÀ HƯỚNG NGHIỆP TẠI VIỆT NAM.\n");
+        sb.append("BẠN LÀ TRỢ LÝ AI CAREERFIT CHUYÊN GIA CNTT VÀ HƯỚNG NGHIỆP TẠI VIỆT NAM (DỰ ÁN SWP3911).\n");
         sb.append("Bạn đang hỗ trợ người dùng có vai trò: ").append(role).append(".\n\n");
-        sb.append("QUY TẮC CỐT LÕI:\n");
-        sb.append("1. Giao tiếp 100% bằng tiếng Việt tự nhiên, chính xác về mặt kỹ thuật CNTT và đi thẳng vào trọng tâm câu hỏi.\n");
-        sb.append("2. ĐỊNH DẠNG BẮT BUỘC: KHÔNG sử dụng ký tự in đậm markdown (**) trong câu trả lời. KHÔNG dùng các emoji cảm xúc rác thừa thãi để người dùng có thể sao chép văn bản sạch vào Notepad.\n");
-        sb.append("3. Trả lời trực tiếp câu hỏi của người dùng, KHÔNG tự động chèn các câu mời chào quảng cáo rập khuôn như 'Quy trình 7 bước' trừ khi người dùng yêu cầu hướng dẫn.\n");
-        sb.append("4. BẢO VỆ THƯƠNG HIỆU CAREERFIT (QUY TẮC BẮT BUỘC):\n");
-        sb.append("   - Bạn là đại diện của nền tảng tuyển dụng CareerFit. TUYỆT ĐỐI KHÔNG giới thiệu người dùng sang các nền tảng tuyển dụng đối thủ bên ngoài như VietnamWorks, ITviec, TopDev, TopCV, CareerBuilder, LinkedIn.\n");
-        sb.append("   - TUYỆT ĐỐI KHÔNG bịa đặt các tính năng hoặc trích dẫn tài liệu không liên quan (như 'Preferred roles', 'Job alerts' hay tài liệu Oracle HCM SaaS).\n");
-        sb.append("   - TUYỆT ĐỐI KHÔNG trả về các khối mã JSON kỹ thuật thô (như {\"resources\": [...]}) ra ngoài màn hình chat. Mọi câu trả lời gửi đến người dùng phải là ngôn ngữ tự nhiên tiếng Việt lịch sự, rõ ràng.\n");
-        sb.append("5. QUY TẮC KIỂM SOÁT DUYỆT TIN & BẢO VỆ DỮ LIỆU CSDL (BẮT BUỘC):\n");
-        sb.append("   - CHỈ giới thiệu, tư vấn và hỗ trợ ứng tuyển đối với các tin tuyển dụng ĐÃ ĐƯỢC ADMIN PHÊ DUYỆT VÀ ĐANG CÔNG KHAI trên sàn CareerFit (nằm trong danh sách việc làm thực tế ở trên).\n");
-        sb.append("   - TUYỆT ĐỐI KHÔNG lấy dữ liệu, tiết lộ thông tin, đánh giá hay hướng dẫn ứng tuyển đối với bất kỳ tin tuyển dụng nào chưa được duyệt (Pending), bị từ chối (Rejected) hoặc đang bị ẩn.\n");
-        sb.append("   - NẾU người dùng hỏi về một tin chưa được duyệt hoặc đang ẩn, hãy từ chối lịch sự: 'Tin tuyển dụng này chưa được Quản trị viên phê duyệt hoặc đang tạm ẩn, hệ thống chưa cho phép xem thông tin chi tiết hoặc ứng tuyển.'\n");
+        sb.append("QUY TẮC CỐT LÕI BẮT BUỘC:\n");
+        sb.append("1. Giao tiếp 100% bằng tiếng Việt tự nhiên, điềm tĩnh, chính xác về mặt kỹ thuật CNTT và đi thẳng vào trọng tâm câu hỏi như một chuyên gia tư vấn tuyển dụng thực tế.\n");
+        sb.append("2. TUYỆT ĐỐI CẤM SỬ DỤNG MỌI ICON VÀ EMOJI: Không dùng bất kỳ icon, emoji, biểu tượng cảm xúc nào (như 🚀, 💡, ✨, 📌, 🎯, 📝, 💼, 🤖, 👋, ✅, 👍...) trong toàn bộ câu trả lời. Chỉ dùng văn bản chữ thuần túy.\n");
+        sb.append("3. NGUYÊN TẮC TRUNG THỰC: CHỈ trả lời dựa trên ngữ cảnh (Hồ sơ người dùng, Knowledge Base và tài liệu kiểm chứng) được cung cấp dưới đây. TUYỆT ĐỐI KHÔNG tự bịa đặt thông tin nếu không có trong ngữ cảnh.\n");
+        sb.append("4. ĐỊNH DẠNG BẮT BUỘC: KHÔNG sử dụng ký tự in đậm markdown (**) trong câu trả lời để người dùng có thể sao chép văn bản sạch vào Notepad.\n");
+        sb.append("5. Trả lời trực tiếp câu hỏi của người dùng, có thể trích dẫn nguồn tham khảo có trong ngữ cảnh.\n");
 
-        if (context != null && !context.isEmpty()) {
-            if ("CANDIDATE".equalsIgnoreCase(role)) {
-                sb.append("\nNGỮ CẢNH HỒ SƠ ỨNG VIÊN ĐANG ĐĂNG NHẬP:\n");
-                if (context.get("fullName") != null) sb.append("- Họ tên: ").append(context.get("fullName")).append("\n");
-                if (context.get("desiredRole") != null) sb.append("- Vị trí mong muốn: ").append(context.get("desiredRole")).append("\n");
-                if (context.get("university") != null) sb.append("- Trường học: ").append(context.get("university")).append("\n");
-                if (context.get("major") != null) sb.append("- Chuyên ngành: ").append(context.get("major")).append("\n");
-                if (context.get("skills") != null) sb.append("- Kỹ năng đã khai báo: ").append(context.get("skills")).append("\n");
-                if (Boolean.TRUE.equals(context.get("hasCvFile"))) {
-                    sb.append("- Trạng thái CV: Đã có tệp CV trên hệ thống (Tên tệp: ").append(context.get("cvFileName")).append(")\n");
-                    if (context.get("extractedCvText") != null && !((String)context.get("extractedCvText")).isBlank()) {
-                        String cvSnippet = (String) context.get("extractedCvText");
-                        if (cvSnippet.length() > 2000) cvSnippet = cvSnippet.substring(0, 2000);
-                        sb.append("- NỘI DUNG VĂN BẢN TRÍCH XUẤT TỪ CV HIỆN TẠI:\n").append(cvSnippet).append("\n");
-                        sb.append("LƯU Ý KHI PHÂN TÍCH CV: Ứng viên đã có sẵn CV ở trên. Hãy sử dụng trực tiếp nội dung trích xuất này để đánh giá, nhận xét điểm mạnh, điểm yếu và gợi ý tối ưu. KHÔNG bắt người dùng phải dán lại CV!\n");
-                    }
-                } else {
-                    sb.append("- Trạng thái CV: Chưa có tệp CV trên hệ thống.\n");
-                }
+        // Đưa thông tin hồ sơ và nội dung CV thực tế của Ứng viên vào System Prompt
+        if ("CANDIDATE".equalsIgnoreCase(role) && context != null && !context.isEmpty()) {
+            boolean hasCv = Boolean.TRUE.equals(context.get("hasCvFile"));
+            String fullName = (String) context.get("fullName");
+            String desiredRole = (String) context.get("desiredRole");
+            String skills = (String) context.get("skills");
+            String university = (String) context.get("university");
+            String major = (String) context.get("major");
+            String location = (String) context.get("location");
+            String bio = (String) context.get("bio");
+            String extractedCv = (String) context.get("extractedCvText");
+
+            sb.append("\n=== DỮ LIỆU HỒ SƠ & CV THỰC TẾ CỦA ỨNG VIÊN ĐANG TRÒ CHUYỆN ===\n");
+            if (fullName != null && !fullName.isBlank()) sb.append("- Họ và tên: ").append(fullName).append("\n");
+            if (desiredRole != null && !desiredRole.isBlank()) sb.append("- Vị trí mong muốn / Chuyên môn: ").append(desiredRole).append("\n");
+            if (university != null && !university.isBlank()) sb.append("- Trường đại học: ").append(university).append("\n");
+            if (major != null && !major.isBlank()) sb.append("- Chuyên ngành: ").append(major).append("\n");
+            if (location != null && !location.isBlank()) sb.append("- Khu vực sinh sống: ").append(location).append("\n");
+            if (skills != null && !skills.isBlank()) sb.append("- Kỹ năng đã lưu trong hồ sơ: ").append(skills).append("\n");
+            if (bio != null && !bio.isBlank()) sb.append("- Giới thiệu bản thân: ").append(bio).append("\n");
+            sb.append("- Trạng thái tệp CV: ").append(hasCv ? "ĐÃ CÓ TỆP CV TRÊN HỆ THỐNG" : "Chưa tải lên tệp CV").append("\n");
+            if (hasCv && context.get("cvFileName") != null) {
+                sb.append("- Tên tệp CV: ").append(context.get("cvFileName")).append("\n");
             }
+            if (extractedCv != null && !extractedCv.isBlank()) {
+                String cvPreview = extractedCv.trim();
+                if (cvPreview.length() > 3000) {
+                    cvPreview = cvPreview.substring(0, 3000) + "... [Đã tóm lược phần còn lại]";
+                }
+                sb.append("\nNỘI DUNG VĂN BẢN TRÍCH XUẤT TỪ FILE CV CỦA ỨNG VIÊN:\n\"\"\"\n")
+                  .append(cvPreview)
+                  .append("\n\"\"\"\n");
+            }
+
+            sb.append("\nCHỈ THỊ ĐẶC BIỆT KHI ỨNG VIÊN HỎI VỀ TÌM VIỆC, GỢI Ý VIỆC, PHÂN TÍCH/ĐÁNH GIÁ CV:\n");
+            sb.append("1. Hãy đọc kỹ hồ sơ và nội dung CV thực tế của ứng viên ở trên để trả lời cụ thể, cá nhân hóa.\n");
+            sb.append("2. TUYỆT ĐỐI KHÔNG hướng dẫn người dùng các bước lý thuyết sáo rỗng (như 'Bước 1: Đăng nhập tài khoản CANDIDATE, Bước 2: Hoàn thiện hồ sơ và tải lên CV...') vì ứng viên này ĐÃ đăng nhập và ĐÃ có CV đầy đủ trên hệ thống rồi!\n");
+            sb.append("3. Hãy chào ứng viên bằng tên (ví dụ: 'Chào bạn ").append(fullName != null && !fullName.isBlank() ? fullName : "bạn").append("'), nhận xét trực tiếp về các kỹ năng, kinh nghiệm/đồ án có trong CV của họ, và đối chiếu với các vị trí tuyển dụng thực tế đang có trên hệ thống CareerFit (được liệt kê ở dưới) để gợi ý công việc cụ thể và mức độ phù hợp.\n");
         }
 
         if (activeCategories != null && !activeCategories.isEmpty()) {
@@ -975,21 +1032,37 @@ public class AiAssistantService {
         }
 
         if (matchingJobSummaries != null && !matchingJobSummaries.isEmpty()) {
-            sb.append("\nCÁC CƠ HỘI VIỆC LÀM ĐANG TUYỂN DỤNG THỰC TẾ TRÊN SÀN CAREERFIT:\n");
+            sb.append("\nCÁC CƠ HỘI VIỆC LÀM ĐANG TUYỂN DỤNG THỰC TẾ LIÊN QUAN:\n");
             for (String js : matchingJobSummaries) {
                 sb.append("- ").append(js).append("\n");
             }
-            sb.append("HƯỚNG DẪN: Nếu người dùng hỏi về tìm việc làm hoặc ngành nghề, hãy giới thiệu các cơ hội việc làm thực tế trên sàn CareerFit ở trên, khuyến khích họ ứng tuyển hoặc vào trang 'Tìm việc làm' của CareerFit.\n");
+            sb.append("HƯỚNG DẪN: Nếu người dùng hỏi về ngành nghề hoặc tìm kiếm vị trí việc làm, hãy giải thích rõ ngành nghề đó là gì và chủ động giới thiệu các vị trí việc làm thực tế trên sàn CareerFit ở trên.\n");
+        }
+
+        // Đưa các đoạn tài liệu có điểm phù hợp cao nhất từ Knowledge Base vào ngữ cảnh
+        if (topChunks != null && !topChunks.isEmpty()) {
+            sb.append("\nTÀI LIỆU VÀ QUY TRÌNH NỘI BỘ CAREERFIT PHÙ HỢP:\n");
+            for (RetrievalResult rr : topChunks) {
+                KnowledgeChunk ch = rr.getChunk();
+                sb.append("=== [").append(ch.getTitle()).append("] (Nguồn: ").append(ch.getSource()).append(") ===\n");
+                sb.append(ch.getContent()).append("\n\n");
+            }
         }
 
         if (searchResult != null && searchResult.getSnippet() != null && !searchResult.getSnippet().isBlank()) {
-            String snippet = searchResult.getSnippet().trim();
-            // Lọc bỏ snippet JSON thô hoặc tài liệu Oracle HCM gây rò rỉ mã lỗi
-            if (!snippet.startsWith("{") && !snippet.contains("\"resources\":") && !snippet.contains("docs.oracle.com")) {
-                sb.append("\nKIẾN THỨC TRA CỨU TÀI LIỆU KỸ THUẬT BỔ SUNG KIỂM CHỨNG:\n").append(snippet).append("\n");
-            }
+            sb.append("\nKIẾN THỨC KIỂM CHỨNG BỔ SUNG (Nguồn: ").append(searchResult.getSource()).append("):\n");
+            sb.append(searchResult.getSnippet()).append("\n");
         }
         return sb.toString();
+    }
+
+    private boolean isGeneralJobSearchOrCvQuery(String query) {
+        if (query == null) return false;
+        String n = VietnameseTextNormalizer.normalizeText(query);
+        return n.contains("tim viec") || n.contains("viec phu hop") || n.contains("goi y viec")
+                || n.contains("viec nao hop") || n.contains("co viec nao") || n.contains("tim viec lam")
+                || n.contains("phan tich cv") || n.contains("danh gia cv") || n.contains("cv cua toi")
+                || n.contains("doc cv") || n.contains("hop voi toi");
     }
 
     private String generateFallbackReply(String userMsg, String intent, String role, Map<String, Object> context, SearchResult searchResult) {
@@ -999,25 +1072,39 @@ public class AiAssistantService {
         if ("JOB_CREATE".equals(intent)) {
             return "Chào quý doanh nghiệp. Quý vị có thể nhập yêu cầu tuyển dụng hoặc đính kèm tệp JD (.pdf, .docx) để AI tự động trích xuất và điền vào biểu mẫu đăng tin.";
         }
+        if (context != null && Boolean.TRUE.equals(context.get("hasCvFile"))) {
+            String name = (String) context.get("fullName");
+            return "Chào " + (name != null ? name : "bạn") + ". Hệ thống đã ghi nhận hồ sơ và tệp CV của bạn trên CareerFit. Tôi có thể hỗ trợ phân tích điểm mạnh trong CV, gợi ý việc làm phù hợp với kỹ năng của bạn hoặc giải đáp các thắc mắc kỹ thuật. Bạn cần hỗ trợ gì cụ thể?";
+        }
         return "Chào bạn. Tôi là Trợ lý AI CareerFit chuyên về định hướng và tuyển dụng CNTT. Tôi có thể giải đáp các kiến thức kỹ thuật IT, tư vấn xu hướng ngành nghề hoặc thông tin tuyển dụng thực tế. Bạn cần hỗ trợ gì hôm nay?";
     }
 
     private List<AssistantChatResponse.QuickAction> getDefaultQuickActions(String role) {
-        if ("EMPLOYER".equalsIgnoreCase(role)) {
-            return List.of(
-                    AssistantChatResponse.QuickAction.builder().label("📝 Tạo tin tuyển dụng mới").prompt("Tôi muốn đăng tin tuyển dụng mới").navPage("create-job").build(),
-                    AssistantChatResponse.QuickAction.builder().label("📎 Đính kèm tệp JD").prompt("Tôi muốn tải lên tệp JD để AI điền vào form").build(),
-                    AssistantChatResponse.QuickAction.builder().label("📊 Quản lý tin tuyển dụng").prompt("Xem danh sách việc làm").navPage("job-management").build()
-            );
-        }
-        return List.of(
-                AssistantChatResponse.QuickAction.builder().label("🎯 Tạo CV chuẩn 7 bước").prompt("Tôi muốn tạo CV chuẩn cho sinh viên IT").build(),
-                AssistantChatResponse.QuickAction.builder().label("📎 Đính kèm tệp CV").prompt("Tôi muốn tải lên file CV để AI phân tích").build(),
-                AssistantChatResponse.QuickAction.builder().label("💼 Xem việc làm phù hợp").prompt("Tìm việc làm phù hợp").navPage("job-search").build()
-        );
+        return getQuickActionsForIntent("GENERAL", role, null);
     }
 
-    private List<AssistantChatResponse.QuickAction> getQuickActionsForIntent(String intent, String role) {
-        return getDefaultQuickActions(role);
+    private List<AssistantChatResponse.QuickAction> getQuickActionsForIntent(String intent, String role, Map<String, Object> context) {
+        if ("EMPLOYER".equalsIgnoreCase(role)) {
+            return List.of(
+                    AssistantChatResponse.QuickAction.builder().label("Tạo tin tuyển dụng mới").prompt("Tôi muốn đăng tin tuyển dụng mới").navPage("create-job").build(),
+                    AssistantChatResponse.QuickAction.builder().label("Đính kèm tệp JD").prompt("Tôi muốn tải lên tệp JD để AI điền vào form").build(),
+                    AssistantChatResponse.QuickAction.builder().label("Quản lý tin tuyển dụng").prompt("Xem danh sách việc làm").navPage("job-management").build()
+            );
+        }
+
+        boolean hasCv = context != null && Boolean.TRUE.equals(context.get("hasCvFile"));
+        if (hasCv) {
+            return List.of(
+                    AssistantChatResponse.QuickAction.builder().label("Phân tích CV của tôi").prompt("Hãy phân tích chi tiết CV của tôi và điểm cần cải thiện").build(),
+                    AssistantChatResponse.QuickAction.builder().label("Gợi ý việc làm phù hợp").prompt("Dựa vào CV của tôi, gợi ý các việc làm phù hợp nhất").navPage("job-search").build(),
+                    AssistantChatResponse.QuickAction.builder().label("Xem lộ trình học tập").prompt("Lộ trình học nâng cao kỹ năng").navPage("learning-roadmap").build()
+            );
+        }
+
+        return List.of(
+                AssistantChatResponse.QuickAction.builder().label("Tạo CV chuẩn 7 bước").prompt("Tôi muốn tạo CV chuẩn cho sinh viên IT").build(),
+                AssistantChatResponse.QuickAction.builder().label("Đính kèm tệp CV").prompt("Tôi muốn tải lên file CV để AI phân tích").build(),
+                AssistantChatResponse.QuickAction.builder().label("Xem việc làm phù hợp").prompt("Tìm việc làm phù hợp").navPage("job-search").build()
+        );
     }
 }

@@ -28,9 +28,23 @@ public class AssistantChatResponse {
 
     private Map<String, Object> structuredData;
 
-    private String providerUsed; // "Groq", "Gemini", "Rule-Based"
+    private String providerUsed; // "Groq", "Gemini", "Rule-Based Scope Guard", "Fallback"
 
     private boolean quotaExceeded;
+
+    /**
+     * Nguồn tri thức dùng để trả lời:
+     * INTERNAL_KB (Nội bộ từ file resources / DB)
+     * LEARNED_KB (Từ kho kiến thức bền vững đã học trước đó)
+     * EXTERNAL_SEARCH (Vừa học từ bên ngoài)
+     * OUT_OF_SCOPE_REFUSAL (Từ chối do ngoài phạm vi)
+     */
+    private String knowledgeSource;
+
+    /**
+     * Danh sách nguồn tham khảo / URL kiểm chứng
+     */
+    private List<String> citations;
 
     @Data
     @Builder

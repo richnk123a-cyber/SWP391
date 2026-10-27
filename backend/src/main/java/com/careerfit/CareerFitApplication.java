@@ -2,12 +2,14 @@ package com.careerfit;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
 
 @SpringBootApplication
+@EnableScheduling
 public class CareerFitApplication {
 
     public static void main(String[] args) {
