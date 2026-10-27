@@ -98,7 +98,7 @@ public class AiAssistantKnowledgeService {
             "unit test", "tester", "qa", "qc", "kiem thu", "test case", "agile", "scrum", "git", "github",
             "cv", "ho so", "tuyen dung", "viec lam", "job", "careerfit", "dang tin", "tao tin", "tao cv",
             "viet cv", "lam cv", "tim viec", "phong van", "interview", "star", "fresher", "intern",
-            "thuc tap", "luong", "salary", "jd", "mo ta cong viec", "match score", "kanban", "lo trinh"
+            "thuc tap", "luong", "salary", "jd", "mo ta cong viec", "match score", "kanban", "lo trinh", "tim duong", "pathfinding", "dijkstra", "a*", "dinh tuyen", "routing", "cntt", "it", "ky nang", "skill", "thuat toan tim duong", "lap trinh", "robot", "game"
     );
 
     /**
@@ -340,7 +340,15 @@ public class AiAssistantKnowledgeService {
             return true;
         }
 
-        // 4. Kiểm tra từ khóa kỹ thuật CNTT & CareerFit
+        // 4. Kiểm tra từ khóa kỹ thuật CNTT, lập trình, thuật toán & CareerFit
+        if (normalized.contains("cntt") || normalized.contains("cong nghe thong tin") || normalized.contains("lap trinh")
+                || normalized.contains("thuat toan") || normalized.contains("giai thuat") || normalized.contains("ky nang")
+                || normalized.contains("tim duong") || normalized.contains("pathfinding") || normalized.contains("dijkstra")
+                || normalized.contains("a*") || normalized.contains("routing") || normalized.contains("dinh tuyen")
+                || normalized.contains("phan mem") || normalized.contains("software") || normalized.contains("developer")) {
+            return true;
+        }
+
         for (String kw : IT_DOMAIN_KEYWORDS) {
             String normKw = VietnameseTextNormalizer.normalizeText(kw);
             if (normalized.contains(normKw)) {

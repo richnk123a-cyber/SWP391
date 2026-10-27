@@ -52,15 +52,15 @@ public class CompositeSearchProvider implements SearchProvider {
             return localResult;
         }
 
-        // TẦNG 2: Tra cứu tài liệu kỹ thuật bên ngoài (CHỈ KHI thuộc phạm vi dự án)
+        // TẦNG 2: Tra cứu tài liệu kỹ thuật bên ngoài
         if (!knowledgeService.isWithinScope(query)) {
-            log.info("[Composite Search] Bỏ qua tra cứu bên ngoài vì câu hỏi ngoài phạm vi dự án: '{}'", query);
+            log.info("[Composite Search] Bỏ qua tra cứu bên ngoài vì câu hỏi ngoài phạm vi: '{}'", query);
             return SearchResult.builder()
                     .query(query)
                     .level(KnowledgeLevel.LEVEL_3_INSUFFICIENT)
-                    .source("Từ chối ngoài phạm vi")
-                    .title("Ngoài phạm vi dự án")
-                    .snippet("Câu hỏi không thuộc phạm vi hỗ trợ của CareerFit.")
+                    .source("Nội bộ")
+                    .title("Không có dữ liệu bổ sung")
+                    .snippet("")
                     .verified(false)
                     .references(List.of())
                     .build();

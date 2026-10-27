@@ -1,6 +1,14 @@
 # SỔ TAY KỸ THUẬT VÀ KIẾN THỨC CÔNG NGHỆ THÔNG TIN
 
 ## 1. Cấu trúc dữ liệu và Giải thuật (DSA)
+- **Thuật toán Tìm đường và Định tuyến (Pathfinding & Routing Algorithms):**
+  - Kỹ năng tìm đường (Pathfinding) trong CNTT là tập hợp các giải thuật tìm đường đi ngắn nhất hoặc tối ưu nhất giữa các đỉnh trong đồ thị (Graph) hoặc lưới tọa độ (Grid).
+  - Các thuật toán cốt lõi:
+    - **A* (A-Star Algorithm):** Thuật toán tìm đường tối ưu kết hợp chi phí thực tế g(n) và hàm đánh giá Heuristic h(n) với công thức f(n) = g(n) + h(n). Được sử dụng rộng rãi trong Lập trình Game (NPC di chuyển tránh vật cản), Bản đồ số (Google Maps, GPS), Robot tự hành và Xe tự lái.
+    - **Dijkstra:** Thuật toán tìm đường đi ngắn nhất từ một đỉnh nguồn đến mọi đỉnh trong đồ thị có trọng số không âm. Ứng dụng trọng tâm trong giao thức định tuyến mạng viễn thông (OSPF, IS-IS).
+    - **BFS (Breadth-First Search):** Tìm đường ngắn nhất trên đồ thị không trọng số hoặc dạng mê cung lưới (Grid map).
+    - **Bellman-Ford & Floyd-Warshall:** Tìm đường đi ngắn nhất khi đồ thị có trọng số âm hoặc cần tính toán khoảng cách giữa mọi cặp đỉnh.
+  - Ứng dụng thực tế: Định tuyến gói tin trên Internet (IP Routing, BGP), Bản đồ chỉ đường dẫn đường vệ tinh, Trí tuệ nhân tạo Game AI, Robot hút bụi và Kho vận thông minh.
 - **Tỉa cây (Tree Pruning):**
   - Kỹ thuật loại bỏ các nhánh hoặc nút con dư thừa trong cấu trúc dữ liệu dạng cây nhằm giảm độ phức tạp không gian, tăng tốc độ truy vấn và hạn chế hiện tượng quá khớp (overfitting) trong học máy (Machine Learning).
   - Trong cây quyết định (Decision Tree), có hai phương pháp: Pre-pruning (dừng mở rộng cây sớm) và Post-pruning (cắt tỉa sau khi đã xây dựng cây hoàn chỉnh bằng thuật toán Cost Complexity Pruning). Trong thuật toán tìm kiếm Minimax của trò chơi đối kháng, kỹ thuật Alpha-Beta Pruning giúp cắt bỏ các nhánh nhánh không mang lại kết quả tối ưu.
