@@ -41,9 +41,10 @@ public class AiAssistantService {
         // 1. Phân loại ý định ngữ nghĩa (Semantic Intent Classification)
         String intent = knowledgeService.classifySemanticIntent(userMsg, role);
 
-        // 2. Scope Guard: Kiểm tra câu hỏi ngoài phạm vi (OUT_OF_SCOPE) hoặc Prompt Injection
-        if ("OUT_OF_SCOPE".equals(intent) || !knowledgeService.isWithinScope(userMsg)) {
-            log.info("[AI Assistant] Scope Guard REJECT: User '{}' hỏi ngoài phạm vi dự án: '{}'", username, userMsg);
+        // 2. Chỉ ngăn chặn các cuộc tấn công Prompt Injection / Phá hoại hệ thống rõ ràng
+        // Mọi câu hỏi khác (bao gồm cả chào hỏi, thắc mắc, câu hỏi đời sống ngoài lề) đều được chuyển cho AI tự xử lý
+        if (knowledgeService.isPromptInjection(userMsg)) {
+            log.warn("[AI Assistant] Scope Guard REJECT: Phát hiện Prompt Injection từ User '{}': '{}'", username, userMsg);
             return AssistantChatResponse.builder()
                     .intent("OUT_OF_SCOPE")
                     .reply(AiAssistantKnowledgeService.STANDARD_OUT_OF_SCOPE_REFUSAL)
@@ -985,8 +986,28 @@ public class AiAssistantService {
         sb.append("3. NGUYÊN TẮC TRUNG THỰC: CHỈ trả lời dựa trên ngữ cảnh (Hồ sơ người dùng, Knowledge Base và tài liệu kiểm chứng) được cung cấp dưới đây. TUYỆT ĐỐI KHÔNG tự bịa đặt thông tin nếu không có trong ngữ cảnh.\n");
         sb.append("4. ĐỊNH DẠNG BẮT BUỘC: KHÔNG sử dụng ký tự in đậm markdown (**) trong câu trả lời để người dùng có thể sao chép văn bản sạch vào Notepad.\n");
         sb.append("5. Trả lời trực tiếp câu hỏi của người dùng, có thể trích dẫn nguồn tham khảo có trong ngữ cảnh.\n");
+        sb.append("""
+6. QUY TẮC TỰ PHÁT HIỆN VÀ XỬ LÝ PHẠM VI (TỰ ĐIỀU HƯỚNG TỰ NHIÊN BẰNG AI):
+   a. CHÀO HỎI & GIAO TIẾP XÃ GIAO (Ví dụ: helo, hello, hi, chào bạn, alo, bạn là ai, cảm ơn, tạm biệt, bắt đầu trò chuyện...):
+      - Hãy chào lại một cách tự nhiên, lịch sự, thân thiện và ấm áp.
+      - Xưng hô phù hợp vai trò: Nếu người dùng là EMPLOYER thì xưng 'Tôi là Trợ lý AI CareerFit' và chào 'Quý doanh nghiệp'. Nếu người dùng là CANDIDATE thì chào 'bạn' (hoặc chào bằng tên nếu có trong hồ sơ).
+      - Giới thiệu ngắn gọn khả năng hỗ trợ và hỏi xem người dùng cần trợ giúp gì hôm nay.
+   b. CÂU HỎI HOÀN TOÀN NGOÀI PHẠM VI CNTT, TUYỂN DỤNG VÀ CAREERFIT:
+      (Ví dụ: Hỏi thời tiết, trời có mưa không, cách nấu ăn, giải toán/lý/hóa phổ thông, mẹo vặt đời sống, y tế/chữa bệnh, xổ số, chính trị, buôn chuyện ngoài lề...)
+      - Bạn phải TỰ ĐỘNG PHÁT HIỆN và TỪ CHỐI LỊCH SỰ theo đúng nguyên văn mẫu sau:
+        Xin lỗi bạn, tôi là trợ lý chuyên trách của hệ thống CareerFit (SWP3911), chỉ hỗ trợ các nội dung liên quan đến:
+        1. Hướng dẫn sử dụng nền tảng CareerFit (tạo CV chuẩn ATS, quản lý ứng tuyển Kanban, đăng tin tuyển dụng, quy trình phỏng vấn Google Meet).
+        2. Kiến thức chuyên môn Công nghệ thông tin (Thuật toán, Lập trình Java/Spring Boot, SQL, Cloud, DevOps, QA/QC...).
+        3. Lộ trình phát triển sự nghiệp và kỹ năng CNTT cho sinh viên và Fresher.
 
-        // Đưa thông tin hồ sơ và nội dung CV thực tế của Ứng viên vào System Prompt
+        Gợi ý câu hỏi mẫu bạn có thể hỏi:
+        - Làm thế nào để tạo CV chuẩn ATS 7 bước?
+        - Lộ trình học Spring Boot cho Fresher gồm những gì?
+        - Cần chuẩn bị những kỹ năng gì cho buổi phỏng vấn IT?
+      - TUYỆT ĐỐI KHÔNG giải thích, bàn luận hay trả lời các câu hỏi ngoài lề đó.
+   c. CÂU HỎI VỀ CNTT, CAREERFIT, KỸ NĂNG, VIỆC LÀM, PHỎNG VẤN:
+      - Trả lời đầy đủ, chi tiết, điềm tĩnh, chính xác dựa trên ngữ cảnh cung cấp.
+""");
         if ("CANDIDATE".equalsIgnoreCase(role) && context != null && !context.isEmpty()) {
             boolean hasCv = Boolean.TRUE.equals(context.get("hasCvFile"));
             String fullName = (String) context.get("fullName");

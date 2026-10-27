@@ -304,6 +304,17 @@ public class AiAssistantKnowledgeService {
      * - Blacklist các chủ đề hoàn toàn ngoài lề (nấu ăn, xổ số, chính trị, y tế...)
      * - Độ tương đồng BM25 với Knowledge Base và bộ từ khóa chuyên môn CNTT
      */
+    public boolean isPromptInjection(String message) {
+        if (message == null || message.isBlank()) return false;
+        String normalized = VietnameseTextNormalizer.normalizeText(message);
+        for (String pattern : INJECTION_PATTERNS) {
+            if (normalized.contains(pattern)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public boolean isWithinScope(String message) {
         if (message == null || message.isBlank()) return false;
         String normalized = VietnameseTextNormalizer.normalizeText(message);
