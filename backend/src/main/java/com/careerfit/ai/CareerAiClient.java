@@ -303,6 +303,10 @@ public class CareerAiClient {
         return "";
     }
 
+    public OpenRouterAiClient.WebResult searchWeb(String query, List<String> domains) throws Exception {
+        return openRouterClient.searchWeb(query, domains);
+    }
+
     public OpenRouterAiClient.WebResult searchLearningResources(String query, List<String> domains) throws Exception {
         return openRouterClient.searchLearningResources(query, domains);
     }

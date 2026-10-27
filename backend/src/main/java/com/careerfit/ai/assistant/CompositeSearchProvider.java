@@ -31,7 +31,7 @@ public class CompositeSearchProvider implements SearchProvider {
     private static final List<String> TRUSTED_TECHNICAL_DOMAINS = List.of(
             "developer.mozilla.org", "docs.oracle.com", "spring.io",
             "geeksforgeeks.org", "w3schools.com", "baeldung.com",
-            "stackoverflow.com", "github.com", "baeldung.com"
+            "stackoverflow.com", "github.com", "wikipedia.org", "en.wikipedia.org", "vi.wikipedia.org"
     );
 
     @Override
@@ -71,7 +71,7 @@ public class CompositeSearchProvider implements SearchProvider {
             try {
                 if (aiClient != null && !aiClient.getApiKey().isBlank()) {
                     log.info("[Composite Search] TẦNG 2 KÍCH HOẠT: Tìm kiếm tài nguyên bên ngoài cho query: '{}'", sanitizedQuery);
-                    OpenRouterAiClient.WebResult extResult = aiClient.searchLearningResources(sanitizedQuery, TRUSTED_TECHNICAL_DOMAINS);
+                    OpenRouterAiClient.WebResult extResult = aiClient.searchWeb(sanitizedQuery, TRUSTED_TECHNICAL_DOMAINS);
                     if (extResult != null && extResult.message() != null) {
                         JsonNode msgNode = extResult.message();
                         String content = msgNode.path("content").asText("").trim();

@@ -310,6 +310,35 @@ public class OpenRouterAiClient {
 
     public record WebResult(String modelName, JsonNode message) {}
 
+    public WebResult searchWeb(String query, List<String> domains) throws Exception {
+        if (apiKey.isBlank()) throw new IllegalStateException("OpenRouter API key is missing");
+        Map<String, Object> body = new HashMap<>();
+        body.put("model", "openrouter/free");
+        body.put("messages", List.of(
+                Map.of("role", "system", "content", """
+                    You are a professional IT technical research assistant. Search the live web and provide an accurate, clear, and comprehensive summary of the requested technical topic, algorithm, architecture, concept, or tool in Vietnamese. Explain definitions, key mechanisms, practical applications in IT, and cite official references where available.
+                    """),
+                Map.of("role", "user", "content", query)));
+        body.put("plugins", List.of(Map.of("id", "web", "engine", "exa", "max_results", 5,
+                "include_domains", domains)));
+        body.put("max_tokens", 2500);
+        body.put("temperature", 0.3);
+        HttpRequest request = HttpRequest.newBuilder().uri(URI.create(apiUrl))
+                .timeout(Duration.ofSeconds(40)).header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + apiKey)
+                .header("HTTP-Referer", "http://localhost:5173")
+                .header("X-Title", "CareerFit Web Search")
+                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body))).build();
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw AiProviderException.http("OpenRouter", response.statusCode());
+        }
+        JsonNode root = objectMapper.readTree(response.body());
+        JsonNode message = root.path("choices").path(0).path("message");
+        if (!message.path("content").isTextual()) throw new IllegalStateException("Empty web search response");
+        return new WebResult(root.path("model").asText("OpenRouter Web Search"), message);
+    }
+
     public WebResult searchLearningResources(String query, List<String> domains) throws Exception {
         if (apiKey.isBlank()) throw new IllegalStateException("OpenRouter API key is missing");
         Map<String, Object> body = new HashMap<>();
