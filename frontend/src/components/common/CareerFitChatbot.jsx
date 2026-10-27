@@ -1541,7 +1541,8 @@ export function CareerFitChatbot() {
  <div ref={messagesEndRef} />
  </div>
 
- {/* Decorative Corner Mascot */}
+ {/* Decorative Corner Mascot: Chỉ hiển thị khi mới mở chat và chưa có tin nhắn trao đổi, tự động ẩn khi bắt đầu chat để không che chữ */}
+ {messages.length <= 1 && (
  <div className="cf-mascot-corner-peek" aria-hidden="true">
  <img
  src="/mascot/mascot-standing.png"
@@ -1550,6 +1551,7 @@ export function CareerFitChatbot() {
  draggable="false"
  />
  </div>
+ )}
 
  {/* 3. Action Bar khi đang trong Luồng Hướng dẫn */}
  {isGuideActive && currentStepDef && (
