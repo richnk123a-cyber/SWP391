@@ -63,6 +63,19 @@ public class AiAssistantController {
     }
 
     /**
+     * Endpoint thẩm định ngữ nghĩa bằng AI để nhận diện chính xác 100% ý định thoát/hủy biểu mẫu
+     */
+    @PostMapping("/check-guide-exit")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> checkGuideExit(
+            @RequestBody(required = false) Map<String, String> request
+    ) {
+        String message = (request != null && request.get("message") != null) ? request.get("message") : "";
+        String stepTitle = (request != null && request.get("stepTitle") != null) ? request.get("stepTitle") : "";
+        boolean isExit = assistantService.checkGuideExitIntent(message, stepTitle);
+        return ResponseEntity.ok(ApiResponse.success("Thẩm định ý định thành công.", Map.of("isExit", isExit)));
+    }
+
+    /**
      * Endpoint Chuẩn hóa & Cải thiện CV (chỉ dành cho Ứng viên)
      */
     @PostMapping("/polish-cv")

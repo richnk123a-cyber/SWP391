@@ -570,6 +570,8 @@ export const assistantApi = {
 
   chat: (data, signal) => api.post('/ai/assistant/chat', data, { timeout: 60000, signal }),
 
+  checkGuideExit: (message, stepTitle, signal) => api.post('/ai/assistant/check-guide-exit', { message, stepTitle }, { timeout: 10000, signal }),
+
   polishCv: (data, signal) => api.post('/ai/assistant/polish-cv', data, { timeout: 60000, signal }),
 
   polishJob: (data, signal) => api.post('/ai/assistant/polish-job', data, { timeout: 60000, signal }),

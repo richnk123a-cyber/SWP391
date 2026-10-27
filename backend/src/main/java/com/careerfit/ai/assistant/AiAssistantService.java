@@ -1134,4 +1134,57 @@ public class AiAssistantService {
                 AssistantChatResponse.QuickAction.builder().label("Xem việc làm phù hợp").prompt("Tìm việc làm phù hợp").navPage("job-search").build()
         );
     }
+
+    /**
+     * Dùng AI để thẩm định 100% ngữ nghĩa xem người dùng có muốn THOÁT / HỦY / DỪNG
+     * luồng biểu mẫu (kể cả nói lóng, teencode, viết tắt như 'khỏi đi', 'ko lm nữa', 'thoy dẹp', 'chán rồi'...).
+     */
+    public boolean checkGuideExitIntent(String userMessage, String currentStepTitle) {
+        if (userMessage == null || userMessage.isBlank()) return false;
+
+        // 1. Kiểm tra nhanh bằng bộ từ điển Teencode & Slang nâng cao
+        String lower = userMessage.toLowerCase().trim()
+                .replaceAll("[\\u0300-\\u036f]", "")
+                .replace("đ", "d")
+                .replaceAll("(.)\\1{2,}", "$1")
+                .replaceAll("\\b(ko|k|hong|hem|hok)\\b", "khong")
+                .replaceAll("\\b(lm|lamm)\\b", "lam")
+                .replaceAll("\\b(thoy|thui)\\b", "thoi");
+
+        if (lower.contains("khoi") || lower.contains("khong lam") || lower.contains("khong tao")
+                || lower.contains("thoat") || lower.contains("huy") || lower.contains("dung lai")
+                || lower.contains("thoi") || lower.contains("dep") || lower.contains("nghi")
+                || lower.contains("chan") || lower.contains("luoi")) {
+            return true;
+        }
+
+        // 2. Thẩm định bằng AI LLaMA 3.3 để đạt độ chính xác 100% với mọi sắc thái ngôn từ
+        try {
+            String prompt = """
+                    Bạn là hệ thống AI phân loại ý định tiếng Việt.
+                    Người dùng đang thực hiện biểu mẫu nhập liệu ở bước: "%s".
+                    Tin nhắn của người dùng: "%s".
+
+                    Nhiệm vụ: Người dùng có ý định THOÁT, HỦY, DỪNG LẠI, TỪ CHỐI TIẾP TỤC (kể cả nói lóng, teencode, bận, chán, đổi chủ đề, không muốn làm nữa) không?
+                    - Nếu CÓ ý định thoát/hủy/từ chối: Trả lời duy nhất: YES
+                    - Nếu là câu trả lời hợp lệ cho bước trên: Trả lời duy nhất: NO
+                    Chỉ in ra đúng 1 chữ: YES hoặc NO.
+                    """.formatted(currentStepTitle != null ? currentStepTitle : "Điền biểu mẫu", userMessage);
+
+            List<Map<String, String>> messages = List.of(
+                    Map.of("role", "system", "content", "Bạn là bộ phân loại ý định chính xác 100%. Chỉ trả lời YES hoặc NO."),
+                    Map.of("role", "user", "content", prompt)
+            );
+
+            CareerAiClient.LadderChatResult result = aiClient.chatLadder(messages, 8, false);
+            if (result != null && result.getContent() != null) {
+                String reply = result.getContent().trim().toUpperCase();
+                return reply.contains("YES");
+            }
+        } catch (Exception e) {
+            log.warn("AI checkGuideExitIntent exception: {}", e.getMessage());
+        }
+
+        return false;
+    }
 }

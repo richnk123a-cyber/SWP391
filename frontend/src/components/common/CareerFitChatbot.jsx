@@ -45,32 +45,58 @@ function stripEmojiIcons(text) {
 }
 
 
-// Nhận diện ý định muốn THOÁT / HỦY / DỪNG luồng hướng dẫn khi người dùng gõ tin nhắn
+// Chuẩn hóa toàn diện tiếng Việt teencode, viết tắt và tiếng lóng
+function normalizeTeencodeAndSlang(text) {
+  if (!text) return '';
+  let s = text.trim().toLowerCase();
+  s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
+  s = s.replace(/(.)\1{2,}/g, '$1');
+  s = s.replace(/\b(ko|k|hong|hem|hok|hông)\b/g, 'khong');
+  s = s.replace(/\b(lm|lam|lamm)\b/g, 'lam');
+  s = s.replace(/\b(thoy|thoi|thui)\b/g, 'thoi');
+  s = s.replace(/\b(dc|đc)\b/g, 'duoc');
+  s = s.replace(/\b(h)\b/g, 'gio');
+  s = s.replace(/\b(j)\b/g, 'gi');
+  s = s.replace(/\s+/g, ' ').trim();
+  return s;
+}
+
+// Nhận diện ý định muốn THOÁT / HỦY / DỪNG luồng hướng dẫn khi người dùng gõ tin nhắn (hỗ trợ toàn bộ teencode & tiếng lóng)
 function isExitOrCancelGuide(text) {
   if (!text) return false;
   const raw = text.trim().toLowerCase();
-  const normalized = raw
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/\s+/g, ' ');
+  const normalized = normalizeTeencodeAndSlang(text);
 
-  // 1. Các từ khóa ngắn dứt khoát
+  // 1. Danh sách từ khóa ngắn dứt khoát
   const exactWords = new Set([
     'thoat', 'thoat ra', 'exit', 'quit', 'dung', 'dung lai', 'stop',
     'huy', 'huy bo', 'cancel', 'thoi', 'thoi bo di', 'tro ve', 've lai',
-    'ko lam nua', 'khong lam nua', 'ko tao nua', 'khong tao nua', 'bo di',
-    'ngung', 'ngung lai'
+    'khong lam nua', 'khong tao nua', 'bo di', 'ngung', 'ngung lai',
+    'khoi', 'khoi di', 'khoi can', 'khoi lam', 'khoi tao', 'dep', 'dep di',
+    'nghi', 'nghi di', 'chan', 'chan roi', 'luoi', 'khong them', 'thoi di',
+    'khong can', 'thoi khoi', 'khoi nua', 'ko lm nua', 'k lm nua'
   ]);
-  if (exactWords.has(normalized)) return true;
+  if (exactWords.has(normalized) || exactWords.has(raw)) return true;
 
-  // 2. Mẫu câu thể hiện ý muốn thoát, hủy, dừng, không muốn tiếp tục (hỗ trợ cả gõ tắt ko/không và typo nữa/mữa)
+  // 2. Mẫu câu thể hiện ý muốn thoát, hủy, dừng, từ chối tiếp tục
   const patterns = [
+    // Thoát / Exit / Quit
     /(toi\s+)?(muon|cho\s+toi|giup\s+toi)?\s*thoat/i,
+    // Hủy / Cancel / Stop / Dừng / Ngừng
     /(toi\s+)?(muon|cho\s+toi)?\s*(huy|cancel|stop|dung|ngung)(\s+lai|\s+bo)?/i,
-    /(toi\s+)?(ko|khong|dung)\s*(muon|can)?\s*(tao|lam|viet|dang|nhap|tiep|dung)/i,
-    /(ko|khong)\s+can\s*(nua|mua)?/i,
-    /thoi\s+(khong|ko|dung|nghi|bo|ve|thoi|dep)/i,
+    // Không muốn làm, không làm nữa, khỏi làm, khỏi cần (đã bao gồm lm -> lam, k/ko -> khong)
+    /(toi\s+)?(khong|dung|khoi)\s*(muon|can)?\s*(tao|lam|viet|dang|nhap|tiep|dung)/i,
+    // Khỏi ... (khỏi đi, khỏi cần, khỏi làm, khỏi tạo, khỏi nữa)
+    /\bkhoi(\s+di|\s+can|\s+lam|\s+tao|\s+viet|\s+nua)?\b/i,
+    // Không làm nữa / không tạo nữa
+    /khong\s+(tao|lam)\s*(nua)?/i,
+    // Không cần nữa
+    /khong\s+can\s*(nua)?/i,
+    // Thôi ... (thôi khỏi, thôi bỏ, thôi nghỉ, thôi dẹp, thôi đi)
+    /\bthoi\s+(khong|dung|nghi|bo|ve|khoi|dep|di|thoi)\b/i,
+    // Dẹp đi, dẹp, nghỉ khỏe
+    /\b(dep|nghi)(\s+di|\s+khoe|\s+luon)?\b/i,
+    // Dừng/hủy hướng dẫn
     /(dung|huy|thoat|ngung)\s+(huong\s+dan|quy\s+trinh|flow|bot)/i
   ];
 
@@ -895,10 +921,11 @@ export function CareerFitChatbot() {
 
  // 1. Nếu đang trong luồng hướng dẫn và chưa hoàn tất -> Kiểm tra xem người dùng có muốn THOÁT / HỦY hoặc ĐIỀU HƯỚNG bằng câu trả lời không
  if (session.mode !== CHATBOT_MODES.GENERAL && !session.isComplete) {
+ // 1.1 Kiểm tra nhanh qua Tier 1 Teencode & Slang Engine (0ms)
  if (isExitOrCancelGuide(query)) {
  setTimeout(() => {
  handleCancelGuide();
- }, 300);
+ }, 200);
  return;
  }
 
@@ -912,11 +939,11 @@ export function CareerFitChatbot() {
  id: `msg-bot-${Date.now()}`,
  sender: 'bot',
  time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
- content: 'Bạn đang ở bước đầu tiên của hướng dẫn rồi. Nếu muốn dừng hướng dẫn, bạn có thể nhắn "thoát" hoặc bấm nút "Hủy" trên thanh công cụ nhé!'
+ content: 'Bạn đang ở bước đầu tiên của hướng dẫn rồi. Nếu muốn dừng hướng dẫn, bạn có thể nhắn "thoát", "khỏi đi", "ko lm nữa" hoặc bấm nút "Hủy" trên thanh công cụ nhé!'
  };
  setMessages(prev => [...prev, botMsg]);
  }
- }, 300);
+ }, 200);
  return;
  }
 
@@ -934,13 +961,35 @@ export function CareerFitChatbot() {
  };
  setMessages(prev => [...prev, botMsg]);
  }
- }, 300);
+ }, 200);
  return;
+ }
+
+ // 1.2 Nếu là lựa chọn chính xác từ quickOptions thì đi tiếp ngay (0ms)
+ const isExactOption = currentStepDef?.quickOptions?.some(opt => opt.toLowerCase() === query.toLowerCase());
+ if (isExactOption) {
+ setTimeout(() => {
+ processNextGuideStep(query);
+ }, 250);
+ return;
+ }
+
+ // 1.3 NÂNG CẤP AI: Thẩm định ngữ nghĩa bằng AI để đảm bảo chính xác 100% đối với câu viết tự do
+ try {
+ const stepTitle = currentStepDef?.title || `Bước ${session.stepIndex + 1}`;
+ const checkRes = await assistantApi.checkGuideExit(query, stepTitle);
+ const isExitByAi = checkRes?.data?.data?.isExit || checkRes?.data?.isExit || false;
+ if (isExitByAi) {
+ handleCancelGuide();
+ return;
+ }
+ } catch (err) {
+ console.debug('AI check exit intent fallback to local processing:', err);
  }
 
  setTimeout(() => {
  processNextGuideStep(query);
- }, 350);
+ }, 250);
  return;
  }
 

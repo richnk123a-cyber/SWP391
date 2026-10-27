@@ -63,7 +63,7 @@ public class AiOrchestratorService {
         log.info("Bắt đầu điều phối AI cho chức năng [{}] - User [{}] - CSDL có sẵn đáp án: {}",
                 request.getFeatureCode(), request.getUserId(), request.isAnswerInDatabase());
 
-        List<AiExecutionResponse.AiStepLog> stepLogs = new ArrayList<>();
+        List<AiExecutionResponse.AiStepLog> stepLogs = new CopyOnWriteArrayList<>();
 
         try {
             if (request.isAnswerInDatabase()) {
