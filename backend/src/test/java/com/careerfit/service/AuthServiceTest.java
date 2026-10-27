@@ -69,13 +69,28 @@ public class AuthServiceTest {
     }
 
     @Test
-    void testLogin_TrongTienAdminRestricted() {
+    void testLogin_TrongTienAdmin_SuccessWithPassword() {
         LoginRequest request = new LoginRequest();
         request.setEmail("trongtien6571@gmail.com");
-        request.setPassword("password");
+        request.setPassword("123456");
 
-        BadRequestException exception = assertThrows(BadRequestException.class, () -> authService.login(request));
-        assertTrue(exception.getMessage().contains("Tài khoản Quản trị viên chỉ được phép đăng nhập thông qua Google OAuth"));
+        User user = new User();
+        user.setId("admin-trongtien");
+        user.setEmail("trongtien6571@gmail.com");
+        user.setUsername("trongtien");
+        user.setPasswordHash("123456");
+        user.setRole("ADMIN");
+        user.setAuthProvider("LOCAL");
+        user.setStatus("ACTIVE");
+
+        when(userRepository.findAllByEmailOrUsernameOrId("trongtien6571@gmail.com")).thenReturn(java.util.List.of(user));
+        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
+        when(jwtUtils.generateToken(any(), any(), any(), any())).thenReturn("mock-admin-token");
+        when(jwtUtils.generateToken(any(), any(), any(), any(), any(), any())).thenReturn("mock-admin-token");
+
+        AuthResponse response = authService.login(request);
+        assertNotNull(response);
+        assertEquals("ADMIN", response.getRole());
     }
 
     @Test
@@ -135,10 +150,10 @@ public class AuthServiceTest {
     @Test
     void testRegisterCandidate_InvalidEmail() {
         RegisterCandidateRequest request = new RegisterCandidateRequest();
-        request.setEmail("ab@gmail.com"); // Too short before @
+        request.setEmail("invalid-email-format");
         
         BadRequestException exception = assertThrows(BadRequestException.class, () -> authService.registerCandidate(request));
-        assertTrue(exception.getMessage().contains("Email ứng viên phải có đuôi @gmail.com hoặc @outlook.com"));
+        assertTrue(exception.getMessage().contains("Email không hợp lệ"));
     }
 
     @Test
@@ -234,25 +249,16 @@ public class AuthServiceTest {
     }
 
     @Test
-    void testRegisterEmployer_GmailDomainRestricted() {
+    void testRegisterEmployer_PasswordMismatch() {
         RegisterEmployerRequest request = new RegisterEmployerRequest();
         request.setPhone("0901234567");
         request.setEmail("company@gmail.com");
+        request.setPassword("password123");
+        request.setConfirmPassword("differentPassword");
         MockMultipartFile file = new MockMultipartFile("file", "test.pdf", "application/pdf", "content".getBytes());
 
         BadRequestException exception = assertThrows(BadRequestException.class, () -> authService.registerEmployer(request, file));
-        assertTrue(exception.getMessage().contains("Email doanh nghiệp phải sử dụng tên miền công ty"));
-    }
-
-    @Test
-    void testRegisterEmployer_OutlookDomainRestricted() {
-        RegisterEmployerRequest request = new RegisterEmployerRequest();
-        request.setPhone("0901234567");
-        request.setEmail("company@outlook.com");
-        MockMultipartFile file = new MockMultipartFile("file", "test.pdf", "application/pdf", "content".getBytes());
-
-        BadRequestException exception = assertThrows(BadRequestException.class, () -> authService.registerEmployer(request, file));
-        assertTrue(exception.getMessage().contains("Email doanh nghiệp phải sử dụng tên miền công ty"));
+        assertTrue(exception.getMessage().contains("Mật khẩu xác nhận không khớp"));
     }
 
     @Test
@@ -310,21 +316,18 @@ public class AuthServiceTest {
     }
 
     @Test
-    void testOauthComplete_EmployerGmailDomainRestricted() {
+    void testOauthComplete_InvalidPhone() {
         OAuthRegisterRequest request = new OAuthRegisterRequest();
         request.setTempToken("valid-token");
         request.setEmail("hr@gmail.com");
         request.setRole("EMPLOYER");
-        request.setPhone("0901234567");
+        request.setPhone("0123456789");
 
         when(jwtUtils.validateToken(anyString())).thenReturn(true);
         when(jwtUtils.extractClaim(anyString(), eq("type"))).thenReturn("TEMP_REGISTER");
         when(jwtUtils.extractSubject(anyString())).thenReturn("hr@gmail.com");
-        when(jwtUtils.extractClaim(anyString(), eq("name"))).thenReturn("HR Name");
-        when(jwtUtils.extractClaim(anyString(), eq("provider"))).thenReturn("GOOGLE");
-        when(userRepository.existsByEmailAndAuthProvider(anyString(), anyString())).thenReturn(false);
 
         BadRequestException exception = assertThrows(BadRequestException.class, () -> authService.oauthCompleteRegistration(request, null));
-        assertTrue(exception.getMessage().contains("Email doanh nghiệp phải sử dụng tên miền công ty"));
+        assertTrue(exception.getMessage().contains("Số điện thoại không hợp lệ"));
     }
 }

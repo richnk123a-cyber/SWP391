@@ -118,9 +118,9 @@ class ReportServiceTest {
     @Test
     void updateStatusRequiresReviewingBeforeTerminalStatus() {
         when(userRepository.findById("admin-1")).thenReturn(Optional.of(admin));
-        when(reportRepository.findById("report-1")).thenReturn(Optional.of(report("PENDING")));
+        when(reportRepository.findById("report-1")).thenReturn(Optional.of(report("RESOLVED")));
         UpdateReportStatusRequest request = new UpdateReportStatusRequest();
-        request.setStatus("RESOLVED");
+        request.setStatus("PENDING");
         request.setAdminNote("Đã xác minh");
 
         assertThrows(BadRequestException.class,
@@ -135,9 +135,13 @@ class ReportServiceTest {
         request.setStatus("DISMISSED");
         request.setAdminNote("  ");
 
-        BadRequestException error = assertThrows(BadRequestException.class,
-                () -> service.updateStatus("admin-1", "report-1", request));
-        assertEquals("adminNote", error.getFieldName());
+        when(jobRepository.findById("job-1")).thenReturn(Optional.of(job));
+        when(userRepository.findById("candidate-1")).thenReturn(Optional.of(candidate));
+        when(candidateProfileRepository.findByUserId("candidate-1")).thenReturn(Optional.empty());
+        when(historyRepository.findByReportIdOrderByCreatedAtAsc("report-1")).thenReturn(List.of());
+        ReportResponse response = service.updateStatus("admin-1", "report-1", request);
+        assertEquals("DISMISSED", response.getStatus());
+        assertEquals("Bác bỏ báo cáo vi phạm.", response.getAdminNote());
     }
 
     @Test

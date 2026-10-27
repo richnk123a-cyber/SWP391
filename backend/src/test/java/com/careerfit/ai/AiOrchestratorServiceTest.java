@@ -15,6 +15,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
 class AiOrchestratorServiceTest {
 
     @Mock
@@ -116,6 +117,7 @@ class AiOrchestratorServiceTest {
 
         // AI1 call
         when(aiClient.callAi(eq(ai1), any(), any())).thenReturn("raw1");
+        when(aiClient.callAi(eq(ai1), any(), any(), anyInt())).thenReturn("raw1");
         Map<String, Object> parsed1 = new HashMap<>();
         parsed1.put("answer", "Tra loi AI1 sau khi tra cuu web");
         parsed1.put("reasoning", "Ly luan AI1");
@@ -123,6 +125,7 @@ class AiOrchestratorServiceTest {
 
         // AI2 call (đồng thuận)
         when(aiClient.callAi(eq(ai2), any(), any())).thenReturn("raw2");
+        when(aiClient.callAi(eq(ai2), any(), any(), anyInt())).thenReturn("raw2");
         Map<String, Object> parsed2 = new HashMap<>();
         parsed2.put("answer", "Tra loi AI1 sau khi tra cuu web");
         parsed2.put("reasoning", "AI2 dong y voi AI1");

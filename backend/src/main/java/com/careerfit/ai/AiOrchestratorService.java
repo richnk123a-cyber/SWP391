@@ -103,7 +103,25 @@ public class AiOrchestratorService {
 
         // Gọi AI1 và AI2 bất đồng bộ cùng lúc
         CompletableFuture<String> future1 = aiClient.callAiAsync(ai1, systemPrompt, userMessage, FLOW1_TIMEOUT);
+        if (future1 == null) {
+            future1 = CompletableFuture.supplyAsync(() -> {
+                try {
+                    return aiClient.callAi(ai1, systemPrompt, userMessage);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        }
         CompletableFuture<String> future2 = aiClient.callAiAsync(ai2, systemPrompt, userMessage, FLOW1_TIMEOUT);
+        if (future2 == null) {
+            future2 = CompletableFuture.supplyAsync(() -> {
+                try {
+                    return aiClient.callAi(ai2, systemPrompt, userMessage);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        }
 
         // Race: lấy kết quả của future nào hoàn thành trước (thành công)
         // anyOf trả về kết quả đầu tiên kể cả lỗi, nên ta dùng cách thủ công hơn
