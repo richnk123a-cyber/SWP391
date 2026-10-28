@@ -14,9 +14,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -216,12 +218,15 @@ public class EmployerService {
         if (originalFilename != null && originalFilename.contains(".")) {
             extension = originalFilename.substring(originalFilename.lastIndexOf("."));
         }
-        String fileName = "LOGO_" + UUID.randomUUID() + extension;
+        String fileName = "LOGO_" + company.getId() + "_" + System.currentTimeMillis() + extension;
 
         try {
             Path uploadPath = Paths.get("uploads/");
             if (!Files.exists(uploadPath)) Files.createDirectories(uploadPath);
             Files.write(uploadPath.resolve(fileName), file.getBytes());
+
+            // Dọn dẹp phiên bản Logo cũ: Giữ lại bản mới nhất (#1) và bản liền trước đó (#2), xóa bản thứ 3 (#3) trở đi
+            cleanupOldLogoVersions(uploadPath, company.getId(), company.getLogo());
         } catch (Exception e) {
             throw new BadRequestException("Lỗi khi lưu file logo: " + e.getMessage());
         }
@@ -254,4 +259,61 @@ public class EmployerService {
                 .businessLicenseFile(c.getBusinessLicenseFile())
                 .build();
     }
+
+    /**
+     * Dọn dẹp các phiên bản Logo cũ của công ty:
+     * - Bản mới nhất (#1): Giữ lại.
+     * - Bản liền kề trước đó (#2): Giữ lại.
+     * - Bản thứ 3 kể từ bản mới nhất (#3) và các bản cũ hơn: Xóa khỏi ổ đĩa để tránh nở rộng dữ liệu.
+     */
+    private void cleanupOldLogoVersions(Path uploadDir, String companyId, String previousLogoUrl) {
+        try {
+            if (!Files.exists(uploadDir)) return;
+
+            List<Path> logoFiles = new ArrayList<>();
+            try (var stream = Files.list(uploadDir)) {
+                stream.filter(Files::isRegularFile)
+                        .filter(p -> {
+                            String name = p.getFileName().toString();
+                            return name.startsWith("LOGO_" + companyId + "_");
+                        })
+                        .forEach(logoFiles::add);
+            }
+
+            // Hỗ trợ cả file logo cũ nếu được lưu theo format legacy UUID
+            if (previousLogoUrl != null && previousLogoUrl.startsWith("/uploads/")) {
+                String prevFileName = previousLogoUrl.substring("/uploads/".length());
+                Path prevPath = uploadDir.resolve(prevFileName);
+                if (Files.exists(prevPath) && !logoFiles.contains(prevPath)) {
+                    logoFiles.add(prevPath);
+                }
+            }
+
+            // Sắp xếp giảm dần theo thời gian sửa đổi (Mới nhất ở index 0, cũ dần về sau)
+            logoFiles.sort((p1, p2) -> {
+                try {
+                    return Files.getLastModifiedTime(p2).compareTo(Files.getLastModifiedTime(p1));
+                } catch (IOException e) {
+                    return 0;
+                }
+            });
+
+            // Nếu có từ 3 bản trở lên: xóa từ bản thứ 3 trở đi (index >= 2)
+            if (logoFiles.size() > 2) {
+                for (int i = 2; i < logoFiles.size(); i++) {
+                    Path oldLogo = logoFiles.get(i);
+                    try {
+                        Files.deleteIfExists(oldLogo);
+                        log.info("Đã xóa bản Logo cũ thứ {} [{}] của công ty [{}] để tránh nở rộng dữ liệu.",
+                                i + 1, oldLogo.getFileName(), companyId);
+                    } catch (IOException ex) {
+                        log.warn("Không thể xóa bản Logo cũ [{}]: {}", oldLogo, ex.getMessage());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Lỗi khi dọn dẹp các phiên bản Logo cũ của công ty [{}]: {}", companyId, e.getMessage());
+        }
+    }
+
 }

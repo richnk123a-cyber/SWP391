@@ -184,19 +184,19 @@ public class CandidateService {
                     return candidateProfileRepository.save(newProfile);
                 });
 
-        // 3. Lưu trữ tệp vật lý an toàn vào uploads/cvs/
+        // 3. Lưu trữ tệp vật lý an toàn vào uploads/cvs/ (Giữ tối đa 2 bản gần nhất, xóa từ bản thứ 3 trở đi)
         try {
             Path uploadPath = Paths.get(UPLOAD_DIR).toAbsolutePath().normalize();
             Files.createDirectories(uploadPath);
 
-            // Dọn dẹp tệp cũ của ứng viên nếu đã từng upload
-            Files.deleteIfExists(uploadPath.resolve(user.getId() + "_cv.pdf"));
-            Files.deleteIfExists(uploadPath.resolve(user.getId() + "_cv.docx"));
-
-            // Lưu tệp mới theo quy ước: {userId}_cv.{extension}
-            Path targetLocation = uploadPath.resolve(user.getId() + "_cv." + extension);
+            // Lưu tệp mới theo quy ước: {userId}_cv_{timestamp}.{extension}
+            String newFileName = user.getId() + "_cv_" + System.currentTimeMillis() + "." + extension;
+            Path targetLocation = uploadPath.resolve(newFileName);
             Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
-            log.info("Đã lưu tệp CV vật lý thành công tại [{}]", targetLocation);
+            log.info("Đã lưu tệp CV vật lý mới nhất thành công tại [{}]", targetLocation);
+
+            // Dọn dẹp phiên bản: Giữ lại bản mới nhất (#1) và bản liền trước đó (#2), xóa bản thứ 3 (#3) trở đi
+            cleanupOldCvVersions(uploadPath, user.getId(), profile.getId());
         } catch (IOException e) {
             log.error("Lỗi khi ghi tệp CV vật lý: {}", e.getMessage(), e);
             throw new RuntimeException("Lưu tệp CV thất bại: " + e.getMessage(), e);
@@ -317,12 +317,26 @@ public class CandidateService {
         CandidateProfile profile = candidateProfileRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Chưa tìm thấy hồ sơ ứng viên."));
 
-        // 1. Xóa tệp vật lý trên ổ đĩa
+        // 1. Xóa toàn bộ các tệp CV vật lý của ứng viên trên ổ đĩa
         try {
             Path uploadPath = Paths.get(UPLOAD_DIR).toAbsolutePath().normalize();
-            Files.deleteIfExists(uploadPath.resolve(user.getId() + "_cv.pdf"));
-            Files.deleteIfExists(uploadPath.resolve(user.getId() + "_cv.docx"));
-            log.info("Đã dọn dẹp tệp CV vật lý của ứng viên [{}]", user.getId());
+            if (Files.exists(uploadPath)) {
+                try (var stream = Files.list(uploadPath)) {
+                    stream.filter(Files::isRegularFile)
+                            .filter(p -> {
+                                String name = p.getFileName().toString();
+                                return (name.startsWith(user.getId() + "_cv")
+                                        || name.startsWith(profile.getId() + "_cv"));
+                            })
+                            .forEach(p -> {
+                                try {
+                                    Files.deleteIfExists(p);
+                                    log.info("Đã xóa tệp CV: {}", p.getFileName());
+                                } catch (IOException ignored) {}
+                            });
+                }
+            }
+            log.info("Đã dọn dẹp toàn bộ tệp CV vật lý của ứng viên [{}]", user.getId());
         } catch (IOException e) {
             log.warn("Không thể xóa tệp CV vật lý của [{}]: {}", user.getId(), e.getMessage());
         }
@@ -352,10 +366,7 @@ public class CandidateService {
         }
 
         Path uploadPath = Paths.get(UPLOAD_DIR).toAbsolutePath().normalize();
-        Path pdfPath = uploadPath.resolve(user.getId() + "_cv.pdf");
-        Path docxPath = uploadPath.resolve(user.getId() + "_cv.docx");
-
-        Path targetPath = Files.exists(pdfPath) ? pdfPath : (Files.exists(docxPath) ? docxPath : null);
+        Path targetPath = findLatestCvFile(uploadPath, user.getId(), profile.getId(), profile.getCvFileName());
         if (targetPath == null) {
             throw new ResourceNotFoundException("Không tìm thấy tệp CV vật lý trên hệ thống lưu trữ.");
         }
@@ -405,24 +416,7 @@ public class CandidateService {
         }
 
         Path uploadPath = Paths.get(UPLOAD_DIR).toAbsolutePath().normalize();
-        Path pdfPath = uploadPath.resolve(profile.getUserId() + "_cv.pdf");
-        Path docxPath = uploadPath.resolve(profile.getUserId() + "_cv.docx");
-
-        Path targetPath = Files.exists(pdfPath) ? pdfPath : (Files.exists(docxPath) ? docxPath : null);
-
-        // Fallback kiểm tra theo tên file hoặc candidateId nếu file chưa đổi theo userId
-        if (targetPath == null) {
-            Path directNamePath = uploadPath.resolve(profile.getCvFileName());
-            if (Files.exists(directNamePath)) {
-                targetPath = directNamePath;
-            } else {
-                Path candIdPath = uploadPath.resolve(profile.getId() + "_cv.pdf");
-                if (Files.exists(candIdPath)) {
-                    targetPath = candIdPath;
-                }
-            }
-        }
-
+        Path targetPath = findLatestCvFile(uploadPath, profile.getUserId(), profile.getId(), profile.getCvFileName());
         if (targetPath == null) {
             throw new ResourceNotFoundException("Không tìm thấy tệp CV vật lý trên hệ thống lưu trữ.");
         }
@@ -477,4 +471,92 @@ public class CandidateService {
                 .expectedSalary(p.getExpectedSalary())
                 .build();
     }
+
+    /**
+     * Dọn dẹp các phiên bản CV cũ của ứng viên:
+     * - Bản mới nhất (#1): Giữ lại.
+     * - Bản liền kề trước đó (#2): Giữ lại.
+     * - Bản thứ 3 kể từ bản mới nhất (#3) và các bản cũ hơn: Xóa khỏi ổ đĩa để tránh nở rộng dữ liệu.
+     */
+    private void cleanupOldCvVersions(Path uploadDir, String userId, String profileId) {
+        try {
+            if (!Files.exists(uploadDir)) return;
+
+            List<Path> userCvFiles = new ArrayList<>();
+            try (var stream = Files.list(uploadDir)) {
+                stream.filter(Files::isRegularFile)
+                        .filter(p -> {
+                            String name = p.getFileName().toString();
+                            return (userId != null && name.startsWith(userId + "_cv"))
+                                    || (profileId != null && name.startsWith(profileId + "_cv"));
+                        })
+                        .forEach(userCvFiles::add);
+            }
+
+            // Sắp xếp giảm dần theo thời gian sửa đổi (Mới nhất ở index 0, cũ dần về sau)
+            userCvFiles.sort((p1, p2) -> {
+                try {
+                    return Files.getLastModifiedTime(p2).compareTo(Files.getLastModifiedTime(p1));
+                } catch (IOException e) {
+                    return 0;
+                }
+            });
+
+            // Nếu có từ 3 bản trở lên: xóa từ bản thứ 3 trở đi (index >= 2)
+            if (userCvFiles.size() > 2) {
+                for (int i = 2; i < userCvFiles.size(); i++) {
+                    Path oldCv = userCvFiles.get(i);
+                    try {
+                        Files.deleteIfExists(oldCv);
+                        log.info("Đã xóa bản CV cũ thứ {} [{}] của ứng viên [{}] để tránh nở rộng dữ liệu.",
+                                i + 1, oldCv.getFileName(), userId);
+                    } catch (IOException ex) {
+                        log.warn("Không thể xóa bản CV cũ [{}]: {}", oldCv, ex.getMessage());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Lỗi khi dọn dẹp các phiên bản CV cũ của ứng viên [{}]: {}", userId, e.getMessage());
+        }
+    }
+
+    /**
+     * Tìm tệp CV mới nhất còn tồn tại của ứng viên (hỗ trợ cả chuẩn timestamp mới và file legacy).
+     */
+    private Path findLatestCvFile(Path uploadDir, String userId, String profileId, String originalFileName) {
+        if (!Files.exists(uploadDir)) return null;
+
+        List<Path> userCvFiles = new ArrayList<>();
+        try (var stream = Files.list(uploadDir)) {
+            stream.filter(Files::isRegularFile)
+                    .filter(p -> {
+                        String name = p.getFileName().toString();
+                        return (userId != null && name.startsWith(userId + "_cv"))
+                                || (profileId != null && name.startsWith(profileId + "_cv"));
+                    })
+                    .forEach(userCvFiles::add);
+        } catch (IOException e) {
+            log.warn("Lỗi đọc thư mục CV: {}", e.getMessage());
+        }
+
+        if (!userCvFiles.isEmpty()) {
+            userCvFiles.sort((p1, p2) -> {
+                try {
+                    return Files.getLastModifiedTime(p2).compareTo(Files.getLastModifiedTime(p1));
+                } catch (IOException e) {
+                    return 0;
+                }
+            });
+            return userCvFiles.get(0); // Bản mới nhất
+        }
+
+        // Fallback kiểm tra file tên trực tiếp hoặc legacy
+        if (originalFileName != null && !originalFileName.isBlank()) {
+            Path directNamePath = uploadDir.resolve(originalFileName);
+            if (Files.exists(directNamePath)) return directNamePath;
+        }
+
+        return null;
+    }
+
 }

@@ -44,6 +44,40 @@ function stripEmojiIcons(text) {
   return text.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}]/gu, '').replace(/  +/g, ' ');
 }
 
+// Render nội dung tin nhắn với khả năng ngắt dòng tự động cho đường dẫn URL và tên tệp dài
+function renderMessageContent(content, sender) {
+  if (!content) return null;
+  const cleanText = stripEmojiIcons(content);
+
+  // Nhận diện URL web hoặc đường dẫn tải tệp /uploads/...
+  const urlRegex = /(https?:\/\/[^\s]+|\/uploads\/[^\s]+)/g;
+  const parts = cleanText.split(urlRegex);
+
+  return parts.map((part, index) => {
+    if (!part) return null;
+    if (part.match(urlRegex)) {
+      const isInternal = part.startsWith('/uploads/');
+      const href = isInternal
+        ? (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080').replace(/\/api$/, '') + part
+        : part;
+      return (
+        <a
+          key={index}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`underline underline-offset-2 break-all font-medium transition-opacity hover:opacity-85 inline ${
+            sender === 'user' ? 'text-emerald-100 hover:text-white' : 'text-[#194E38] hover:text-[#0D2D20]'
+          }`}
+          title={part}
+        >
+          {part}
+        </a>
+      );
+    }
+    return <span key={index}>{part}</span>;
+  });
+}
 
 // Chuẩn hóa toàn diện tiếng Việt teencode, viết tắt và tiếng lóng
 function normalizeTeencodeAndSlang(text) {
@@ -64,43 +98,60 @@ function normalizeTeencodeAndSlang(text) {
 // Nhận diện ý định muốn THOÁT / HỦY / DỪNG luồng hướng dẫn khi người dùng gõ tin nhắn (hỗ trợ toàn bộ teencode & tiếng lóng)
 function isExitOrCancelGuide(text) {
   if (!text) return false;
-  const raw = text.trim().toLowerCase();
+  const raw = text.trim();
+  const lowerRaw = raw.toLowerCase();
+
+  // AN TOÀN TUYỆT ĐỐI: Nếu tin nhắn chứa thông tin liên hệ (Email, Phone, Link) hoặc độ dài > 35 ký tự
+  // thì ĐÂY CHẮC CHẮN LÀ DỮ LIỆU NHẬP LIỆU (Bước 2 thông tin cá nhân, Bước 3 học vấn, kỹ năng, đồ án...)
+  // Tuyệt đối không được coi là thoát!
+  if (
+    lowerRaw.includes('@') ||
+    /\b\d{9,12}\b/.test(lowerRaw) ||
+    lowerRaw.includes('http') ||
+    lowerRaw.includes('github.com') ||
+    lowerRaw.includes('linkedin.com') ||
+    raw.length > 35
+  ) {
+    return false;
+  }
+
   const normalized = normalizeTeencodeAndSlang(text);
 
-  // 1. Danh sách từ khóa ngắn dứt khoát
+  // 1. Danh sách từ khóa ngắn dứt khoát (toàn bộ câu chỉ là 1-3 từ khóa này)
   const exactWords = new Set([
     'thoat', 'thoat ra', 'exit', 'quit', 'dung', 'dung lai', 'stop',
     'huy', 'huy bo', 'cancel', 'thoi', 'thoi bo di', 'tro ve', 've lai',
     'khong lam nua', 'khong tao nua', 'bo di', 'ngung', 'ngung lai',
     'khoi', 'khoi di', 'khoi can', 'khoi lam', 'khoi tao', 'dep', 'dep di',
-    'nghi', 'nghi di', 'chan', 'chan roi', 'luoi', 'khong them', 'thoi di',
+    'nghi', 'nghi di', 'chan roi', 'khong them', 'thoi di',
     'khong can', 'thoi khoi', 'khoi nua', 'ko lm nua', 'k lm nua'
   ]);
-  if (exactWords.has(normalized) || exactWords.has(raw)) return true;
+  if (exactWords.has(normalized) || exactWords.has(lowerRaw)) return true;
 
-  // 2. Mẫu câu thể hiện ý muốn thoát, hủy, dừng, từ chối tiếp tục
+  // 2. Mẫu câu thể hiện ý muốn thoát, hủy, dừng, từ chối tiếp tục (BẮT BUỘC có ranh giới từ \b)
+  // Tuyệt đối KHÔNG match substring không có ranh giới như 'huy' (tránh tên Huy), 'dung' (tránh Dũng, sử dụng), 'nghi' (tránh Nghĩa, kinh nghiệm)
   const patterns = [
     // Thoát / Exit / Quit
-    /(toi\s+)?(muon|cho\s+toi|giup\s+toi)?\s*thoat/i,
+    /\b(toi\s+)?(muon|cho\s+toi|giup\s+toi)?\s*(thoat|exit|quit)\b/i,
     // Hủy / Cancel / Stop / Dừng / Ngừng
-    /(toi\s+)?(muon|cho\s+toi)?\s*(huy|cancel|stop|dung|ngung)(\s+lai|\s+bo)?/i,
-    // Không muốn làm, không làm nữa, khỏi làm, khỏi cần (đã bao gồm lm -> lam, k/ko -> khong)
-    /(toi\s+)?(khong|dung|khoi)\s*(muon|can)?\s*(tao|lam|viet|dang|nhap|tiep|dung)/i,
+    /\b(toi\s+)?(muon|cho\s+toi)?\s*(huy\s+bo|cancel|stop|dung\s+lai|ngung\s+lai)\b/i,
+    // Không muốn làm, không làm nữa, khỏi làm
+    /\b(toi\s+)?(khong|khoi)\s*(muon|can)?\s*(tao|lam|viet|dang|nhap|tiep)\s*(nua)?\b/i,
     // Khỏi ... (khỏi đi, khỏi cần, khỏi làm, khỏi tạo, khỏi nữa)
-    /\bkhoi(\s+di|\s+can|\s+lam|\s+tao|\s+viet|\s+nua)?\b/i,
+    /\bkhoi(\s+di|\s+can|\s+lam|\s+tao|\s+viet|\s+nua)\b/i,
     // Không làm nữa / không tạo nữa
-    /khong\s+(tao|lam)\s*(nua)?/i,
+    /\bkhong\s+(tao|lam)\s+nua\b/i,
     // Không cần nữa
-    /khong\s+can\s*(nua)?/i,
+    /\bkhong\s+can\s+nua\b/i,
     // Thôi ... (thôi khỏi, thôi bỏ, thôi nghỉ, thôi dẹp, thôi đi)
-    /\bthoi\s+(khong|dung|nghi|bo|ve|khoi|dep|di|thoi)\b/i,
+    /\bthoi\s+(khong|dung|nghi|bo|ve|khoi|dep|di)\b/i,
     // Dẹp đi, dẹp, nghỉ khỏe
-    /\b(dep|nghi)(\s+di|\s+khoe|\s+luon)?\b/i,
+    /\b(dep\s+di|nghi\s+khoe|nghi\s+luon)\b/i,
     // Dừng/hủy hướng dẫn
-    /(dung|huy|thoat|ngung)\s+(huong\s+dan|quy\s+trinh|flow|bot)/i
+    /\b(dung|huy|thoat|ngung)\s+(huong\s+dan|quy\s+trinh|flow|bot)\b/i
   ];
 
-  return patterns.some(p => p.test(normalized) || p.test(raw));
+  return patterns.some(p => p.test(normalized) || p.test(lowerRaw));
 }
 
 // Nhận diện ý định muốn quay lại bước trước bằng tin nhắn
@@ -1005,20 +1056,22 @@ export function CareerFitChatbot() {
  return;
  }
 
- // 1.3 NÂNG CẤP AI: Thẩm định ngữ nghĩa bằng AI để đảm bảo chính xác 100% đối với câu viết tự do
- try {
- const stepTitle = currentStepDef?.title || `Bước ${session.stepIndex + 1}`;
- const checkRes = await assistantApi.checkGuideExit(query, stepTitle);
- const isExitByAi = checkRes?.data?.data?.isExit || checkRes?.data?.isExit || false;
- if (isExitByAi) {
- handleCancelGuide();
- return;
- }
- } catch (err) {
- console.debug('AI check exit intent fallback to local processing:', err);
- }
+ // 1.3 Thẩm định ngữ nghĩa: Chỉ kiểm tra backend khi tin nhắn rất ngắn (< 25 ký tự) và có dấu hiệu nghi vấn dừng
+        if (query.length < 25 && !query.includes('@') && !query.includes('.')) {
+          try {
+            const stepTitle = currentStepDef?.title || `Bước ${session.stepIndex + 1}`;
+            const checkRes = await assistantApi.checkGuideExit(query, stepTitle);
+            const isExitByAi = checkRes?.data?.data?.isExit || checkRes?.data?.isExit || false;
+            if (isExitByAi) {
+              handleCancelGuide();
+              return;
+            }
+          } catch (err) {
+            console.debug('AI check exit intent fallback to local processing:', err);
+          }
+        }
 
- setTimeout(() => {
+        setTimeout(() => {
  processNextGuideStep(query);
  }, 250);
  return;
@@ -1423,35 +1476,37 @@ export function CareerFitChatbot() {
  </div>
 
  {messages.map((msg, index) => (
- <div
- key={msg.id}
- className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
- >
- <div
- className={`flex gap-2.5 max-w-full ${
- msg.sender === 'user' ? 'justify-end' : 'justify-start items-start'
- }`}
- >
- {/* Bot Avatar */}
- {msg.sender === 'bot' && (
- <div className="w-7 h-7 rounded-full bg-[#E5F2E9] border border-[#CDE3D5] p-0.5 shrink-0 flex items-center justify-center overflow-hidden mt-0.5">
- <img
- src="/mascot/mascot-circle-avatar.png"
- alt="Bot"
- className="w-full h-full object-contain"
- />
- </div>
- )}
+            <div
+              key={msg.id}
+              className={`flex flex-col w-full min-w-0 ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
+            >
+              <div
+                className={`flex gap-2.5 max-w-full min-w-0 ${
+                  msg.sender === 'user' ? 'justify-end' : 'justify-start items-start'
+                }`}
+              >
+                {/* Bot Avatar */}
+                {msg.sender === 'bot' && (
+                  <div className="w-7 h-7 rounded-full bg-[#E5F2E9] border border-[#CDE3D5] p-0.5 shrink-0 flex items-center justify-center overflow-hidden mt-0.5">
+                    <img
+                      src="/mascot/mascot-circle-avatar.png"
+                      alt="Bot"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                )}
 
- {/* Message Bubble */}
- <div
- className={`max-w-[85%] text-xs leading-relaxed ${
- msg.sender === 'user'
- ? 'bg-[#28674E] text-white rounded-2xl rounded-br-xs px-3.5 py-2.5 shadow-xs'
- : 'bg-[#E5F2E9] text-[#1D3B2C] rounded-2xl rounded-tl-xs px-3.5 py-2.5 shadow-xs border border-[#D5E8DC]'
- }`}
- >
- <p className="whitespace-pre-line">{stripEmojiIcons(msg.content)}</p>
+                {/* Message Bubble - ngắt dòng triệt để cho đường dẫn và tên tệp không tràn ra ngoài nền màu */}
+                <div
+                  className={`cf-msg-bubble max-w-[85%] min-w-0 text-xs leading-relaxed break-words [overflow-wrap:anywhere] [word-break:break-word] ${
+                    msg.sender === 'user'
+                      ? 'bg-[#28674E] text-white rounded-2xl rounded-br-xs px-3.5 py-2.5 shadow-xs'
+                      : 'bg-[#E5F2E9] text-[#1D3B2C] rounded-2xl rounded-tl-xs px-3.5 py-2.5 shadow-xs border border-[#D5E8DC]'
+                  }`}
+                >
+                  <div className="cf-msg-content whitespace-pre-line break-words [overflow-wrap:anywhere] [word-break:break-word]">
+                    {renderMessageContent(msg.content, msg.sender)}
+                  </div>
 
  {/* Quick Options Chips inside bot message */}
  {msg.quickOptions && msg.quickOptions.length > 0 && isGuideActive && (

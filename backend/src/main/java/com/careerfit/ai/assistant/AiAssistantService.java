@@ -1148,49 +1148,40 @@ public class AiAssistantService {
     public boolean checkGuideExitIntent(String userMessage, String currentStepTitle) {
         if (userMessage == null || userMessage.isBlank()) return false;
 
-        // 1. Kiểm tra nhanh bằng bộ từ điển Teencode & Slang nâng cao
-        String lower = userMessage.toLowerCase().trim()
-                .replaceAll("[\\u0300-\\u036f]", "")
-                .replace("đ", "d")
+        String trimmed = userMessage.trim();
+        String lowerRaw = trimmed.toLowerCase();
+
+        // 1. AN TOÀN TUYỆT ĐỐI: Nếu tin nhắn chứa thông tin liên hệ (Email, Phone, Link) hoặc độ dài > 35 ký tự
+        // thì ĐÂY CHẮC CHẮN LÀ DỮ LIỆU NHẬP LIỆU (Bước 2 thông tin cá nhân, Bước 3 học vấn, kỹ năng, đồ án...)
+        // Tuyệt đối không được coi là thoát!
+        if (lowerRaw.contains("@")
+                || trimmed.matches(".*\\b\\d{9,12}\\b.*")
+                || lowerRaw.contains("http")
+                || lowerRaw.contains("github.com")
+                || lowerRaw.contains("linkedin.com")
+                || trimmed.length() > 35) {
+            return false;
+        }
+
+        // 2. Chuẩn hóa teencode cơ bản và bỏ dấu tiếng Việt chuẩn xác
+        String lower = VietnameseTextNormalizer.removeAccents(lowerRaw)
                 .replaceAll("(.)\\1{2,}", "$1")
                 .replaceAll("\\b(ko|k|hong|hem|hok)\\b", "khong")
                 .replaceAll("\\b(lm|lamm)\\b", "lam")
                 .replaceAll("\\b(thoy|thui)\\b", "thoi");
 
-        if (lower.contains("khoi") || lower.contains("khong lam") || lower.contains("khong tao")
-                || lower.contains("thoat") || lower.contains("huy") || lower.contains("dung lai")
-                || lower.contains("thoi") || lower.contains("dep") || lower.contains("nghi")
-                || lower.contains("chan") || lower.contains("luoi")) {
-            return true;
-        }
+        // 3. Khớp chính xác các cụm từ thể hiện ý định dừng/hủy biểu mẫu (CÓ RANH GIỚI TỪ \\b)
+        // Tuyệt đối KHÔNG dùng substring đơn lẻ 'huy', 'dung', 'nghi', 'thoi'
+        // để tránh nhận nhầm tên người (Huy, Dũng, Nghĩa), từ vựng (nội dung, sử dụng, xây dựng, công nghiệp, kinh nghiệm)
+        java.util.regex.Pattern exitPattern = java.util.regex.Pattern.compile(
+                "^\\s*(thoat|exit|quit|dung|dung lai|ngung|ngung lai|huy|huy bo|cancel|stop|thoi|bo di|dep di|nghi di)\\s*$"
+                + "|\\b(toi\\s+)?(muon|cho\\s+toi)?\\s*(thoat|exit|quit|huy\\s+bo|dung\\s+lai)\\b"
+                + "|\\b(dung|huy|thoat|ngung)\\s+(huong\\s+dan|quy\\s+trinh|flow|bot)\\b"
+                + "|\\b(khong|khoi)\\s+(muon|can)?\\s*(lam|tao|viet|tiep)\\s*(nua)?\\b"
+                + "|\\bthoi\\s+(khong\\s+lam|bo\\s+di|khoi|dep|nghi)\\b",
+                java.util.regex.Pattern.CASE_INSENSITIVE
+        );
 
-        // 2. Thẩm định bằng AI LLaMA 3.3 để đạt độ chính xác 100% với mọi sắc thái ngôn từ
-        try {
-            String prompt = """
-                    Bạn là hệ thống AI phân loại ý định tiếng Việt.
-                    Người dùng đang thực hiện biểu mẫu nhập liệu ở bước: "%s".
-                    Tin nhắn của người dùng: "%s".
-
-                    Nhiệm vụ: Người dùng có ý định THOÁT, HỦY, DỪNG LẠI, TỪ CHỐI TIẾP TỤC (kể cả nói lóng, teencode, bận, chán, đổi chủ đề, không muốn làm nữa) không?
-                    - Nếu CÓ ý định thoát/hủy/từ chối: Trả lời duy nhất: YES
-                    - Nếu là câu trả lời hợp lệ cho bước trên: Trả lời duy nhất: NO
-                    Chỉ in ra đúng 1 chữ: YES hoặc NO.
-                    """.formatted(currentStepTitle != null ? currentStepTitle : "Điền biểu mẫu", userMessage);
-
-            List<Map<String, String>> messages = List.of(
-                    Map.of("role", "system", "content", "Bạn là bộ phân loại ý định chính xác 100%. Chỉ trả lời YES hoặc NO."),
-                    Map.of("role", "user", "content", prompt)
-            );
-
-            CareerAiClient.LadderChatResult result = aiClient.chatLadder(messages, 8, false);
-            if (result != null && result.getContent() != null) {
-                String reply = result.getContent().trim().toUpperCase();
-                return reply.contains("YES");
-            }
-        } catch (Exception e) {
-            log.warn("AI checkGuideExitIntent exception: {}", e.getMessage());
-        }
-
-        return false;
+        return exitPattern.matcher(lower).find();
     }
 }

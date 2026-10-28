@@ -302,3 +302,43 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Bảo đảm đường dẫn URL, tên tệp và chuỗi ký tự dài không bao giờ tràn khỏi bong bóng chat */
+.cf-msg-bubble {
+  min-width: 0 !important;
+  max-width: 85% !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  word-wrap: break-word !important;
+  hyphens: auto;
+}
+
+.cf-msg-content {
+  min-width: 0 !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  word-wrap: break-word !important;
+  white-space: pre-line;
+}
+
+.cf-msg-content a {
+  word-break: break-all !important;
+  overflow-wrap: anywhere !important;
+  display: inline;
+  max-width: 100%;
+}
+
+.cf-msg-content code {
+  word-break: break-all !important;
+  overflow-wrap: anywhere !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  background-color: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(40, 103, 78, 0.25);
+  color: #16422F;
+  padding: 1px 4px;
+  border-radius: 4px;
+  display: inline-block;
+  max-width: 100%;
+}
