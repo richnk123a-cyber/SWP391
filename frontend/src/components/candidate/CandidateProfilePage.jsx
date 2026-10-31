@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
+import ReactDOM from 'react-dom';
 import { useApp } from '../../context/AppContext';
 import { candidateApi } from '../../services/apiService';
-import { ArrowRight, BriefcaseBusiness, Camera, Check, FileText, GraduationCap, MapPin, Plus, Save, Search, Sparkles, Trash2, Upload, UserRound, X } from 'lucide-react';
+import { ArrowRight, BriefcaseBusiness, Camera, Check, Download, ExternalLink, Eye, FileText, GraduationCap, MapPin, Plus, Save, Search, Sparkles, Trash2, Upload, UserRound, X } from 'lucide-react';
 import { DeleteAccountModal } from '../common/DeleteAccountModal';
 import { CvTemplateModal } from './CvTemplateModal';
 import './CandidateProfilePage.css';
@@ -36,10 +37,13 @@ export function CandidateProfilePage() {
   const [downloadingCv, setDownloadingCv] = useState(false);
   const [isCvModalOpen, setIsCvModalOpen] = useState(false);
   const [aiCvTemplateData, setAiCvTemplateData] = useState(null);
+  const [isPreviewCvOpen, setIsPreviewCvOpen] = useState(false);
+  const [previewCvUrl, setPreviewCvUrl] = useState('');
+  const [loadingPreviewCv, setLoadingPreviewCv] = useState(false);
   const fileRef = useRef(null);
   const avatarRef = useRef(null);
   const formRef = useRef(null);
-  // Lắng nghe sự kiện mở CV Template từ CareerFit AI Chatbot
+  // Lắng nghe sự kiện mở CV Template từ CareerFit AI Chatbot (Chỉ mở khi người dùng chủ động yêu cầu từ chatbot)
   useEffect(() => {
     const handleOpenAiCv = (e) => {
       const data = e.detail;
@@ -47,20 +51,32 @@ export function CandidateProfilePage() {
         setAiCvTemplateData(data);
         setIsCvModalOpen(true);
       }
+      try {
+        localStorage.removeItem('careerfit_cv_template_autofill');
+        sessionStorage.removeItem('careerfit_cv_template_autofill');
+      } catch (err) {}
     };
+
+    // Kiểm tra xem có yêu cầu mở CV mới từ chatbot hay không (Chỉ mở nếu có cờ _autoOpenRequested và trong vòng 8 giây gần nhất)
     try {
       const stored = localStorage.getItem('careerfit_cv_template_autofill');
       if (stored) {
         const parsed = JSON.parse(stored);
         localStorage.removeItem('careerfit_cv_template_autofill');
-        if (parsed) {
+        sessionStorage.removeItem('careerfit_cv_template_autofill');
+        if (parsed && parsed._autoOpenRequested && (Date.now() - (parsed._timestamp || 0) < 8000)) {
           setAiCvTemplateData(parsed);
           setIsCvModalOpen(true);
         }
       }
     } catch (err) {
       console.warn('Lỗi đọc draft cv template autofill:', err);
+      try {
+        localStorage.removeItem('careerfit_cv_template_autofill');
+        sessionStorage.removeItem('careerfit_cv_template_autofill');
+      } catch (e) {}
     }
+
     window.addEventListener('careerfit_open_cv_template', handleOpenAiCv);
     return () => window.removeEventListener('careerfit_open_cv_template', handleOpenAiCv);
   }, []);
@@ -224,6 +240,36 @@ export function CandidateProfilePage() {
       setDownloadingCv(false);
     }
   };
+
+  // Xem CV hiện tại (Mở trực tiếp trên web bằng viewer / iframe)
+  const handleViewCurrentCv = async () => {
+    if (loadingPreviewCv) return;
+    setLoadingPreviewCv(true);
+    try {
+      const blob = await candidateApi.downloadCv();
+      const isDocx = candidateProfile?.cvFileName?.toLowerCase().endsWith('.docx');
+      if (isDocx) {
+        setPreviewCvUrl(null);
+        setIsPreviewCvOpen(true);
+      } else {
+        const url = window.URL.createObjectURL(blob);
+        setPreviewCvUrl(url);
+        setIsPreviewCvOpen(true);
+      }
+    } catch (err) {
+      showToast(err?.message || 'Không thể tải xem trước CV từ máy chủ.', 'danger');
+    } finally {
+      setLoadingPreviewCv(false);
+    }
+  };
+
+  const handleClosePreviewCv = () => {
+    setIsPreviewCvOpen(false);
+    if (previewCvUrl) {
+      window.URL.revokeObjectURL(previewCvUrl);
+      setPreviewCvUrl('');
+    }
+  };
   const changeAvatar = async event => {
     const file = event.target.files?.[0]; event.target.value = '';
     if (!file || uploadingAvatar) return;
@@ -328,17 +374,258 @@ export function CandidateProfilePage() {
         </button>
       </div>
     </section>
-    </div><aside className="profile-aside"><section className="profile-cv-card"><div className="profile-aside-heading"><FileText size={18}/><h2>CV của bạn</h2>{candidateProfile?.hasCV && <span><Check size={12}/>Đã có CV</span>}</div>{uploadingCv ? (<div className="p-6 text-center border-2 border-dashed border-blue-400 bg-blue-50/50 rounded-2xl space-y-2"><div className="animate-spin inline-block w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mb-1"></div><p className="font-bold text-xs text-blue-900">Đang tải lên & trích xuất nội dung CV...</p><small className="text-[10px] text-slate-500">Đang xử lý phân tích văn bản qua Apache PDFBox / POI</small></div>) : candidateProfile?.hasCV ? (<div className="profile-cv-file"><span className="profile-pdf-icon">{candidateProfile.cvFileName?.toLowerCase().endsWith('.docx') ? 'DOCX' : 'PDF'}</span><h3>{candidateProfile.cvFileName || 'CV đính kèm'}</h3><p>{candidateProfile.cvUploadDate || 'Đã cập nhật'}{candidateProfile.cvFileSize ? ` · ${(candidateProfile.cvFileSize/1024/1024).toFixed(2)} MB` : ''}</p>{candidateProfile.extractedCvText && (<span className="inline-block text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-semibold my-1">✓ Đã trích xuất {candidateProfile.extractedCvText.length} ký tự cho AI Matching</span>)}<div><button type="button" onClick={() => fileRef.current.click()}>Đổi tệp</button><button type="button" aria-label="Xóa CV" onClick={async () => { setUploadingCv(true); try { await deleteCandidateCV(); setCandidateProfile(prev => ({...prev, cvFileSize: 0})); } finally { setUploadingCv(false); } }}><Trash2 size={14}/></button></div><div style={{display:'flex',gap:'8px',marginTop:'10px',width:'100%'}}><button type="button" onClick={() => setIsCvModalOpen(true)} style={{flex:1,display:'inline-flex',alignItems:'center',justifyContent:'center',gap:'6px',fontSize:'12px',fontWeight:'600',color:'#15803d',background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:'8px',padding:'8px 6px',cursor:'pointer',whiteSpace:'nowrap'}}><FileText size={14}/> Tạo CV</button><button type="button" onClick={handleDownloadCv} disabled={downloadingCv} style={{flex:1,display:'inline-flex',alignItems:'center',justifyContent:'center',gap:'6px',fontSize:'12px',fontWeight:'600',color:'#1d4ed8',background:'#eff6ff',border:'1px solid #bfdbfe',borderRadius:'8px',padding:'8px 6px',cursor:downloadingCv?'default':'pointer',whiteSpace:'nowrap'}}>{downloadingCv ? 'Đang tải…' : 'Tải CV về máy'} <ArrowRight size={13}/></button></div></div>) : (<div style={{display:'flex',flexDirection:'column',gap:'10px'}}><button type="button" className={`profile-dropzone ${dragOver ? 'is-dragging' : ''}`} onClick={() => fileRef.current.click()} onDragOver={event => {event.preventDefault();setDragOver(true);}} onDragLeave={() => setDragOver(false)} onDrop={event => {event.preventDefault();setDragOver(false);uploadCV(event.dataTransfer.files?.[0]);}}><span><Upload size={23}/></span><strong>Thêm CV để sẵn sàng ứng tuyển</strong><p>Kéo thả tệp vào đây hoặc chọn từ thiết bị</p><small>PDF hoặc DOCX · tối đa 5 MB</small></button><button type="button" onClick={() => setIsCvModalOpen(true)} style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:'6px',fontSize:'12px',fontWeight:'600',color:'#15803d',background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:'8px',padding:'9px 12px',cursor:'pointer',width:'100%'}}><FileText size={14}/> Tạo CV từ hồ sơ</button></div>)}<input ref={fileRef} type="file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden onChange={event => { uploadCV(event.target.files?.[0]); event.target.value=''; }}/><p className="profile-cv-note">Hỗ trợ PDF & DOCX. Nội dung được trích xuất tự động phục vụ AI Deep Matching.</p></section>
+    </div><aside className="profile-aside"><section className="profile-cv-card"><div className="profile-aside-heading"><FileText size={18}/><h2>CV của bạn</h2>{candidateProfile?.hasCV && <span><Check size={12}/>Đã có CV</span>}</div>{uploadingCv ? (<div className="p-6 text-center border-2 border-dashed border-blue-400 bg-blue-50/50 rounded-2xl space-y-2"><div className="animate-spin inline-block w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mb-1"></div><p className="font-bold text-xs text-blue-900">Đang tải lên & trích xuất nội dung CV...</p><small className="text-[10px] text-slate-500">Đang xử lý phân tích văn bản qua Apache PDFBox / POI</small></div>) : candidateProfile?.hasCV ? (<div className="profile-cv-file">
+  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+    <span
+      className="profile-pdf-icon"
+      style={{ cursor: 'pointer' }}
+      onClick={handleViewCurrentCv}
+      title="Nhấn để xem CV hiện tại"
+    >
+      {candidateProfile.cvFileName?.toLowerCase().endsWith('.docx') ? 'DOCX' : 'PDF'}
+    </span>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <h3
+        style={{ cursor: 'pointer', margin: 0, fontSize: '15px', fontWeight: '600' }}
+        onClick={handleViewCurrentCv}
+        title="Nhấn để xem CV hiện tại"
+      >
+        {candidateProfile.cvFileName || 'CV đính kèm'}
+      </h3>
+      <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748b' }}>
+        {candidateProfile.cvUploadDate || 'Đã cập nhật'}
+        {candidateProfile.cvFileSize ? ` · ${(candidateProfile.cvFileSize/1024/1024).toFixed(2)} MB` : ''}
+      </p>
+    </div>
+  </div>
+  {candidateProfile.extractedCvText && (
+    <span className="inline-block text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-semibold my-1">
+      ✓ Đã trích xuất {candidateProfile.extractedCvText.length} ký tự cho AI Matching
+    </span>
+  )}
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px', width: '100%' }}>
+    <button
+      type="button"
+      onClick={handleViewCurrentCv}
+      disabled={loadingPreviewCv}
+      style={{
+        width: '100%',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '7px',
+        fontSize: '13px',
+        fontWeight: '600',
+        color: '#ffffff',
+        background: '#15803d',
+        border: '1px solid #166534',
+        borderRadius: '8px',
+        padding: '9px 12px',
+        cursor: loadingPreviewCv ? 'default' : 'pointer',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.06)'
+      }}
+      title="Xem trực tiếp tệp CV hiện tại của bạn"
+    >
+      <Eye size={15}/> <span>{loadingPreviewCv ? 'Đang tải xem trước…' : 'Xem CV hiện tại'}</span>
+    </button>
+    <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+      <button
+        type="button"
+        onClick={handleDownloadCv}
+        disabled={downloadingCv}
+        style={{
+          flex: 1,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '6px',
+          fontSize: '12px',
+          fontWeight: '600',
+          color: '#1d4ed8',
+          background: '#eff6ff',
+          border: '1px solid #bfdbfe',
+          borderRadius: '8px',
+          padding: '8px 6px',
+          cursor: downloadingCv ? 'default' : 'pointer',
+          whiteSpace: 'nowrap'
+        }}
+        title="Tải tệp CV về thiết bị"
+      >
+        <Download size={13}/> {downloadingCv ? 'Đang tải…' : 'Tải CV về máy'}
+      </button>
+      <button
+        type="button"
+        onClick={() => setIsCvModalOpen(true)}
+        style={{
+          flex: 1,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '6px',
+          fontSize: '12px',
+          fontWeight: '600',
+          color: '#334155',
+          background: '#f8fafc',
+          border: '1px solid #cbd5e1',
+          borderRadius: '8px',
+          padding: '8px 6px',
+          cursor: 'pointer',
+          whiteSpace: 'nowrap'
+        }}
+        title="Tạo thêm bản CV theo mẫu chuẩn CareerFit"
+      >
+        <FileText size={13}/> Tạo CV mẫu
+      </button>
+    </div>
+    <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+      <button
+        type="button"
+        onClick={() => fileRef.current.click()}
+        style={{ flex: 1, padding: '7px 8px', fontSize: '12px', color: '#475569', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '7px' }}
+      >
+        Đổi tệp
+      </button>
+      <button
+        type="button"
+        aria-label="Xóa CV"
+        onClick={async () => {
+          setUploadingCv(true);
+          try {
+            await deleteCandidateCV();
+            setCandidateProfile(prev => ({...prev, cvFileSize: 0}));
+          } finally {
+            setUploadingCv(false);
+          }
+        }}
+        style={{ padding: '7px 10px', color: '#dc2626', background: '#fff', border: '1px solid #fecaca', borderRadius: '7px' }}
+        title="Xóa tệp CV này"
+      >
+        <Trash2 size={14}/>
+      </button>
+    </div>
+  </div>
+</div>) : (<div style={{display:'flex',flexDirection:'column',gap:'10px'}}><button type="button" className={`profile-dropzone ${dragOver ? 'is-dragging' : ''}`} onClick={() => fileRef.current.click()} onDragOver={event => {event.preventDefault();setDragOver(true);}} onDragLeave={() => setDragOver(false)} onDrop={event => {event.preventDefault();setDragOver(false);uploadCV(event.dataTransfer.files?.[0]);}}><span><Upload size={23}/></span><strong>Thêm CV để sẵn sàng ứng tuyển</strong><p>Kéo thả tệp vào đây hoặc chọn từ thiết bị</p><small>PDF hoặc DOCX · tối đa 5 MB</small></button><button type="button" onClick={() => setIsCvModalOpen(true)} style={{display:'inline-flex',alignItems:'center',justifyContent:'center',gap:'6px',fontSize:'12px',fontWeight:'600',color:'#15803d',background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:'8px',padding:'9px 12px',cursor:'pointer',width:'100%'}}><FileText size={14}/> Tạo CV từ hồ sơ</button></div>)}<input ref={fileRef} type="file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden onChange={event => { uploadCV(event.target.files?.[0]); event.target.value=''; }}/><p className="profile-cv-note">Hỗ trợ PDF & DOCX. Nội dung được trích xuất tự động phục vụ AI Deep Matching.</p></section>
     <section className="profile-checklist"><span className="profile-kicker">TỪNG CHÚT MỘT</span><h2>Hoàn thiện hồ sơ</h2><p>Thông tin đầy đủ giúp nhà tuyển dụng hiểu rõ hơn về bạn.</p><div>{checklist.map(item => <div key={item.label}><span>{item.label}</span>{item.done ? <Check size={15}/> : <small>Bổ sung</small>}</div>)}</div></section>
     <section className="profile-ai-card"><Sparkles size={21}/><span className="profile-kicker">CAREERFIT AI</span><h2>Một góc nhìn khác<br/>cho CV của bạn.</h2><p>Xem phân tích và gợi ý để điều chỉnh CV theo mục tiêu nghề nghiệp.</p><button type="button" onClick={() => setIsAIModalOpen(true)}>Phân tích CV <ArrowRight size={15}/></button></section></aside></div>
     <div className="profile-savebar"><div><span className={`profile-save-dot ${dirty ? 'is-dirty' : ''}`}/><p role="status">{saveMessage || (dirty ? 'Bạn có thay đổi chưa lưu.' : 'Thông tin hồ sơ của bạn.')}<small>Kỹ năng và ảnh đại diện được lưu cùng hồ sơ.</small></p></div><button className="profile-primary" type="submit" disabled={saving || uploadingAvatar}><Save size={15}/>{saving ? 'Đang lưu…' : 'Lưu thay đổi'}</button></div></form>
     <CvTemplateModal
       isOpen={isCvModalOpen}
-      onClose={() => { setIsCvModalOpen(false); setAiCvTemplateData(null); }}
+      onClose={() => {
+        setIsCvModalOpen(false);
+        setAiCvTemplateData(null);
+        try {
+          localStorage.removeItem('careerfit_cv_template_autofill');
+          sessionStorage.removeItem('careerfit_cv_template_autofill');
+        } catch (e) {}
+      }}
       onReplaceCV={() => { setIsCvModalOpen(false); setAiCvTemplateData(null); fileRef.current?.click(); }}
       onSaveToProfile={handleSaveCvFromTemplate}
       profileData={aiCvTemplateData || { name: form.name, phone: form.phone, email: form.email, location: form.location, university: form.university, major: form.major, graduationYear: form.graduationYear, desiredRole: form.desiredRole, bio: form.bio, skills, avatarUrl: avatar }}
     />
     <DeleteAccountModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} />
+
+    {/* Modal Xem CV Hiện Tại (Pixel-Perfect Viewer cho PDF & DOCX) */}
+    {isPreviewCvOpen && ReactDOM.createPortal(
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/75 backdrop-blur-xs animate-in fade-in duration-200">
+        <div
+          className="bg-white rounded-2xl w-full max-w-5xl h-[92vh] max-h-[92vh] shadow-2xl border border-slate-200 overflow-hidden flex flex-col transform transition-all animate-in zoom-in-95 duration-200"
+          role="dialog"
+          aria-modal="true"
+        >
+          {/* Modal Header */}
+          <div className="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-emerald-700 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900 truncate">
+                    {candidateProfile?.cvFileName || 'CV của bạn'}
+                  </h3>
+                  <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full shrink-0">
+                    {candidateProfile?.cvFileSize ? `${(candidateProfile.cvFileSize/1024/1024).toFixed(2)} MB` : 'Bản hiện tại'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Tệp CV đã tải lên hồ sơ CareerFit · Sẵn sàng ứng tuyển & AI Deep Matching
+                </p>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 shrink-0">
+              {previewCvUrl && (
+                <button
+                  type="button"
+                  onClick={() => window.open(previewCvUrl, '_blank')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                  title="Mở trong tab trình duyệt mới"
+                >
+                  <ExternalLink size={14} />
+                  <span className="hidden sm:inline">Mở tab mới</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={handleDownloadCv}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
+                title="Tải CV về máy"
+              >
+                <Download size={14} />
+                <span className="hidden sm:inline">Tải về</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleClosePreviewCv}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer ml-1"
+                title="Đóng (Esc)"
+              >
+                <X size={19} />
+              </button>
+            </div>
+          </div>
+
+          {/* Modal Body */}
+          <div className="flex-1 min-h-0 bg-slate-100 p-2 sm:p-4 overflow-hidden">
+            {previewCvUrl ? (
+              <iframe
+                src={previewCvUrl}
+                className="w-full h-full rounded-xl border border-slate-300 bg-white shadow-sm"
+                title="Xem trước CV hiện tại"
+              />
+            ) : (
+              <div className="w-full h-full bg-white rounded-xl border border-slate-300 p-6 overflow-y-auto">
+                <div className="max-w-3xl mx-auto">
+                  <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-5">
+                    <div>
+                      <h4 className="font-bold text-slate-800 text-base">
+                        Nội dung văn bản trích xuất từ tệp Word (.docx)
+                      </h4>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Định dạng .docx được hệ thống tự động bóc tách để phục vụ thuật toán AI Matching
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleDownloadCv}
+                      className="px-3 py-1.5 text-xs font-bold text-emerald-800 bg-emerald-100 rounded-lg hover:bg-emerald-200"
+                    >
+                      Tải file gốc .docx
+                    </button>
+                  </div>
+                  <div className="prose prose-sm max-w-none text-slate-800 whitespace-pre-wrap font-sans leading-relaxed">
+                    {candidateProfile?.extractedCvText || 'Chưa có nội dung văn bản trích xuất.'}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
   </div>;
 }

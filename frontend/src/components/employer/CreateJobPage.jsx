@@ -304,6 +304,7 @@ export function CreateJobPage() {
                 <option value="Internship">Internship (Thực tập)</option>
                 <option value="Fresher">Fresher (Mới ra trường)</option>
                 <option value="Full-time">Full-time (Toàn thời gian)</option>
+                <option value="Part-time">Part-time (Bán thời gian)</option>
               </select>
             </div>
 

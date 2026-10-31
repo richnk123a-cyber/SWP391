@@ -106,4 +106,46 @@ public class FileRetentionAndChatbotGuideTest {
         assertTrue(assistantService.checkGuideExitIntent("thôi dẹp đi", "Bước 2"));
         assertTrue(assistantService.checkGuideExitIntent("dừng hướng dẫn", "Bước 2"));
     }
+    @Test
+    @DisplayName("Kiểm tra Job Polish Fallback: Bảo toàn 100% trách nhiệm, đồng bộ category, title và khoảng lương")
+    void testPolishJobFidelityAndSync() throws Exception {
+        AiAssistantService assistantService = new AiAssistantService(null, null, null, null, null, null, null);
+
+        com.careerfit.ai.assistant.PolishJobRequest req = com.careerfit.ai.assistant.PolishJobRequest.builder()
+                .title("Thực tập sinh QA Part-time")
+                .category("QA/QC Tester")
+                .jobType("Full-time (On-site)")
+                .salary("8.000.000 - 12.000.000 VNĐ")
+                .responsibilities("Đi làm đúng giờ, có thái độ tích cực")
+                .requiredSkills("Manual Testing, Test Cases")
+                .benefits("Phụ cấp đầy đủ")
+                .build();
+
+        Method fallbackMethod = AiAssistantService.class.getDeclaredMethod("fallbackPolishJob", com.careerfit.ai.assistant.PolishJobRequest.class);
+        fallbackMethod.setAccessible(true);
+        com.careerfit.ai.assistant.PolishJobResponse res = (com.careerfit.ai.assistant.PolishJobResponse) fallbackMethod.invoke(assistantService, req);
+
+        assertNotNull(res);
+        assertNotNull(res.getTemplateJobData());
+
+        // 1. Trách nhiệm người dùng PHẢI ĐƯỢC BẢO TOÀN, KHÔNG BỊA ĐẶT
+        @SuppressWarnings("unchecked")
+        List<String> resps = (List<String>) res.getTemplateJobData().get("responsibilities");
+        assertNotNull(resps);
+        assertTrue(resps.contains("Đi làm đúng giờ, có thái độ tích cực"));
+        assertFalse(res.getImprovedResponsibilities().toLowerCase().contains(".net"));
+
+        // 2. Chuyên ngành (Category) map sang 6 chuẩn
+        assertEquals("QA / Testing", res.getTemplateJobData().get("category"));
+
+        // 3. Khoảng lương bóc tách chính xác
+        assertEquals("8", res.getTemplateJobData().get("minSalary"));
+        assertEquals("12", res.getTemplateJobData().get("maxSalary"));
+        assertEquals("VNĐ", res.getTemplateJobData().get("currency"));
+
+        // 4. Đồng bộ Title & JobType: Full-time không được chứa Part-time
+        assertEquals("Full-time", res.getTemplateJobData().get("jobType"));
+        assertFalse(res.getImprovedTitle().toLowerCase().contains("part-time"));
+        assertFalse(res.getImprovedTitle().toLowerCase().contains("part time"));
+    }
 }

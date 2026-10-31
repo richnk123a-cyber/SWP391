@@ -117,7 +117,7 @@ Chức danh công việc bạn cần tuyển là gì?
  title: 'Lĩnh vực chuyên môn',
  prompt: ` **Bước 2/10: Lĩnh vực chuyên môn (Category)**
 Vị trí này thuộc lĩnh vực nào trong hệ thống CareerFit?`,
- quickOptions: ['Backend Developer', 'Frontend Developer', 'Fullstack Developer', 'Mobile Developer', 'QA/QC Tester', 'Data / AI'],
+ quickOptions: ['Backend Developer', 'Frontend Developer', 'Fullstack Developer', 'QA / Testing', 'Mobile Developer', 'Data Analyst'],
  isRequired: true,
  helpText: 'Lĩnh vực giúp phân loại vị trí vào danh mục tìm kiếm của ứng viên.'
  },
@@ -141,7 +141,7 @@ Vui lòng chọn loại hình hợp đồng và cách thức làm việc:
 • **Loại hình:** Internship / Full-time / Part-time / Contract
 • **Hình thức:** On-site / Hybrid (Linh hoạt) / Remote (Từ xa)
 *(Ví dụ: Internship (Hybrid) hoặc Full-time (On-site))*`,
- quickOptions: ['Internship (Hybrid)', 'Internship (On-site)', 'Full-time (On-site)', 'Full-time (Hybrid)', 'Part-time (Linh hoạt)'],
+ quickOptions: ['Full-time (On-site)', 'Full-time (Hybrid)', 'Internship (Hybrid)', 'Internship (On-site)', 'Part-time (Linh hoạt)'],
  isRequired: true,
  helpText: 'Sinh viên thường rất ưu tiên các công việc có hỗ trợ Hybrid hoặc thời gian linh hoạt.'
  },
@@ -238,8 +238,46 @@ export function createInitialSession(role) {
 /**
  * Kiểm tra xem người dùng có kích hoạt luồng Hướng dẫn không (nhận diện tự nhiên)
  */
+/**
+ * Nhận diện tin nhắn câu hỏi, thắc mắc, tình huống giả định hoặc câu điều kiện
+ * (Để tránh nhầm lẫn câu hỏi với câu trả lời của một bước hoặc ý định bắt đầu quy trình)
+ */
+export function isQuestionOrInquiry(text) {
+  if (!text) return false;
+  const lower = text.toLowerCase().trim();
+
+  // 1. Dấu chấm hỏi
+  if (lower.includes('?')) return true;
+
+  // 2. Từ để hỏi và cấu trúc câu hỏi / thắc mắc tiếng Việt
+  const questionPatterns = [
+    'làm sao', 'thế nào', 'ra sao', 'như thế nào', 'như nào',
+    'tại sao', 'vì sao', 'sao lại', 'sao mà', 'sao không',
+    'ở đâu', 'khi nào', 'bao lâu', 'mất bao lâu', 'mấy ngày',
+    'ai duyệt', 'ai kiểm tra', 'ai chịu trách nhiệm',
+    'admin duyệt', 'chờ duyệt', 'không duyệt', 'chưa duyệt', 'từ chối duyệt', 'bị từ chối', 'bị hủy',
+    'được không', 'được ko', 'dc ko', 'ko được ko', 'có được không', 'được chưa',
+    'liệu có', 'có phải', 'có nên', 'có bắt buộc', 'có cần',
+    'cho hỏi', 'hỏi chút', 'thắc mắc', 'nhờ tư vấn', 'tư vấn giúp',
+    'giải thích', 'nghĩa là gì', 'là sao', 'ý là sao', 'nghĩa là sao',
+    'nếu', 'lỡ như', 'giả sử', 'trong trường hợp', 'thì phải làm', 'thì sao', 'làm gì'
+  ];
+
+  for (const pat of questionPatterns) {
+    if (lower.includes(pat)) return true;
+  }
+
+  // 3. Các từ nghi vấn đứng đầu câu
+  if (/^(nếu|lỡ|sao|tại sao|vì sao|cho hỏi|làm sao|khi nào|ở đâu|liệu|ai)\b/i.test(lower)) {
+    return true;
+  }
+
+  return false;
+}
+
 export function detectIntent(text, role) {
- if (!text) return null;
+  if (!text) return null;
+  if (isQuestionOrInquiry(text)) return null;
  const lower = text.toLowerCase().trim();
 
  // 1. Ý định tạo CV (Ứng viên)
@@ -340,4 +378,175 @@ ${data.benefits || '- Phụ cấp thực tập hấp dẫn.\n- Đào tạo chuy�
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  **Bản nháp tin tuyển dụng đã sẵn sàng!**
 Bạn có thể bấm **[ Sao chép bản nháp]** hoặc bấm **[ Đi tới trang Đăng tin]** để mở form đăng tin tuyển dụng chính thức trên CareerFit!`;
+}
+
+
+/**
+ * Trích xuất ý định tìm kiếm việc làm và các tiêu chí lọc (Keyword, Location, Category, JobType, Salary)
+ * Dành cho tính năng tự động chuyển tab sang Tìm việc và lọc ngay trước mắt người dùng
+ */
+/**
+ * Làm sạch tên chức danh và kết hợp kỹ năng thực tế của ứng viên
+ * Tránh lỗi lặp từ ngữ như 'Dev Developer'
+ */
+export function cleanRoleName(rawRole, skillsStr = '') {
+  if (!rawRole) return '';
+  let role = rawRole.trim();
+  if (/^dev\s+developer$/i.test(role) || /^developer\s+dev$/i.test(role) || role.toLowerCase() === 'dev' || role.toLowerCase() === 'developer') {
+    const lowerSkills = (skillsStr || '').toLowerCase();
+    if (lowerSkills.includes('java') || lowerSkills.includes('spring')) return 'Java Backend Developer';
+    if (lowerSkills.includes('react') || lowerSkills.includes('vue') || lowerSkills.includes('angular')) return 'Frontend React Developer';
+    if (lowerSkills.includes('node')) return 'NodeJS Developer';
+    if (lowerSkills.includes('.net') || lowerSkills.includes('c#')) return '.NET Developer';
+    if (lowerSkills.includes('python')) return 'Python Developer';
+    if (lowerSkills.includes('qa') || lowerSkills.includes('tester')) return 'QA Automation Tester';
+    if (lowerSkills.includes('data')) return 'Data Analyst';
+    return 'Software Developer';
+  }
+  return role;
+}
+
+/**
+ * Trích xuất ý định tìm kiếm việc làm và các tiêu chí lọc (Keyword, Location, Category, JobType, Salary)
+ * Hỗ trợ toàn diện Tiếng Việt tự nhiên, Teencode (vc, vjc, cu, củ, chai, tr, sg, hn...)
+ */
+export function extractJobSearchCriteria(text, userContext = null) {
+  if (!text) return null;
+  const raw = text.trim();
+  const lower = raw.toLowerCase();
+
+  // 1. Kiểm tra xem có ý định tìm việc hay không (bao gồm teencode vc, vjc, cu, củ, chai, tr...)
+  const isSearchIntent = [
+    'tìm việc', 'tìm kiếm việc', 'tìm job', 'kiếm việc', 'tìm công việc', 'xem việc',
+    'tìm việc làm', 'tuyển dụng', 'job phù hợp', 'việc phù hợp', 'công việc phù hợp',
+    'tìm việc cho tôi', 'tìm việc giúp tôi', 'việc làm it',
+    'tìm vị trí', 'muốn tìm việc', 'cần tìm việc', 'muốn đi làm', 'tìm việc thực tập',
+    'kiếm job', 'xem job', 'xem các việc', 'gợi ý việc', 'gợi ý công việc', 'việc gì phù hợp',
+    'việc làm phù hợp', 'khám phá việc làm', 'xem việc làm', 'xem công việc', 'danh sách việc'
+  ].some(phrase => lower.includes(phrase)) ||
+  /(?:tìm|kiếm|xem|co|có|muốn)\s+(?:công\s+)?(?:việc|job|vc|vjc)(?!\p{L})/iu.test(lower) ||
+  /(?:việc|job|vc|vjc)\s+.*(?:nào|không|ko|chăng|đâu)/iu.test(lower) ||
+  /(?:tìm|kiếm)\s+(?:cv\s+)?(?:\d+\s*(?:củ|cu|chai|tr|triệu)|ở\s+|tại\s+)/iu.test(lower);
+
+  // Người dùng gõ câu trực tiếp về role / tech (ví dụ: "Java Backend Intern", "Frontend Fresher Hà Nội", "Tuyển React")
+  const isDirectRoleQuery = /^(java|react|frontend|backend|node|python|qa|tester|\.net|fullstack|data|c#|golang|flutter|php)\b/i.test(lower) && 
+    (lower.includes('intern') || lower.includes('fresher') || lower.includes('developer') || lower.includes('ở') || lower.includes('tại') || lower.includes('việc') || lower.includes('vc'));
+
+  if (!isSearchIntent && !isDirectRoleQuery) {
+    return null;
+  }
+
+  // 2. Trích xuất Địa điểm (Location)
+  let location = '';
+  if (lower.includes('hà nội') || lower.includes('ha noi') || /\bhn\b/i.test(lower)) {
+    location = 'Hà Nội';
+  } else if (lower.includes('hồ chí minh') || lower.includes('tp.hcm') || lower.includes('tp hcm') || lower.includes('tphcm') || lower.includes('sài gòn') || lower.includes('saigon') || /\b(?:hcm|sg)\b/i.test(lower)) {
+    location = 'TP.HCM';
+  } else if (lower.includes('đà nẵng') || lower.includes('da nang') || /\bdn\b/i.test(lower)) {
+    location = 'Đà Nẵng';
+  } else if (lower.includes('cần thơ') || lower.includes('can tho')) {
+    location = 'Cần Thơ';
+  } else if (lower.includes('hải phòng') || lower.includes('hai phong')) {
+    location = 'Hải Phòng';
+  } else if (lower.includes('bình dương') || lower.includes('binh duong')) {
+    location = 'Bình Dương';
+  }
+
+  // 3. Trích xuất Cấp bậc & Loại hình (Job Type)
+  let jobType = '';
+  if (lower.includes('thực tập') || lower.includes('intern') || lower.includes('internship') || /\btts\b/i.test(lower)) {
+    jobType = 'Internship';
+  } else if (lower.includes('fresher') || lower.includes('mới ra trường')) {
+    jobType = 'Fresher';
+  } else if (lower.includes('part-time') || lower.includes('part time') || lower.includes('bán thời gian')) {
+    jobType = 'Part-time';
+  } else if (lower.includes('full-time') || lower.includes('full time') || lower.includes('toàn thời gian')) {
+    jobType = 'Full-time';
+  }
+
+  // 4. Trích xuất Danh mục chuyên môn (Category)
+  let category = '';
+  if (lower.includes('qa') || lower.includes('tester') || lower.includes('kiểm thử') || lower.includes('qc')) {
+    category = 'QA / Testing';
+  } else if (lower.includes('data analyst') || lower.includes('phân tích dữ liệu') || (lower.includes('data') && !lower.includes('database'))) {
+    category = 'Data Analyst';
+  } else if (lower.includes('mobile') || lower.includes('android') || lower.includes('ios') || lower.includes('flutter')) {
+    category = 'Mobile Developer';
+  } else if (lower.includes('fullstack') || lower.includes('full-stack')) {
+    category = 'Fullstack Developer';
+  } else if (lower.includes('frontend') || lower.includes('front-end') || lower.includes('react') || lower.includes('vue') || lower.includes('angular')) {
+    category = 'Frontend Developer';
+  } else if (lower.includes('backend') || lower.includes('back-end') || lower.includes('java') || lower.includes('spring') || lower.includes('node') || lower.includes('.net') || lower.includes('python')) {
+    category = 'Backend Developer';
+  }
+
+  // 5. Trích xuất Mức lương (Salary) hỗ trợ cả củ, cu, chai, tr, triệu
+  let minSalary = '';
+  let maxSalary = '';
+  const salaryRangeMatch = lower.match(/(?:từ\s*)?(\d+)\s*(?:-|đến|tới)\s*(\d+)\s*(?:tr|triệu|củ|cu|chai|m)(?!\p{L})/u);
+  if (salaryRangeMatch) {
+    minSalary = salaryRangeMatch[1];
+    maxSalary = salaryRangeMatch[2];
+  } else {
+    const salaryMinMatch = lower.match(/(?:lương\s*)?(?:trên|>|từ|ít nhất|\s|^)?(\d+)\s*(?:tr|triệu|củ|cu|chai|m)(?!\p{L})/u);
+    if (salaryMinMatch) {
+      minSalary = salaryMinMatch[1];
+    }
+  }
+
+  // 6. Trích xuất Keyword (Từ khóa chính)
+  let keyword = '';
+  const knownKeywords = [
+    'Java Backend Intern', 'Frontend React Fresher', 'Fullstack Developer',
+    'Java Backend', 'Spring Boot', 'ReactJS', 'React', 'NodeJS', 'Node.js',
+    'Python', 'Data Analyst', 'QA Automation', 'Manual Tester', 'Tester', 'QA',
+    'C#', '.NET Core', '.NET', 'Flutter', 'Mobile Developer', 'DevOps', 'Golang',
+    'PHP', 'Laravel', 'VueJS', 'Angular', 'SQL Server', 'MySQL'
+  ];
+
+  for (const kw of knownKeywords) {
+    if (lower.includes(kw.toLowerCase())) {
+      keyword = kw;
+      break;
+    }
+  }
+
+  // Nếu không có từ khóa công nghệ cụ thể trong câu:
+  // Lấy từ context hồ sơ của ứng viên và làm sạch
+  if (!keyword) {
+    const rawRole = userContext?.desiredRole || userContext?.targetRole || '';
+    const cleaned = cleanRoleName(rawRole, userContext?.skills || '');
+    if (cleaned && cleaned !== 'Chưa xác định') {
+      keyword = cleaned;
+    } else if (userContext?.skills) {
+      const firstSkill = userContext.skills.split(/[,;\n]/)[0]?.trim();
+      if (firstSkill) keyword = firstSkill;
+    }
+  }
+
+  // Bóc tách từ khóa tự do nếu có câu "tìm việc [X]"
+  if (!keyword) {
+    const cleanQuery = raw
+      .replace(/(?:tôi\s*)?(?:muốn\s*)?(?:tìm|kiếm)\s*(?:việc|job|công việc|vc|vjc)(?:\s*làm)?(?:\s*phù hợp)?(?:\s*ở|\s*tại|\s*cho)?/gi, '')
+      .replace(/\b(ở|tại|tphcm|hà nội|đà nẵng|hcm|hn|sg|lương|triệu|tr|củ|cu|chai)\b/gi, '')
+      .trim();
+    if (cleanQuery.length >= 2 && cleanQuery.length <= 30) {
+      keyword = cleanQuery;
+    }
+  }
+
+  if (!keyword && !location && !category && !jobType && !minSalary) {
+    keyword = 'Java Developer';
+  }
+
+  return {
+    keyword,
+    location,
+    category,
+    jobType,
+    minSalary,
+    maxSalary,
+    _timestamp: Date.now(),
+    _autoApplied: true
+  };
 }

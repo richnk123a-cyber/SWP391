@@ -8,21 +8,30 @@ const SLIDER_CSS = `
     font-family: 'Times New Roman', Times, serif !important;
   }
   .cv-range {
-    -webkit-appearance: none; appearance: none;
-    width: 100%; height: 5px; border-radius: 3px;
-    outline: none; cursor: pointer; margin-top: 4px; display: block;
+    -webkit-appearance: none; -moz-appearance: none; appearance: none;
+    width: 100% !important; height: 6px !important; border-radius: 9999px !important;
+    outline: none !important; cursor: pointer; margin-top: 5px !important; margin-bottom: 8px !important;
+    display: block !important; box-sizing: border-box !important;
   }
   .cv-range::-webkit-slider-thumb {
     -webkit-appearance: none; appearance: none;
     width: 15px; height: 15px; border-radius: 50%;
     background: #4ade80; cursor: pointer;
-    border: 2px solid rgba(255,255,255,0.7);
-    box-shadow: 0 0 5px rgba(0,0,0,0.3);
+    border: 2px solid #ffffff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    margin-top: -4.5px;
+  }
+  .cv-range::-webkit-slider-runnable-track {
+    width: 100%; height: 6px; border-radius: 9999px;
   }
   .cv-range::-moz-range-thumb {
     width: 15px; height: 15px; border-radius: 50%;
     background: #4ade80; cursor: pointer;
-    border: 2px solid rgba(255,255,255,0.7);
+    border: 2px solid #ffffff;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
+  .cv-range::-moz-range-track {
+    width: 100%; height: 6px; border-radius: 9999px;
   }
   .cv-input-dark {
     background: transparent; border: none; outline: none;
@@ -91,6 +100,9 @@ const SLIDER_CSS = `
       font-family: 'Times New Roman', Times, serif !important;
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
+    .cv-add-btn, .cv-add-btn-light, .cv-del-btn, .cv-del-btn-light, .cv-ui-only {
+      display: none !important;
+    }
   }
 `;
 
@@ -138,12 +150,12 @@ export function CvTemplateModal({ isOpen, onClose, onReplaceCV, onSaveToProfile,
       const srcSkills = Array.isArray(profileData.skills) ? profileData.skills : [];
       setSkills(srcSkills.map(s => ({
         name: typeof s === 'string' ? s : (s.name || ''),
-        level: s.level ?? 0, // Mặc định 0% để người dùng tự điều chỉnh theo năng lực
+        level: (typeof s === 'object' && typeof s.level === 'number') ? s.level : 0, // Mặc định 0% để người dùng tự điều chỉnh theo năng lực
       })));
       if (Array.isArray(profileData.languages)) {
         setLanguages(profileData.languages.map(l => ({
           name: typeof l === 'string' ? l : (l.name || ''),
-          level: l.level ?? 0
+          level: (typeof l === 'object' && typeof l.level === 'number') ? l.level : 0
         })));
       } else {
         setLanguages([]);
@@ -283,83 +295,27 @@ export function CvTemplateModal({ isOpen, onClose, onReplaceCV, onSaveToProfile,
     if (onClose) onClose();
   }, [generateCvText, cvData, skills, onSaveToProfile, onClose]);
 
-  /* ─ Tải trực tiếp file PDF về máy (Direct Download không qua hộp thoại in) ─ */
-  const handleDownloadPdf = useCallback(async () => {
-    const content = cvRef.current;
-    if (!content) return;
-    const clone = content.cloneNode(true);
-
-    // 1. Thay thế input range bằng progress bar
-    clone.querySelectorAll('input[type="range"]').forEach(inp => {
-      const val = Math.max(0, Math.min(100, Number(inp.value) || 0));
-      const barWrapper = document.createElement('div');
-      barWrapper.style.cssText = 'width: 100%; height: 6px; background: rgba(255,255,255,0.22); border-radius: 3px; overflow: hidden; margin-top: 5px;';
-      const barFill = document.createElement('div');
-      barFill.style.cssText = `width: ${val}%; height: 100%; background: #4ade80; border-radius: 3px;`;
-      barWrapper.appendChild(barFill);
-      inp.parentNode.replaceChild(barWrapper, inp);
-    });
-
-    // 2. Chuyển các input text sang span
-    clone.querySelectorAll('input').forEach(inp => {
-      const span = document.createElement('span');
-      span.textContent = inp.value || '';
-      span.style.cssText = inp.style.cssText;
-      span.className = inp.className;
-      span.style.display = inp.style.display === 'block' ? 'block' : 'inline-block';
-      span.style.fontFamily = "'Times New Roman', Times, serif";
-      inp.parentNode.replaceChild(span, inp);
-    });
-
-    // 3. Chuyển các textarea sang span
-    clone.querySelectorAll('textarea').forEach(ta => {
-      const span = document.createElement('span');
-      span.textContent = ta.value || '';
-      span.style.cssText = ta.style.cssText;
-      span.style.whiteSpace = 'pre-wrap';
-      span.style.display = 'block';
-      span.style.fontFamily = "'Times New Roman', Times, serif";
-      ta.parentNode.replaceChild(span, ta);
-    });
-
-    // 4. Xóa các nút tương tác
-    clone.querySelectorAll('.cv-add-btn,.cv-add-btn-light,.cv-del-btn,.cv-del-btn-light').forEach(el => el.remove());
-
-    const filename = `CV_${(cvData.name || 'CareerFit').trim().replace(/[\\s/\\\\?%*:|"<>]+/g, '_')}.pdf`;
-    const opt = {
-      margin: 0,
-      filename,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-
-    try {
-      await html2pdf().set(opt).from(clone).save();
-    } catch (err) {
-      console.warn('Lỗi khi xuất PDF trực tiếp qua html2pdf, chuyển sang in:', err);
-      handlePrint();
-    }
-  }, [cvData.name, handlePrint]);
-
   /* ─ In PDF Chuẩn A4 Pixel-Perfect (Không mất định dạng) ─ */
   const handlePrint = useCallback(() => {
     const content = cvRef.current; if (!content) return;
     const clone = content.cloneNode(true);
 
     // 1. Thay thế input[type="range"] bằng thanh progress bar chuẩn đẹp (thay vì in số thô kệch)
-    clone.querySelectorAll('input[type="range"]').forEach(inp => {
-      const val = Math.max(0, Math.min(100, Number(inp.value) || 0));
+    const origRangeInputs = content.querySelectorAll('input[type="range"]');
+    const clonedRangeInputs = clone.querySelectorAll('input[type="range"]');
+    clonedRangeInputs.forEach((inp, idx) => {
+      const orig = origRangeInputs[idx];
+      const val = orig ? Math.max(0, Math.min(100, Number(orig.value) || 0)) : Math.max(0, Math.min(100, Number(inp.value) || 0));
       const barWrapper = document.createElement('div');
-      barWrapper.style.cssText = 'width: 100%; height: 6px; background: rgba(255,255,255,0.22); border-radius: 3px; overflow: hidden; margin-top: 5px;';
+      barWrapper.style.cssText = 'width: 100% !important; height: 6px !important; background: rgba(255,255,255,0.2) !important; border-radius: 9999px !important; overflow: hidden !important; margin-top: 5px !important; margin-bottom: 8px !important; display: block !important; box-sizing: border-box !important;';
       const barFill = document.createElement('div');
-      barFill.style.cssText = `width: ${val}%; height: 100%; background: #4ade80; border-radius: 3px;`;
+      barFill.style.cssText = `width: ${val}% !important; height: 100% !important; background: #4ade80 !important; border-radius: 9999px !important;`;
       barWrapper.appendChild(barFill);
       inp.parentNode.replaceChild(barWrapper, inp);
     });
 
-    // 2. Chuyển các input text sang span
-    clone.querySelectorAll('input').forEach(inp => {
+    // 2. Chuyển các input text sang span (loại trừ input type="range")
+    clone.querySelectorAll('input:not([type="range"])').forEach(inp => {
       const span = document.createElement('span');
       span.textContent = inp.value || '';
       span.style.cssText = inp.style.cssText;
@@ -384,8 +340,8 @@ export function CvTemplateModal({ isOpen, onClose, onReplaceCV, onSaveToProfile,
       ta.parentNode.replaceChild(span, ta);
     });
 
-    // 4. Xóa các nút tương tác
-    clone.querySelectorAll('.cv-add-btn,.cv-add-btn-light,.cv-del-btn,.cv-del-btn-light').forEach(el => el.remove());
+    // 4. Xóa các nút tương tác và phần tử chỉ dùng cho giao diện biên tập
+    clone.querySelectorAll('.cv-add-btn,.cv-add-btn-light,.cv-del-btn,.cv-del-btn-light,.cv-ui-only').forEach(el => el.remove());
 
     const printWindow = window.open('', '_blank', 'width=980,height=800');
     if (!printWindow) {
@@ -473,6 +429,68 @@ export function CvTemplateModal({ isOpen, onClose, onReplaceCV, onSaveToProfile,
     }, 500);
   }, [cvData.name]);
 
+  /* ─ Tải trực tiếp file PDF về máy (Direct Download không qua hộp thoại in) ─ */
+  const handleDownloadPdf = useCallback(async () => {
+    const content = cvRef.current;
+    if (!content) return;
+    const clone = content.cloneNode(true);
+
+    // 1. Thay thế input range bằng progress bar chuẩn đẹp (chuẩn full-width)
+    const origRangeInputs = content.querySelectorAll('input[type="range"]');
+    const clonedRangeInputs = clone.querySelectorAll('input[type="range"]');
+    clonedRangeInputs.forEach((inp, idx) => {
+      const orig = origRangeInputs[idx];
+      const val = orig ? Math.max(0, Math.min(100, Number(orig.value) || 0)) : Math.max(0, Math.min(100, Number(inp.value) || 0));
+      const barWrapper = document.createElement('div');
+      barWrapper.style.cssText = 'width: 100% !important; height: 6px !important; background: rgba(255,255,255,0.2) !important; border-radius: 9999px !important; overflow: hidden !important; margin-top: 5px !important; margin-bottom: 8px !important; display: block !important; box-sizing: border-box !important;';
+      const barFill = document.createElement('div');
+      barFill.style.cssText = `width: ${val}% !important; height: 100% !important; background: #4ade80 !important; border-radius: 9999px !important;`;
+      barWrapper.appendChild(barFill);
+      inp.parentNode.replaceChild(barWrapper, inp);
+    });
+
+    // 2. Chuyển các input text sang span (loại trừ input type="range")
+    clone.querySelectorAll('input:not([type="range"])').forEach(inp => {
+      const span = document.createElement('span');
+      span.textContent = inp.value || '';
+      span.style.cssText = inp.style.cssText;
+      span.className = inp.className;
+      span.style.display = inp.style.display === 'block' ? 'block' : 'inline-block';
+      span.style.fontFamily = "'Times New Roman', Times, serif";
+      inp.parentNode.replaceChild(span, inp);
+    });
+
+    // 3. Chuyển các textarea sang span
+    clone.querySelectorAll('textarea').forEach(ta => {
+      const span = document.createElement('span');
+      span.textContent = ta.value || '';
+      span.style.cssText = ta.style.cssText;
+      span.style.whiteSpace = 'pre-wrap';
+      span.style.display = 'block';
+      span.style.fontFamily = "'Times New Roman', Times, serif";
+      ta.parentNode.replaceChild(span, ta);
+    });
+
+    // 4. Xóa các nút tương tác và phần tử chỉ dùng cho giao diện biên tập
+    clone.querySelectorAll('.cv-add-btn,.cv-add-btn-light,.cv-del-btn,.cv-del-btn-light,.cv-ui-only').forEach(el => el.remove());
+
+    const filename = `CV_${(cvData.name || 'CareerFit').trim().replace(/[\\s/\\\\?%*:|"<>]+/g, '_')}.pdf`;
+    const opt = {
+      margin: 0,
+      filename,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    try {
+      await html2pdf().set(opt).from(clone).save();
+    } catch (err) {
+      console.warn('Lỗi khi xuất PDF trực tiếp qua html2pdf, chuyển sang in:', err);
+      handlePrint();
+    }
+  }, [cvData.name, handlePrint]);
+
   if (!isOpen) return null;
 
   return (
@@ -490,7 +508,7 @@ export function CvTemplateModal({ isOpen, onClose, onReplaceCV, onSaveToProfile,
         {/* AI Disclaimer Banner */}
         <div style={{ background:'#fffbeb', border:'1px solid #fde68a', borderRadius:'10px', padding:'10px 16px', margin:'0 24px 14px', display:'flex', alignItems:'center', gap:'10px', fontSize:'12.5px', color:'#92400e' }}>
           <AlertTriangle size={18} style={{ flexShrink: 0, color: '#d97706' }} />
-          <span><strong>Ghi chú từ AI:</strong> Kết quả AI đưa ra có thể không chính xác, vui lòng kiểm tra lại thông tin và điều chỉnh khi cần thiết.</span>
+          <span><strong>Ghi chú biên tập:</strong> Bạn có thể nhấp trực tiếp vào văn bản để chỉnh sửa thông tin, kéo các thanh trượt màu xanh để điều chỉnh mức độ kỹ năng theo năng lực thực tế.</span>
         </div>
 
         {/* Upload ảnh */}
@@ -540,21 +558,24 @@ export function CvTemplateModal({ isOpen, onClose, onReplaceCV, onSaveToProfile,
 
               {/* KỸ NĂNG */}
               <span className="cv-section-title-left">KỸ NĂNG</span>
-              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', marginBottom: '8px', fontStyle: 'italic' }}>
-                Kéo thanh trượt để tự điều chỉnh mức độ kỹ năng (mặc định 0%)
-              </div>
               <div style={{ marginBottom:'8px' }}>
-                {skills.map((sk, i) => (
-                  <div key={i} style={{ marginBottom:'12px' }}>
-                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                      <input className="cv-input-dark" value={sk.name} onChange={e => setSkillName(i, e.target.value)} style={{ fontSize:'13px', flex:1 }}/>
-                      <span style={{ fontSize:'12px', color:'#4ade80', marginLeft:'6px', minWidth:'35px', textAlign:'right', flexShrink:0, fontWeight:'600' }}>{sk.level}%</span>
-                      <button className="cv-del-btn" onClick={() => removeSkill(i)} style={{ marginLeft:'4px' }} title="Xóa"><Trash2 size={12}/></button>
-                    </div>
-                    <input type="range" min="0" max="100" value={sk.level} onChange={e => setSkillLevel(i, e.target.value)}
-                      className="cv-range" style={{ background: sliderBg(sk.level) }}/>
+                {skills.length === 0 ? (
+                  <div className="cv-ui-only" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic', marginBottom: '8px' }}>
+                    Chưa có kỹ năng chuyên môn. Nhấn nút bên dưới để thêm kỹ năng.
                   </div>
-                ))}
+                ) : (
+                  skills.map((sk, i) => (
+                    <div key={i} style={{ marginBottom:'12px' }}>
+                      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                        <input className="cv-input-dark" value={sk.name} onChange={e => setSkillName(i, e.target.value)} style={{ fontSize:'13px', flex:1 }}/>
+                        <span style={{ fontSize:'12px', color:'#4ade80', marginLeft:'6px', minWidth:'35px', textAlign:'right', flexShrink:0, fontWeight:'600' }}>{sk.level}%</span>
+                        <button className="cv-del-btn" onClick={() => removeSkill(i)} style={{ marginLeft:'4px' }} title="Xóa"><Trash2 size={12}/></button>
+                      </div>
+                      <input type="range" min="0" max="100" value={sk.level} onChange={e => setSkillLevel(i, e.target.value)}
+                        className="cv-range" style={{ background: sliderBg(sk.level) }}/>
+                    </div>
+                  ))
+                )}
                 <button className="cv-add-btn" onClick={addSkill}><Plus size={12}/> Thêm kỹ năng</button>
               </div>
 
@@ -562,7 +583,7 @@ export function CvTemplateModal({ isOpen, onClose, onReplaceCV, onSaveToProfile,
               <span className="cv-section-title-left" style={{ marginTop:'20px', display:'block' }}>NGOẠI NGỮ</span>
               <div style={{ marginBottom:'8px' }}>
                 {languages.length === 0 ? (
-                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic', marginBottom: '8px' }}>
+                  <div className="cv-ui-only" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic', marginBottom: '8px' }}>
                     Chưa cập nhật ngoại ngữ
                   </div>
                 ) : (

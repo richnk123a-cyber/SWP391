@@ -205,8 +205,9 @@ public class AiAssistantService {
                - Xóa sạch các ký tự thừa như "...", ",,", "ko", "không".
 
             3. TÁCH KỸ NĂNG KỸ THUẬT VÀ KỸ NĂNG MỀM:
-               - Kỹ năng kỹ thuật (Java, C, SQL Server, JS, HTML/CSS...) -> đưa vào "skills" (gán level 70 - 90%).
-               - Kỹ năng mềm & quản lý -> đưa vào "otherSkills" (VD: ["Quản lý dự án (Agile/Scrum)", "Giao tiếp & Thuyết trình", "Tư duy phản biện", "Giải quyết vấn đề"]).
+               - Kỹ năng kỹ thuật: CHỈ lấy các kỹ năng người dùng THỰC SỰ KHAI BÁO. NẾU người dùng không khai báo kỹ năng hoặc ghi "ko"/"không", để "skills": [] (TUYỆT ĐỐI KHÔNG TỰ BỊA KỸ NĂNG).
+               - MỌI KỸ NĂNG KỸ THUẬT đưa vào "skills" PHẢI CÓ LEVEL MẶC ĐỊNH LÀ 0 (mức 0%) để người dùng tự điều chỉnh theo năng lực thực tế.
+               - Kỹ năng mềm & quản lý -> đưa vào "otherSkills" (nếu có khai báo).
 
             4. TẠO CÁC MỤC ĐỒ ÁN / KINH NGHIỆM TỪ "DỰ ÁN" VÀ "KINH NGHIỆM":
                - Nếu người dùng liệt kê đồ án (VD: "IOT smart farmer, careerfit, API AI"):
@@ -222,11 +223,11 @@ public class AiAssistantService {
                - Viết 2-3 câu trau chuốt, ấn tượng, phù hợp chính xác với vị trí mục tiêu và thế mạnh của ứng viên.
 
             6. CHỨNG CHỈ & NGOẠI NGỮ ("languages"):
-               - Nếu có chứng chỉ ngoại ngữ (VD: "ielst" -> IELTS): đưa vào "languages" (VD: [{"name": "Tiếng Anh (IELTS)", "level": 80}]).
+               - CHỈ đưa vào "languages" khi người dùng THỰC SỰ KHAI BÁO ngoại ngữ/chứng chỉ (VD: IELTS, TOEIC, Tiếng Anh). NẾU người dùng không khai báo hoặc ghi "ko"/"không", để "languages": [] (TUYỆT ĐỐI KHÔNG TỰ BỊA). Mọi ngoại ngữ đưa vào thì LEVEL MẶC ĐỊNH PHẢI LÀ 0.
 
             TRẢ VỀ DUY NHẤT ĐỊNH DẠNG JSON HỢP LỆ THEO CẤU TRÚC:
             {
-              "normalizedSkills": ["Java", "C/C++", "Microsoft SQL Server", "JavaScript", "HTML5/CSS3"],
+              "normalizedSkills": ["Kỹ năng thực tế của người dùng"],
               "suggestedBio": "Mục tiêu nghề nghiệp 2-3 câu trau chuốt...",
               "improvedProjects": "Mô tả đồ án nâng cao...",
               "improvedExperience": "Kinh nghiệm thực tế...",
@@ -238,20 +239,16 @@ public class AiAssistantService {
                 "desiredRole": "Vị trí ứng tuyển chuẩn hóa",
                 "phone": "Số điện thoại riêng biệt",
                 "email": "Email riêng biệt",
-                "location": "TP.HCM",
+                "location": "Tỉnh thành",
                 "university": "Trường đại học đã tách",
                 "major": "Chuyên ngành đã tách",
                 "graduationYear": "2028",
                 "bio": "Mục tiêu nghề nghiệp đã trau chuốt",
                 "skills": [
-                  {"name": "Java", "level": 80},
-                  {"name": "C/C++", "level": 75},
-                  {"name": "Microsoft SQL Server", "level": 80},
-                  {"name": "JavaScript", "level": 75},
-                  {"name": "HTML5/CSS3", "level": 70}
+                  {"name": "Java", "level": 0}
                 ],
                 "languages": [
-                  {"name": "Tiếng Anh (IELTS)", "level": 80}
+                  {"name": "Tiếng Anh", "level": 0}
                 ],
                 "experiences": [
                   {
@@ -310,43 +307,45 @@ public class AiAssistantService {
      */
     public PolishJobResponse polishJob(String username, PolishJobRequest request) {
         String prompt = """
-            Bạn là chuyên gia tư vấn tuyển dụng nhân sự CNTT của CareerFit.
-            Nhiệm vụ: Cải thiện mô tả công việc (JD) để thu hút ứng viên sinh viên IT và Fresher.
-            Quy tắc:
-            1. Làm rõ trách nhiệm chính và yêu cầu kỹ năng.
-            2. Tách rõ kỹ năng bắt buộc (required) và kỹ năng ưu tiên (preferred).
-            3. Nhấn mạnh quyền lợi dành cho sinh viên: mentor 1-1, hỗ trợ dấu mộc thực tập, phụ cấp rõ ràng.
-            4. Trả về templateJobData đầy đủ cấu trúc để điền trực tiếp vào form CreateJobPage.
-            
-            Trả về duy nhất JSON theo cấu trúc:
-            {
-              "improvedTitle": "Thực tập sinh Java Backend (Internship)",
-              "improvedResponsibilities": "• Tham gia phát triển RESTful API...",
-              "improvedRequirements": "• Nắm vững kiến thức Java Core và OOP...",
-              "normalizedRequiredSkills": ["Java", "Spring Boot", "SQL", "Git"],
-              "normalizedPreferredSkills": ["Docker", "Postman", "CI/CD"],
-              "improvedBenefits": "• Phụ cấp thực tập 4-6 triệu/tháng...",
-              "qualityScore": 88,
-              "qualityChecklist": ["Tiêu đề rõ ràng", "Phân loại kỹ năng chuẩn", "Có chế độ đào tạo 1-1"],
-              "suggestions": ["Nên ghi rõ khung giờ làm việc linh hoạt cho sinh viên"],
-              "templateJobData": {
-                "title": "Thực tập sinh Java Backend",
-                "category": "Backend Developer",
-                "jobType": "Internship",
-                "location": "TP.HCM",
-                "workMode": "Hybrid",
-                "minSalary": "5",
-                "maxSalary": "8",
-                "currency": "VND",
-                "responsibilities": ["Tham gia phát triển API và tối ưu cơ sở dữ liệu", "Phối hợp cùng nhóm Frontend kiểm thử chức năng"],
-                "requirements": ["Có kiến thức về Java Core và Spring Framework", "Biết sử dụng Git cơ bản"],
-                "requiredSkills": ["Java", "Spring Boot", "SQL"],
-                "preferredSkills": ["Docker", "Postman"],
-                "benefits": ["Hỗ trợ dấu mộc thực tập tốt nghiệp", "Được Mentor 1-1 hướng dẫn trực tiếp"],
-                "deadline": "30/11/2026"
-              }
-            }
-            """;
+ Bạn là chuyên gia tư vấn tuyển dụng nhân sự CNTT của CareerFit.
+ Nhiệm vụ: Chuẩn hóa và tối ưu hóa tin tuyển dụng (JD) dựa TRÊN ĐÚNG THÔNG TIN MÀ DOANH NGHIỆP CUNG CẤP.
+
+ QUY TẮC BẢO TOÀN DỮ LIỆU ĐẦU VÀO (BẮT BUỘC TUÂN THỦ 100%, TUYỆT ĐỐI KHÔNG BỊA ĐẶT):
+ 1. BẢO TOÀN TRÁCH NHIỆM DO NGƯỜI DÙNG NHẬP: Tuyệt đối KHÔNG ĐƯỢC tự ý bịa đặt thêm công việc hoặc công nghệ không liên quan (ví dụ: cấm tự ý thêm ứng dụng .NET, viết test case C# nếu người dùng không yêu cầu). Nếu người dùng đã cung cấp trách nhiệm (ví dụ: "Đi làm đúng giờ, có thái độ tích cực"), PHẢI GIỮ NGUYÊN và định dạng lại thành các gạch đầu dòng trang trọng.
+ 2. ĐỒNG BỘ TIÊU ĐỀ (improvedTitle) VÀ LOẠI HÌNH CÔNG VIỆC: Nếu người dùng chọn Full-time thì improvedTitle KHÔNG ĐƯỢC chứa Part-time (và ngược lại). Nếu là Thực tập / Intern thì ghi rõ Internship/Thực tập sinh.
+ 3. CHUYÊN NGÀNH (category): Bắt buộc phải là 1 trong 6 danh mục hệ thống:
+ ['Backend Developer', 'Frontend Developer', 'Fullstack Developer', 'QA / Testing', 'Mobile Developer', 'Data Analyst'].
+ (Nếu người dùng chọn QA/QC Tester, QA, QC, Tester thì BẮT BUỘC là "QA / Testing". Nếu chọn Data / AI thì BẮT BUỘC là "Data Analyst").
+ 4. KHOẢNG LƯƠNG: Bóc tách chính xác minSalary, maxSalary (số nguyên đơn vị triệu VNĐ, ví dụ "8.000.000 - 12.000.000" -> minSalary: "8", maxSalary: "12") và currency ("VNĐ" hoặc "USD").
+ 5. Trả về duy nhất JSON hợp lệ theo cấu trúc:
+ {
+ "improvedTitle": "Tiêu đề chuẩn hóa đồng bộ với loại hình",
+ "improvedResponsibilities": "• Trách nhiệm dựa trên thông tin người dùng cung cấp...",
+ "improvedRequirements": "• Yêu cầu phù hợp với vị trí...",
+ "normalizedRequiredSkills": ["Java", "SQL"],
+ "normalizedPreferredSkills": ["Git", "Docker"],
+ "improvedBenefits": "• Quyền lợi đãi ngộ...",
+ "qualityScore": 90,
+ "qualityChecklist": ["Tiêu đề rõ ràng, đồng bộ", "Kỹ năng phân tách chuẩn", "Bảo toàn trách nhiệm"],
+ "suggestions": ["Gợi ý tối ưu"],
+ "templateJobData": {
+ "title": "Tiêu đề đồng bộ",
+ "category": "Backend Developer | Frontend Developer | Fullstack Developer | QA / Testing | Mobile Developer | Data Analyst",
+ "jobType": "Internship | Fresher | Full-time | Part-time",
+ "location": "Địa điểm",
+ "workMode": "On-site | Hybrid | Remote",
+ "minSalary": "8",
+ "maxSalary": "12",
+ "currency": "VNĐ",
+ "responsibilities": ["Đi làm đúng giờ, có thái độ tích cực"],
+ "requirements": ["Có tinh thần học hỏi và trách nhiệm cao"],
+ "requiredSkills": ["Kỹ năng bắt buộc"],
+ "preferredSkills": ["Kỹ năng ưu tiên"],
+ "benefits": ["Quyền lợi đãi ngộ"],
+ "deadline": "30/11/2026"
+ }
+ }
+ """;
 
         String context = String.format("""
             Chức danh: %s
@@ -687,18 +686,64 @@ public class AiAssistantService {
                 templateJobData = mapper.convertValue(root.get("templateJobData"), new TypeReference<Map<String, Object>>() {});
             }
 
-            return PolishJobResponse.builder()
-                    .improvedTitle(root.path("improvedTitle").asText(request.getTitle()))
-                    .improvedResponsibilities(root.path("improvedResponsibilities").asText(request.getResponsibilities()))
-                    .improvedRequirements(root.path("improvedRequirements").asText(request.getRequirements()))
-                    .normalizedRequiredSkills(toList(root.get("normalizedRequiredSkills")))
-                    .normalizedPreferredSkills(toList(root.get("normalizedPreferredSkills")))
-                    .improvedBenefits(root.path("improvedBenefits").asText(request.getBenefits()))
-                    .qualityScore(root.path("qualityScore").asInt(85))
-                    .qualityChecklist(toList(root.get("qualityChecklist")))
-                    .suggestions(toList(root.get("suggestions")))
-                    .templateJobData(templateJobData)
-                    .build();
+            // Đảm bảo templateJobData đồng bộ 100% với dữ liệu và không bịa đặt
+ if (templateJobData != null) {
+ // Đồng bộ category vào 6 chuẩn
+ String curCat = (String) templateJobData.getOrDefault("category", request.getCategory());
+ if (curCat != null) {
+ String lc = curCat.toLowerCase();
+ if (lc.contains("qa") || lc.contains("test") || lc.contains("qc")) templateJobData.put("category", "QA / Testing");
+ else if (lc.contains("data") || lc.contains("ai")) templateJobData.put("category", "Data Analyst");
+ }
+
+ // Bảo toàn trách nhiệm của người dùng nếu có
+ if (request.getResponsibilities() != null && !request.getResponsibilities().isBlank()) {
+ List<String> userResps = new ArrayList<>();
+ for (String l : request.getResponsibilities().split("\\n+")) {
+ String cleanedLine = l.trim().replaceAll("^[•\\-*\\d.]+\\s*", "");
+ if (!cleanedLine.isBlank()) userResps.add(cleanedLine);
+ }
+ if (!userResps.isEmpty()) {
+ templateJobData.put("responsibilities", userResps);
+ }
+ }
+
+ // Đồng bộ title không bị nghịch với jobType
+ String jt = (String) templateJobData.getOrDefault("jobType", request.getJobType());
+ String jobTitle = (String) templateJobData.getOrDefault("title", request.getTitle());
+ if ("Full-time".equalsIgnoreCase(jt) && jobTitle != null) {
+ templateJobData.put("title", jobTitle.replaceAll("(?i)\\bpart[\\s-]?time\\b", "").trim());
+ } else if ("Part-time".equalsIgnoreCase(jt) && jobTitle != null) {
+ templateJobData.put("title", jobTitle.replaceAll("(?i)\\bfull[\\s-]?time\\b", "").trim());
+ }
+ }
+
+ String finalTitle = root.path("improvedTitle").asText(request.getTitle());
+ String finalJobType = request.getJobType() != null ? request.getJobType() : "";
+ if (finalJobType.toLowerCase().contains("full")) {
+ finalTitle = finalTitle.replaceAll("(?i)\\bpart[\\s-]?time\\b", "").trim();
+ } else if (finalJobType.toLowerCase().contains("part")) {
+ finalTitle = finalTitle.replaceAll("(?i)\\bfull[\\s-]?time\\b", "").trim();
+ }
+
+ String finalResponsibilities = root.path("improvedResponsibilities").asText(request.getResponsibilities());
+ if (request.getResponsibilities() != null && !request.getResponsibilities().isBlank()) {
+ // Ưu tiên nội dung trách nhiệm thực tế của người dùng
+ finalResponsibilities = "• " + request.getResponsibilities().trim().replaceAll("\\n+", "\n• ");
+ }
+
+ return PolishJobResponse.builder()
+ .improvedTitle(finalTitle)
+ .improvedResponsibilities(finalResponsibilities)
+ .improvedRequirements(root.path("improvedRequirements").asText(request.getRequirements()))
+ .normalizedRequiredSkills(toList(root.get("normalizedRequiredSkills")))
+ .normalizedPreferredSkills(toList(root.get("normalizedPreferredSkills")))
+ .improvedBenefits(root.path("improvedBenefits").asText(request.getBenefits()))
+ .qualityScore(root.path("qualityScore").asInt(85))
+ .qualityChecklist(toList(root.get("qualityChecklist")))
+ .suggestions(toList(root.get("suggestions")))
+ .templateJobData(templateJobData)
+ .build();
         } catch (Exception ex) {
             log.warn("Lỗi khi parse JSON PolishJob: {}, dùng fallback", ex.getMessage());
             return fallbackPolishJob(request);
@@ -818,8 +863,9 @@ public class AiAssistantService {
                 }
             }
         }
-        if (techSkills.isEmpty()) techSkills = new ArrayList<>(List.of("Java", "C/C++", "Microsoft SQL Server", "JavaScript", "HTML5/CSS3"));
-        if (softSkills.isEmpty()) softSkills = new ArrayList<>(List.of("Quản lý dự án (Agile/Scrum)", "Giao tiếp & Làm việc nhóm", "Tư duy phản biện", "Giải quyết vấn đề"));
+        // TUYỆT ĐỐI KHÔNG tự ý thêm fake kỹ năng khi người dùng không có kỹ năng
+        if (techSkills.isEmpty()) techSkills = new ArrayList<>();
+        if (softSkills.isEmpty()) softSkills = new ArrayList<>();
 
         // Bóc tách đồ án / kinh nghiệm
         List<Map<String, Object>> experiences = new ArrayList<>();
@@ -859,15 +905,17 @@ public class AiAssistantService {
             ));
         }
 
-        // Ngoại ngữ / Chứng chỉ
+        // Ngoại ngữ / Chứng chỉ: Chỉ thêm nếu người dùng có khai báo, mặc định 0%
         List<Map<String, Object>> languages = new ArrayList<>();
-        String cert = request.getCertifications() != null ? request.getCertifications().toLowerCase() : "";
-        if (cert.contains("ielts") || cert.contains("ielst")) {
-            languages.add(Map.of("name", "Tiếng Anh (IELTS)", "level", 80));
-        } else if (cert.contains("toeic")) {
-            languages.add(Map.of("name", "Tiếng Anh (TOEIC)", "level", 80));
-        } else {
-            languages.add(Map.of("name", "Tiếng Anh", "level", 75));
+        String cert = request.getCertifications() != null ? request.getCertifications().toLowerCase().trim() : "";
+        if (!cert.isBlank() && !cert.equals("ko") && !cert.equals("không") && !cert.contains("chưa")) {
+            if (cert.contains("ielts") || cert.contains("ielst")) {
+                languages.add(Map.of("name", "Tiếng Anh (IELTS)", "level", 0));
+            } else if (cert.contains("toeic")) {
+                languages.add(Map.of("name", "Tiếng Anh (TOEIC)", "level", 0));
+            } else if (cert.contains("anh") || cert.contains("english")) {
+                languages.add(Map.of("name", "Tiếng Anh", "level", 0));
+            }
         }
 
         // Tạo templateCvData hoàn chỉnh
@@ -883,7 +931,7 @@ public class AiAssistantService {
 
         List<Map<String, Object>> skillList = new ArrayList<>();
         for (String sk : techSkills) {
-            skillList.add(Map.of("name", sk, "level", 75));
+            skillList.add(Map.of("name", sk, "level", 0));
         }
         templateCv.put("skills", skillList);
         templateCv.put("languages", languages);
@@ -907,26 +955,121 @@ public class AiAssistantService {
     }
 
     private PolishJobResponse fallbackPolishJob(PolishJobRequest request) {
-        List<String> reqSkills = new ArrayList<>();
-        if (request.getRequiredSkills() != null) {
-            for (String s : request.getRequiredSkills().split("[,;\\n]+")) {
-                if (!s.trim().isBlank()) reqSkills.add(s.trim());
-            }
-        }
-        if (reqSkills.isEmpty()) reqSkills = List.of("Java", "SQL", "Git");
+ String title = request.getTitle() != null && !request.getTitle().isBlank() ? request.getTitle().trim() : "Lập trình viên IT";
+ String category = request.getCategory() != null && !request.getCategory().isBlank() ? request.getCategory().trim() : "Backend Developer";
+ 
+ // Map category sang đúng 6 danh mục chuẩn của hệ thống
+ String lowerCat = category.toLowerCase();
+ if (lowerCat.contains("qa") || lowerCat.contains("test") || lowerCat.contains("qc")) {
+ category = "QA / Testing";
+ } else if (lowerCat.contains("data") || lowerCat.contains("ai") || lowerCat.contains("dữ liệu")) {
+ category = "Data Analyst";
+ } else if (lowerCat.contains("front")) {
+ category = "Frontend Developer";
+ } else if (lowerCat.contains("full")) {
+ category = "Fullstack Developer";
+ } else if (lowerCat.contains("mobile") || lowerCat.contains("android") || lowerCat.contains("ios")) {
+ category = "Mobile Developer";
+ } else if (lowerCat.contains("back")) {
+ category = "Backend Developer";
+ }
 
-        return PolishJobResponse.builder()
-                .improvedTitle(request.getTitle() != null ? request.getTitle() : "Thực tập sinh IT")
-                .improvedResponsibilities(request.getResponsibilities() != null ? request.getResponsibilities() : "• Tham gia phát triển và kiểm thử tính năng phần mềm.")
-                .improvedRequirements(request.getRequirements() != null ? request.getRequirements() : "• Nắm vững kiến thức nền tảng và tư duy lập trình.")
-                .normalizedRequiredSkills(reqSkills)
-                .normalizedPreferredSkills(List.of("Docker", "CI/CD"))
-                .improvedBenefits(request.getBenefits() != null ? request.getBenefits() : "• Hỗ trợ phụ cấp thực tập và đào tạo kỹ thuật.")
-                .qualityScore(85)
-                .qualityChecklist(List.of("Tiêu đề rõ ràng", "Kỹ năng phân tách cụ thể"))
-                .suggestions(List.of("Ghi rõ quyền lợi thực tập sinh"))
-                .build();
-    }
+ // Đồng bộ Loại hình (JobType)
+ String rawType = (request.getJobType() != null ? request.getJobType() : "").toLowerCase();
+ String jobType = "Full-time";
+ if (rawType.contains("intern") || rawType.contains("thực tập")) {
+ jobType = "Internship";
+ } else if (rawType.contains("fresher") || rawType.contains("mới ra trường")) {
+ jobType = "Fresher";
+ } else if (rawType.contains("part") || rawType.contains("bán thời gian")) {
+ jobType = "Part-time";
+ }
+
+ // Đồng bộ Tiêu đề (Title): Loại bỏ chữ nghịch với JobType
+ if ("Full-time".equals(jobType)) {
+ title = title.replaceAll("(?i)\\bpart[\\s-]?time\\b", "").trim();
+ } else if ("Part-time".equals(jobType)) {
+ title = title.replaceAll("(?i)\\bfull[\\s-]?time\\b", "").trim();
+ }
+
+ // Bóc tách Mức lương chuẩn
+ String minSal = "8";
+ String maxSal = "12";
+ String currency = "VNĐ";
+ if (request.getSalary() != null) {
+ String s = request.getSalary();
+ if (s.toLowerCase().contains("usd") || s.contains("$")) currency = "USD";
+ java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\d+").matcher(s.replaceAll("[,.]000\\.000|[,.]000", ""));
+ List<String> foundNums = new ArrayList<>();
+ while (m.find()) {
+ foundNums.add(m.group());
+ }
+ if (foundNums.size() >= 2) {
+ minSal = foundNums.get(0);
+ maxSal = foundNums.get(1);
+ } else if (foundNums.size() == 1) {
+ minSal = foundNums.get(0);
+ try {
+ maxSal = String.valueOf(Integer.parseInt(minSal) + 3);
+ } catch (Exception ignored) {}
+ }
+ }
+
+ // Bảo toàn 100% Trách nhiệm do người dùng cung cấp (TUYỆT ĐỐI KHÔNG BỊA ĐẶT)
+ List<String> respList = new ArrayList<>();
+ if (request.getResponsibilities() != null && !request.getResponsibilities().isBlank()) {
+ for (String line : request.getResponsibilities().split("\\n+")) {
+ String cleanLine = line.trim().replaceAll("^[•\\-*\\d.]+\\s*", "");
+ if (!cleanLine.isBlank()) respList.add(cleanLine);
+ }
+ }
+ if (respList.isEmpty()) {
+ respList.add("Thực hiện các công việc chuyên môn theo sự phân công của quản lý.");
+ respList.add("Phối hợp cùng đội ngũ phát triển đảm bảo tiến độ và chất lượng dự án.");
+ }
+
+ List<String> reqSkills = new ArrayList<>();
+ if (request.getRequiredSkills() != null) {
+ for (String s : request.getRequiredSkills().split("[,;\\n]+")) {
+ if (!s.trim().isBlank()) reqSkills.add(s.trim());
+ }
+ }
+ if (reqSkills.isEmpty()) reqSkills = List.of("Java", "SQL", "Git");
+
+ Map<String, Object> templateJobData = new HashMap<>();
+ templateJobData.put("title", title);
+ templateJobData.put("category", category);
+ templateJobData.put("jobType", jobType);
+ templateJobData.put("location", request.getLocation() != null ? request.getLocation() : "Hà Nội");
+ templateJobData.put("workMode", rawType.contains("remote") ? "Remote" : (rawType.contains("hybrid") ? "Hybrid" : "On-site"));
+ templateJobData.put("minSalary", minSal);
+ templateJobData.put("maxSalary", maxSal);
+ templateJobData.put("currency", currency);
+ templateJobData.put("responsibilities", respList);
+ templateJobData.put("requirements", List.of("Có tinh thần trách nhiệm cao", "Sẵn sàng học hỏi và phát triển năng lực"));
+ templateJobData.put("requiredSkills", reqSkills);
+ templateJobData.put("preferredSkills", List.of("Git", "Agile"));
+ templateJobData.put("benefits", List.of(request.getBenefits() != null ? request.getBenefits() : "Phụ cấp thực tập hấp dẫn, môi trường làm việc thân thiện"));
+ templateJobData.put("deadline", "30/11/2026");
+
+ StringBuilder respSb = new StringBuilder();
+ for (String r : respList) {
+ respSb.append("• ").append(r).append("\n");
+ }
+
+ return PolishJobResponse.builder()
+ .improvedTitle(title)
+ .improvedResponsibilities(respSb.toString().trim())
+ .improvedRequirements(request.getRequirements() != null ? request.getRequirements() : "• Nắm vững kiến thức nền tảng và có tinh thần trách nhiệm.")
+ .normalizedRequiredSkills(reqSkills)
+ .normalizedPreferredSkills(List.of("Git", "Agile"))
+ .improvedBenefits(request.getBenefits() != null ? request.getBenefits() : "• Môi trường làm việc trẻ trung, cơ hội phát triển nghề nghiệp.")
+ .qualityScore(90)
+ .qualityChecklist(List.of("Tiêu đề và loại hình đồng bộ", "Bảo toàn trách nhiệm người dùng", "Khoảng lương rõ ràng"))
+ .suggestions(List.of("Tin tuyển dụng đã đầy đủ và chuẩn xác theo quy định hệ thống"))
+ .templateJobData(templateJobData)
+ .build();
+ }
 
     private Map<String, Object> fallbackCvDataExtraction(String text, String username) {
         Map<String, Object> data = new HashMap<>();
@@ -989,7 +1132,26 @@ public class AiAssistantService {
    - Đối với kiến thức kỹ thuật CNTT, thuật toán, lập trình, công nghệ (ví dụ: thuật toán tìm đường Pathfinding A*/Dijkstra, tỉa cây Tree Pruning, cơ sở dữ liệu, mạng máy tính, AI, thiết kế hệ thống...): Hãy phát huy toàn bộ kiến thức chuyên sâu của một chuyên gia CNTT để giải thích chi tiết, đầy đủ và dễ hiểu.
    - TUYỆT ĐỐI KHÔNG cứng nhắc trả lời 'trong danh mục không có mục...' chỉ vì kỹ năng/khái niệm đó chưa có trong bảng Database của CareerFit. Nếu người dùng hỏi một khái niệm/kỹ năng CNTT (như 'kỹ năng tìm đường', 'thuật toán tỉa cây'...), hãy giải thích bản chất kỹ thuật trong ngành CNTT (ví dụ: Pathfinding, Routing, A*, Dijkstra trong Game và định tuyến mạng) rồi liên hệ với các danh mục/kỹ năng tương ứng trên sàn CareerFit (DSA, Lập trình Game, AI/Robotics...).
 """);
-        sb.append("4. ĐỊNH DẠNG BẮT BUỘC: KHÔNG sử dụng ký tự in đậm markdown (**) trong câu trả lời để người dùng có thể sao chép văn bản sạch vào Notepad.\n");
+        sb.append("""
+4. NGUYÊN TẮC ĐỘ DÀI VÀ TRÌNH BÀY PHẢN HỒI (CỰC KỲ QUAN TRỌNG - THÍCH ỨNG LINH HOẠT, TRÁNH GÂY BÍ BÁCH):
+   - KHUNG CHAT LÀ WIDGET NHỎ TRÊN MÀN HÌNH (RỘNG CHỈ KHOẢNG 380PX):
+     + Tuyệt đối KHÔNG viết bài luận tràng giang đại hải, không nhồi nhét hàng nghìn từ khiến người dùng ngộp thở và bí bách.
+     + TUYỆT ĐỐI CẤM DÙNG BẢNG MARKDOWN NHIỀU CỘT (| Cột 1 | Cột 2 | Cột 3 | Cột 4 |): Bảng biểu nhiều cột làm vỡ giao diện trên di động và biến khung chat thành một khối chữ rối mắt, không thể đọc được.
+     + Thay vì dùng bảng, HÃY DÙNG DANH SÁCH GẠCH ĐẦU DÒNG (• hoặc -) kết hợp chữ in đậm (**tiêu đề**) để nội dung thông thoáng, dễ quét mắt (scannable).
+   - NGUYÊN TẮC 'CÁI GÌ TÓM GỌN ĐƯỢC THÌ PHẢI TÓM GỌN, CÁI GÌ CẦN SÂU MỚI TRẢ LỜI SÂU':
+     a. Chào hỏi, câu hỏi ngắn, câu hỏi xã giao: Trả lời siêu ngắn gọn, lịch sự, đúng trọng tâm (1 - 2 câu, dưới 50 từ).
+     b. Khi được hỏi PHÂN TÍCH CV / ĐÁNH GIÁ CV / HỎI ĐIỂM CẦN CẢI THIỆN:
+        * TUYỆT ĐỐI KHÔNG xuất 5 - 6 bảng biểu Markdown dài dằng dặc.
+        * Trả lời CÔ ĐỌNG, TINH GỌN (khoảng 150 - 220 từ) theo đúng cấu trúc 3 phần rõ ràng:
+          1) **Điểm mạnh cốt lõi:** (2 - 3 gạch đầu dòng ngắn gọn về kỹ năng/dự án tốt nhất).
+          2) **Top 3 điểm cần cải thiện ngay:** (3 gạch đầu dòng ngắn, thiết thực nhất: ví dụ bổ sung số liệu định lượng cho dự án, phân loại nhóm kỹ năng, thêm link GitHub/Demo).
+          3) **Đề xuất hành động tiếp theo:** (1 - 2 câu ngắn, ví dụ: 'Bạn có thể nhấn vào nút Chuẩn hóa CV hoặc tìm việc với từ khóa Java/React trên CareerFit.').
+     c. Khi được hỏi TÌM VIỆC / GỢI Ý CÔNG VIỆC:
+        * Không tạo bảng danh sách 10 việc tràn ngập màn hình. Chỉ gợi ý nhanh 2 - 3 vị trí phù hợp nhất dạng gạch đầu dòng ngắn: Tên vị trí - Địa điểm - Mức lương (1 dòng mỗi việc). Sau đó hướng dẫn người dùng qua tab 'Khám phá việc làm' để xem toàn bộ danh sách và nộp đơn.
+     d. Khi người dùng hỏi SÂU VỀ KỸ THUẬT, THUẬT TOÁN, DEBUG CODE, GIẢI THÍCH MÃ NGUỒN:
+        * Ở trường hợp này mới cần giải thích chi tiết, từng bước kèm ví dụ code ngắn gọn, nhưng vẫn phải phân đoạn rõ ràng bằng bullet points, tránh lan man.
+   - LUÔN LUÔN trả lời bằng 100% tiếng Việt chuẩn mực (kèm thuật ngữ kỹ thuật tiếng Anh chuẩn IT). TUYỆT ĐỐI KHÔNG sử dụng ký tự tiếng Trung hoặc ngôn ngữ khác.
+""");
         sb.append("5. Trả lời trực tiếp câu hỏi của người dùng, có thể trích dẫn nguồn tham khảo có trong ngữ cảnh.\n");
         sb.append("""
 6. QUY TẮC TỰ PHÁT HIỆN VÀ XỬ LÝ PHẠM VI (TỰ ĐIỀU HƯỚNG TỰ NHIÊN BẰNG AI):
@@ -1054,9 +1216,15 @@ public class AiAssistantService {
             }
 
             sb.append("\nCHỈ THỊ ĐẶC BIỆT KHI ỨNG VIÊN HỎI VỀ TÌM VIỆC, GỢI Ý VIỆC, PHÂN TÍCH/ĐÁNH GIÁ CV:\n");
-            sb.append("1. Hãy đọc kỹ hồ sơ và nội dung CV thực tế của ứng viên ở trên để trả lời cụ thể, cá nhân hóa.\n");
-            sb.append("2. TUYỆT ĐỐI KHÔNG hướng dẫn người dùng các bước lý thuyết sáo rỗng (như 'Bước 1: Đăng nhập tài khoản CANDIDATE, Bước 2: Hoàn thiện hồ sơ và tải lên CV...') vì ứng viên này ĐÃ đăng nhập và ĐÃ có CV đầy đủ trên hệ thống rồi!\n");
-            sb.append("3. Hãy chào ứng viên bằng tên (ví dụ: 'Chào bạn ").append(fullName != null && !fullName.isBlank() ? fullName : "bạn").append("'), nhận xét trực tiếp về các kỹ năng, kinh nghiệm/đồ án có trong CV của họ, và đối chiếu với các vị trí tuyển dụng thực tế đang có trên hệ thống CareerFit (được liệt kê ở dưới) để gợi ý công việc cụ thể và mức độ phù hợp.\n");
+            sb.append("1. Hãy đọc kỹ hồ sơ và nội dung CV thực tế của ứng viên ở trên để trả lời cụ thể, cá nhân hóa đúng thực tế.\n");
+            sb.append("2. TUYỆT ĐỐI KHÔNG hướng dẫn người dùng các bước lý thuyết sáo rỗng (như 'Bước 1: Đăng nhập tài khoản CANDIDATE...').\n");
+            sb.append("3. Chào ngắn gọn theo tên (ví dụ: 'Chào bạn ").append(fullName != null && !fullName.isBlank() ? fullName : "bạn").append("').\n");
+            sb.append("4. KHI PHÂN TÍCH CV: Tóm tắt cực kỳ tinh gọn, TUYỆT ĐỐI KHÔNG DÙNG BẢNG BIỂU MARKDOWN. Chỉ nêu 3 phần ngắn gọn:\n");
+            sb.append("   - **Điểm mạnh cốt lõi:** (2 - 3 gạch đầu dòng ngắn về kỹ năng, dự án).\n");
+            sb.append("   - **Top 3 điểm cần cải thiện ngay:** (3 gạch đầu dòng thiết thực: ví dụ số liệu, link GitHub, công nghệ mũi nhọn).\n");
+            sb.append("   - **Đề xuất tiếp theo:** (1 - 2 câu ngắn gọn gợi ý hành động, ví dụ bấm Chuẩn hóa CV hoặc ứng tuyển).\n");
+            sb.append("   Tổng độ dài phân tích CV KHÔNG QUÁ 200 từ để người dùng dễ đọc, không bị ngợp chữ trong khung chat.\n");
+            sb.append("5. KHI GỢI Ý VIỆC LÀM: Chỉ đưa ra 2 - 3 vị trí tuyển dụng thực tế tiêu biểu từ danh sách bên dưới bằng gạch đầu dòng ngắn gọn (Vị trí, Lương, Địa điểm, lý do phù hợp 1 dòng). Sau đó hướng dẫn ứng viên qua tab 'Khám phá việc làm' để xem thêm. TUYỆT ĐỐI KHÔNG vẽ bảng biểu 10 dòng.\n");
         }
 
         if (activeCategories != null && !activeCategories.isEmpty()) {
@@ -1159,6 +1327,12 @@ public class AiAssistantService {
                 || lowerRaw.contains("http")
                 || lowerRaw.contains("github.com")
                 || lowerRaw.contains("linkedin.com")
+                || lowerRaw.contains("backend")
+                || lowerRaw.contains("frontend")
+                || lowerRaw.contains("fullstack")
+                || lowerRaw.contains("developer")
+                || lowerRaw.contains("intern")
+                || lowerRaw.contains("fresher")
                 || trimmed.length() > 35) {
             return false;
         }
@@ -1174,11 +1348,12 @@ public class AiAssistantService {
         // Tuyệt đối KHÔNG dùng substring đơn lẻ 'huy', 'dung', 'nghi', 'thoi'
         // để tránh nhận nhầm tên người (Huy, Dũng, Nghĩa), từ vựng (nội dung, sử dụng, xây dựng, công nghiệp, kinh nghiệm)
         java.util.regex.Pattern exitPattern = java.util.regex.Pattern.compile(
-                "^\\s*(thoat|exit|quit|dung|dung lai|ngung|ngung lai|huy|huy bo|cancel|stop|thoi|bo di|dep di|nghi di)\\s*$"
+                "^\\s*(thoat|exit|quit|dung|dung lai|ngung|ngung lai|huy|huy bo|cancel|stop|thoi|bo di|dep di|nghi di|cut|cut xeo|cut di|xeo|deo|bien|bien di)\\s*$"
                 + "|\\b(toi\\s+)?(muon|cho\\s+toi)?\\s*(thoat|exit|quit|huy\\s+bo|dung\\s+lai)\\b"
                 + "|\\b(dung|huy|thoat|ngung)\\s+(huong\\s+dan|quy\\s+trinh|flow|bot)\\b"
                 + "|\\b(khong|khoi)\\s+(muon|can)?\\s*(lam|tao|viet|tiep)\\s*(nua)?\\b"
-                + "|\\bthoi\\s+(khong\\s+lam|bo\\s+di|khoi|dep|nghi)\\b",
+                + "|\\bthoi\\s+(khong\\s+lam|bo\\s+di|khoi|dep|nghi)\\b"
+                + "|\\b(cut\\s+xeo|cut\\s+di|cut|xeo|deo|bien\\s+di|bien)\\b",
                 java.util.regex.Pattern.CASE_INSENSITIVE
         );
 

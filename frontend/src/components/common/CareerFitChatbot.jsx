@@ -12,8 +12,7 @@ import {
  Copy,
  Check,
  ExternalLink,
- Sparkles,
- Bot,
+ Sparkles,
  Wand2,
  FileCheck,
  Award
@@ -32,8 +31,8 @@ import {
  JOB_POST_GUIDE_STEPS,
  createInitialSession,
  detectIntent,
- generateCvPreview,
- generateJobDraftPreview
+  isQuestionOrInquiry,
+  extractJobSearchCriteria
 } from '../../services/chatbotGuideService';
 import { assistantApi } from '../../services/apiService';
 import '../../styles/chatbot.css';
@@ -44,16 +43,13 @@ function stripEmojiIcons(text) {
   return text.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}]/gu, '').replace(/  +/g, ' ');
 }
 
-// Render nội dung tin nhắn với khả năng ngắt dòng tự động cho đường dẫn URL và tên tệp dài
-function renderMessageContent(content, sender) {
-  if (!content) return null;
-  const cleanText = stripEmojiIcons(content);
+// Parse nội dung inline: hỗ trợ URL, **in đậm** và *in nghiêng*
+function parseInlineMarkdown(text, sender, urlRegex) {
+  if (!text) return null;
 
-  // Nhận diện URL web hoặc đường dẫn tải tệp /uploads/...
-  const urlRegex = /(https?:\/\/[^\s]+|\/uploads\/[^\s]+)/g;
-  const parts = cleanText.split(urlRegex);
-
-  return parts.map((part, index) => {
+  // Bước 1: Tách theo URL
+  const parts = text.split(urlRegex);
+  return parts.map((part, pIdx) => {
     if (!part) return null;
     if (part.match(urlRegex)) {
       const isInternal = part.startsWith('/uploads/');
@@ -62,7 +58,7 @@ function renderMessageContent(content, sender) {
         : part;
       return (
         <a
-          key={index}
+          key={`url-${pIdx}`}
           href={href}
           target="_blank"
           rel="noopener noreferrer"
@@ -75,7 +71,156 @@ function renderMessageContent(content, sender) {
         </a>
       );
     }
-    return <span key={index}>{part}</span>;
+
+    // Bước 2: Parse bold **...**
+    const boldParts = part.split(/(\**[^*]+\**)/g);
+    return boldParts.map((bPart, bIdx) => {
+      if (bPart.startsWith('**') && bPart.endsWith('**') && bPart.length > 4) {
+        return (
+          <strong key={`b-${pIdx}-${bIdx}`} className="font-semibold text-inherit">
+            {bPart.slice(2, -2)}
+          </strong>
+        );
+      }
+      // Bước 3: Parse italic *...* (khi đứng độc lập)
+      const italicParts = bPart.split(/(\*[^*]+\*)/g);
+      return italicParts.map((iPart, iIdx) => {
+        if (iPart.startsWith('*') && iPart.endsWith('*') && iPart.length > 2) {
+          return (
+            <em key={`i-${pIdx}-${bIdx}-${iIdx}`} className="italic opacity-90">
+              {iPart.slice(1, -1)}
+            </em>
+          );
+        }
+        return <span key={`t-${pIdx}-${bIdx}-${iIdx}`}>{iPart}</span>;
+      });
+    });
+  });
+}
+
+// Render nội dung tin nhắn với hỗ trợ Markdown tự nhiên (in đậm, in nghiêng, liên kết URL, bảng biểu, danh sách, tiêu đề)
+function renderMessageContent(content, sender) {
+  if (!content) return null;
+  const cleanText = stripEmojiIcons(content);
+  const urlRegex = /(https?:\/\/[^\s]+|\/uploads\/[^\s]+)/g;
+  const lines = cleanText.split('\n');
+
+  // Phân nhóm các dòng thành các khối (blocks): bảng biểu (table) hoặc các dòng văn bản (lines)
+  const blocks = [];
+  let currentTable = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i];
+    const trimmed = rawLine.trim();
+
+    if (trimmed.startsWith('|') && trimmed.endsWith('|') && trimmed.length > 2) {
+      if (!currentTable) currentTable = [];
+      const isSep = /^\|[\s\-:|]+\|$/.test(trimmed);
+      if (!isSep) {
+        const cells = trimmed.split('|').slice(1, -1).map(c => c.trim());
+        currentTable.push(cells);
+      }
+    } else {
+      if (currentTable) {
+        blocks.push({ type: 'table', rows: currentTable });
+        currentTable = null;
+      }
+      blocks.push({ type: 'line', text: rawLine });
+    }
+  }
+  if (currentTable) {
+    blocks.push({ type: 'table', rows: currentTable });
+  }
+
+  return blocks.map((block, bIdx) => {
+    if (block.type === 'table') {
+      const rows = block.rows;
+      if (rows.length === 0) return null;
+      const headers = rows[0];
+      const dataRows = rows.slice(1);
+
+      return (
+        <div key={`tbl-${bIdx}`} className="overflow-x-auto my-2 rounded-lg border border-emerald-200/80 bg-white/95 shadow-xs">
+          <table className="min-w-full text-[11px] text-left border-collapse">
+            <thead>
+              <tr className="bg-emerald-50/80 border-b border-emerald-200/60 text-[#1E563E] font-semibold">
+                {headers.map((h, hIdx) => (
+                  <th key={hIdx} className="px-2 py-1 whitespace-nowrap">
+                    {parseInlineMarkdown(h, sender, urlRegex)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {dataRows.map((r, rIdx) => (
+                <tr key={rIdx} className={`border-b border-gray-100 last:border-b-0 ${rIdx % 2 === 1 ? 'bg-gray-50/50' : 'bg-white'}`}>
+                  {r.map((cell, cIdx) => (
+                    <td key={cIdx} className="px-2 py-1 text-gray-700 leading-snug">
+                      {parseInlineMarkdown(cell, sender, urlRegex)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    const line = block.text;
+    const trimmed = line.trim();
+
+    // Tiêu đề Markdown: ### , ## , #
+    const headerMatch = trimmed.match(/^(#{1,3})\s+(.*)$/);
+    if (headerMatch) {
+      const level = headerMatch[1].length;
+      const title = headerMatch[2];
+      return (
+        <div
+          key={`h-${bIdx}`}
+          className={`font-bold leading-snug my-1.5 ${
+            sender === 'user' ? 'text-white' : 'text-[#1E563E]'
+          } ${level === 1 ? 'text-[14px]' : level === 2 ? 'text-[13px]' : 'text-[12px]'}`}
+        >
+          {parseInlineMarkdown(title, sender, urlRegex)}
+        </div>
+      );
+    }
+
+    // Đường kẻ phân cách
+    if (/^(\-{3,}|\={3,}|━{5,})$/.test(trimmed)) {
+      return (
+        <hr
+          key={`hr-${bIdx}`}
+          className={`my-2 border-t ${
+            sender === 'user' ? 'border-emerald-300/40' : 'border-[#CCE2D3]'
+          }`}
+        />
+      );
+    }
+
+    // Danh sách gạch đầu dòng: - hoặc • hoặc *
+    const bulletMatch = trimmed.match(/^([•\-\*])\s+(.*)$/);
+    if (bulletMatch) {
+      const body = bulletMatch[2];
+      return (
+        <div key={`bl-${bIdx}`} className="flex items-start gap-1.5 my-0.5 leading-snug">
+          <span className={`shrink-0 font-bold select-none ${
+            sender === 'user' ? 'text-emerald-100' : 'text-[#28674E]'
+          }`}>•</span>
+          <span className="flex-1">{parseInlineMarkdown(body, sender, urlRegex)}</span>
+        </div>
+      );
+    }
+
+    // Dòng thông thường
+    const tokens = parseInlineMarkdown(line, sender, urlRegex);
+    return (
+      <React.Fragment key={`l-${bIdx}`}>
+        {tokens}
+        {bIdx < blocks.length - 1 && <br />}
+      </React.Fragment>
+    );
   });
 }
 
@@ -171,7 +316,6 @@ function isBackOrPreviousStep(text) {
 // Nhận diện ý định muốn bỏ qua bước hiện tại bằng tin nhắn
 function isSkipStepIntent(text) {
   if (!text) return false;
-  const raw = text.trim().toLowerCase();
   const normalized = normalizeTeencodeAndSlang(text);
 
   const skipWords = ['bo qua', 'skip', 'bo qua buoc nay', 'chua co', 'pass'];
@@ -497,7 +641,7 @@ export function CareerFitChatbot() {
  };
 
  // Kích hoạt AI Chuẩn hóa CV (Kết nối Groq Backend với fallback thông minh)
- const handlePolishCv = async (draftData, msgId) => {
+ const handlePolishCv = async (draftData) => {
  setIsPolishing(true);
  setIsTyping(true);
  let data = null;
@@ -568,7 +712,7 @@ export function CareerFitChatbot() {
  };
 
  // Kích hoạt AI Chuẩn hóa JD & Chấm điểm chất lượng (Kết nối Groq Backend với fallback thông minh)
- const handlePolishJob = async (draftData, msgId) => {
+ const handlePolishJob = async (draftData) => {
  setIsPolishing(true);
  let data = null;
 
@@ -600,7 +744,33 @@ export function CareerFitChatbot() {
  };
  }
 
- const polishMsg = {
+ const userEnteredResp = draftData.responsibilities
+      ? (Array.isArray(draftData.responsibilities)
+          ? draftData.responsibilities
+          : String(draftData.responsibilities).split('\n').map(s => s.trim().replace(/^[•\-*]\s*/, '')).filter(Boolean))
+      : [];
+
+    const polishedJobData = {
+      ...draftData,
+      templateJobData: data.templateJobData,
+      title: data.improvedTitle || draftData.title,
+      category: draftData.category,
+      salary: draftData.salary,
+      location: draftData.location,
+      jobTypeAndWorkMode: draftData.jobTypeAndWorkMode,
+      requiredSkills: data.normalizedRequiredSkills || (draftData.skills ? String(draftData.skills).split(/[,;\n]/).map(s => s.trim()) : ['Java', 'SQL']),
+      preferredSkills: data.normalizedPreferredSkills || ['Git'],
+      responsibilities: userEnteredResp.length > 0
+        ? userEnteredResp
+        : (Array.isArray(data.improvedResponsibilities)
+            ? data.improvedResponsibilities
+            : typeof data.improvedResponsibilities === 'string'
+            ? data.improvedResponsibilities.split('\n').map(s => s.trim().replace(/^[•\-*]\s*/, '')).filter(Boolean)
+            : [draftData.responsibilities].filter(Boolean)),
+      benefits: data.improvedBenefits || draftData.benefits
+    };
+
+    const polishMsg = {
  id: `msg-polish-job-${Date.now()}`,
  sender: 'bot',
  time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
@@ -615,16 +785,7 @@ export function CareerFitChatbot() {
  `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
  `Bạn có thể bấm **[ Tự động điền vào Form Đăng tin]** để mở form tạo tin tuyển dụng chính thức trên CareerFit!`,
  isPolishedJobResult: true,
- polishedJobData: {
- ...draftData,
- title: data.improvedTitle,
- requiredSkills: data.normalizedRequiredSkills,
- preferredSkills: data.normalizedPreferredSkills,
- responsibilities: typeof data.improvedResponsibilities === 'string'
- ? data.improvedResponsibilities.split('\n').filter(Boolean)
- : [draftData.responsibilities],
- benefits: data.improvedBenefits
- }
+ polishedJobData
  };
 
  setMessages(prev => [...prev, polishMsg]);
@@ -810,6 +971,8 @@ export function CareerFitChatbot() {
  }
 
  const payload = {
+        _autoOpenRequested: true,
+        _timestamp: Date.now(),
  name: extractedName,
  desiredRole: rawRole,
  phone: extractedPhone,
@@ -947,43 +1110,129 @@ export function CareerFitChatbot() {
  };
 
  // Tự động điền bản nháp Job vào CreateJobPage và điều hướng mượt mà
- const handleAutofillJobForm = (draft) => {
- try {
- const reqSkills = Array.isArray(draft.requiredSkills)
- ? draft.requiredSkills
- : String(draft.skills || '').split(/[,;\n]/).map(s => s.trim()).filter(Boolean);
+  const handleAutofillJobForm = (draft) => {
+    try {
+      const template = draft.templateJobData || {};
 
- const prefSkills = Array.isArray(draft.preferredSkills)
- ? draft.preferredSkills
- : [];
+      // 1. Phân loại Category chuẩn xác vào 1 trong 6 danh mục CreateJobPage
+      let category = 'Backend Developer';
+      const rawCat = String(draft.category || template.category || '').toLowerCase();
+      if (rawCat.includes('qa') || rawCat.includes('test') || rawCat.includes('qc')) {
+        category = 'QA / Testing';
+      } else if (rawCat.includes('data') || rawCat.includes('ai') || rawCat.includes('dữ liệu')) {
+        category = 'Data Analyst';
+      } else if (rawCat.includes('front')) {
+        category = 'Frontend Developer';
+      } else if (rawCat.includes('full')) {
+        category = 'Fullstack Developer';
+      } else if (rawCat.includes('mobile') || rawCat.includes('android') || rawCat.includes('ios')) {
+        category = 'Mobile Developer';
+      } else if (rawCat.includes('back')) {
+        category = 'Backend Developer';
+      } else if (['Backend Developer', 'Frontend Developer', 'Fullstack Developer', 'QA / Testing', 'Mobile Developer', 'Data Analyst'].includes(draft.category)) {
+        category = draft.category;
+      }
 
- const respList = Array.isArray(draft.responsibilities)
- ? draft.responsibilities
- : String(draft.responsibilities || '').split('\n').filter(Boolean);
+      // 2. Đồng bộ Loại hình (JobType)
+      const rawType = String(draft.jobType || template.jobType || draft.jobTypeAndWorkMode || '').toLowerCase();
+      let jobType = 'Full-time';
+      if (rawType.includes('intern') || rawType.includes('thực tập')) {
+        jobType = 'Internship';
+      } else if (rawType.includes('fresher') || rawType.includes('mới ra trường')) {
+        jobType = 'Fresher';
+      } else if (rawType.includes('part') || rawType.includes('bán thời gian')) {
+        jobType = 'Part-time';
+      } else {
+        jobType = 'Full-time';
+      }
 
- const payload = {
- title: draft.title,
- category: draft.category || 'Backend Developer',
- location: draft.location || 'Hà Nội',
- jobType: String(draft.jobTypeAndWorkMode || '').includes('Intern') ? 'Internship' : 'Full-time',
- workMode: String(draft.jobTypeAndWorkMode || '').includes('Remote')
- ? 'Remote'
- : String(draft.jobTypeAndWorkMode || '').includes('Hybrid')
- ? 'Hybrid'
- : 'On-site',
- deadline: draft.deadline || '30/11/2026',
- requiredSkills: reqSkills,
- preferredSkills: prefSkills,
- responsibilities: respList
- };
- localStorage.setItem('careerfit_job_draft_autofill', JSON.stringify(payload));
- handleNavigate('create-job');
- setIsOpen(false); // Thu nhỏ chatbot để employer thấy ngay form đăng tin
- } catch (e) {
- console.warn('Lỗi khi chuyển tiếp dữ liệu vào biểu mẫu đăng tin:', e);
- handleNavigate('create-job');
- }
- };
+      // 3. Đồng bộ Hình thức (WorkMode)
+      const rawMode = String(draft.workMode || template.workMode || draft.jobTypeAndWorkMode || '').toLowerCase();
+      let workMode = 'On-site';
+      if (rawMode.includes('remote') || rawMode.includes('từ xa')) {
+        workMode = 'Remote';
+      } else if (rawMode.includes('hybrid') || rawMode.includes('linh hoạt')) {
+        workMode = 'Hybrid';
+      } else {
+        workMode = 'On-site';
+      }
+
+      // 4. Đồng bộ Title: Tuyệt đối không để Title bị ngược với JobType
+      let title = draft.title || template.title || 'Lập trình viên IT';
+      if (jobType === 'Full-time') {
+        title = title.replace(/\(?\s*Part[\s-]?time\s*\)?/gi, '').trim();
+      } else if (jobType === 'Part-time') {
+        title = title.replace(/\(?\s*Full[\s-]?time\s*\)?/gi, '').trim();
+      }
+
+      // 5. Bóc tách và đồng bộ Mức lương (minSalary, maxSalary, currency)
+      let minSalary = draft.minSalary || template.minSalary || '';
+      let maxSalary = draft.maxSalary || template.maxSalary || '';
+      let currency = draft.currency || template.currency || 'VNĐ';
+      const rawSalary = String(draft.salary || template.salary || '');
+      if (rawSalary.toLowerCase().includes('usd') || rawSalary.includes('$')) {
+        currency = 'USD';
+      }
+      if (!minSalary || !maxSalary) {
+        const nums = rawSalary.replace(/[,.]000\.000/g, '').replace(/[,.]000/g, '').match(/\d+/g);
+        if (nums && nums.length >= 2) {
+          minSalary = nums[0];
+          maxSalary = nums[1];
+        } else if (nums && nums.length === 1) {
+          minSalary = nums[0];
+          maxSalary = String(Number(nums[0]) + 3);
+        } else {
+          minSalary = '8';
+          maxSalary = '12';
+        }
+      }
+
+      // 6. BẢO TOÀN TRÁCH NHIỆM DO NGƯỜI DÙNG CUNG CẤP (KHÔNG BỊ BỊA ĐẶT)
+      const userResp = draft.responsibilities || template.responsibilities;
+      let respList = [];
+      if (Array.isArray(userResp) && userResp.length > 0) {
+        respList = userResp.map(r => String(r).replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
+      } else if (typeof userResp === 'string' && userResp.trim()) {
+        respList = userResp.split('\n').map(r => r.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
+      }
+      if (respList.length === 0) {
+        respList = ['Thực hiện các công việc chuyên môn theo sự phân công của quản lý dự án.'];
+      }
+
+      const reqSkills = Array.isArray(draft.requiredSkills)
+        ? draft.requiredSkills
+        : Array.isArray(template.requiredSkills)
+        ? template.requiredSkills
+        : String(draft.skills || '').split(/[,;\n]/).map(s => s.trim()).filter(Boolean);
+
+      const prefSkills = Array.isArray(draft.preferredSkills)
+        ? draft.preferredSkills
+        : Array.isArray(template.preferredSkills)
+        ? template.preferredSkills
+        : [];
+
+      const payload = {
+        title,
+        category,
+        location: draft.location || template.location || 'Hà Nội',
+        jobType,
+        workMode,
+        minSalary: String(minSalary),
+        maxSalary: String(maxSalary),
+        currency,
+        deadline: draft.deadline || template.deadline || '30/11/2026',
+        requiredSkills: reqSkills,
+        preferredSkills: prefSkills,
+        responsibilities: respList
+      };
+      localStorage.setItem('careerfit_job_draft_autofill', JSON.stringify(payload));
+      handleNavigate('create-job');
+      setIsOpen(false);
+    } catch (e) {
+      console.warn('Lỗi khi chuyển tiếp dữ liệu vào biểu mẫu đăng tin:', e);
+      handleNavigate('create-job');
+    }
+  };
 
  // Xử lý gửi tin nhắn của người dùng
  const handleSendMessage = async (textToSend) => {
@@ -1069,6 +1318,52 @@ export function CareerFitChatbot() {
           } catch (err) {
             console.debug('AI check exit intent fallback to local processing:', err);
           }
+        }
+
+        // 1.3b Nhận diện câu hỏi / thắc mắc của người dùng trong bước hiện tại:
+        // TRẢ LỜI CÂU HỎI VÀ TUYỆT ĐỐI KHÔNG NHẢY BƯỚC, KHÔNG LƯU CÂU HỎI VÀO BIỂU MẪU
+        if (isQuestionOrInquiry(query)) {
+          try {
+            const historyPayload = messages.slice(-4).map(m => ({
+              role: m.sender === 'user' ? 'user' : 'assistant',
+              content: m.content
+            }));
+            const currentStepTitle = currentStepDef?.title || `Bước ${session.stepIndex + 1}`;
+            const contextualPrompt = `(Người dùng đang ở '${currentStepTitle}' trong quy trình ${session.mode === CHATBOT_MODES.JOB_POST_GUIDE ? 'soạn tin tuyển dụng' : 'tạo CV'}. Hãy trả lời câu hỏi sau đây một cách rõ ràng, ngắn gọn và hữu ích): ${query}`;
+            const res = await assistantApi.chat({
+              message: contextualPrompt,
+              conversationHistory: historyPayload
+            });
+            const chatData = res?.data || res;
+            const aiAnswer = chatData?.reply || chatData?.message || res?.reply || 'Bạn hãy tham khảo thông tin trên nhé!';
+            const reminderMsg = {
+              id: `msg-bot-qa-${Date.now()}`,
+              sender: 'bot',
+              time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+              content: `${aiAnswer}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n*(Chúng ta vẫn đang ở **Bước ${session.stepIndex + 1}/${currentGuideSteps.length}: ${currentStepTitle}** nhé. Khi sẵn sàng, bạn hãy nhập câu trả lời hoặc chọn gợi ý bên dưới)*`,
+              quickOptions: currentStepDef?.quickOptions,
+              isStepPrompt: true,
+              stepNumber: session.stepIndex + 1,
+              totalSteps: currentGuideSteps.length
+            };
+            setMessages(prev => [...prev, reminderMsg]);
+          } catch (err) {
+            console.warn('Lỗi khi AI trả lời thắc mắc trong bước hướng dẫn:', err);
+            const fallbackMsg = {
+              id: `msg-bot-qa-err-${Date.now()}`,
+              sender: 'bot',
+              time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+              content: `Dạ, về thắc mắc của bạn: Bạn có thể liên hệ Ban quản trị hoặc tham khảo quy định hệ thống.\n\n*(Chúng ta vẫn đang ở **Bước ${session.stepIndex + 1}/${currentGuideSteps.length}: ${currentStepDef?.title}** nhé. Bạn hãy nhập thông tin hoặc chọn gợi ý bên dưới để tiếp tục)*`,
+              quickOptions: currentStepDef?.quickOptions,
+              isStepPrompt: true,
+              stepNumber: session.stepIndex + 1,
+              totalSteps: currentGuideSteps.length
+            };
+            setMessages(prev => [...prev, fallbackMsg]);
+          } finally {
+            setIsTyping(false);
+          }
+          return;
         }
 
         setTimeout(() => {
@@ -1162,7 +1457,52 @@ export function CareerFitChatbot() {
  }
  }
 
- // 2. Nhận diện ý định tạo CV (Ứng viên)
+ 
+  // 1.8 Nhận diện ý định Tìm việc & Tự động chuyển tab sang Tìm việc kèm bộ lọc
+  if (!isEmployer) {
+    const jobCriteria = extractJobSearchCriteria(query, userContext);
+    if (jobCriteria) {
+      const summaryParts = [];
+      if (jobCriteria.keyword) summaryParts.push(`• **Từ khóa / Vị trí:** ${jobCriteria.keyword}`);
+      if (jobCriteria.location) summaryParts.push(`• **Địa điểm:** ${jobCriteria.location}`);
+      if (jobCriteria.jobType) summaryParts.push(`• **Cấp bậc:** ${jobCriteria.jobType}`);
+      if (jobCriteria.category) summaryParts.push(`• **Lĩnh vực:** ${jobCriteria.category}`);
+      if (jobCriteria.minSalary) summaryParts.push(`• **Mức lương từ:** ${jobCriteria.minSalary} triệu VNĐ`);
+
+      const replyContent = `🎯 **CareerFit AI đã nhận diện yêu cầu tìm việc của bạn:**\n\n` +
+        summaryParts.join('\n') +
+        `\n\n🚀 *Đang tự động chuyển bạn sang tab **Khám phá việc làm IT** và lọc kết quả trực tiếp ngay lập tức...*`;
+
+      const botReply = {
+        id: `msg-bot-job-nav-${Date.now()}`,
+        sender: 'bot',
+        time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        content: replyContent,
+        quickAction: {
+          label: 'Mở trang Tìm việc',
+          navPage: 'job-search'
+        }
+      };
+
+      setMessages(prev => [...prev, botReply]);
+      setIsTyping(false);
+
+      // Lưu bộ lọc vào localStorage để trang JobSearchPage nạp ngay cả khi vừa mount
+      localStorage.setItem('careerfit_ai_job_filter', JSON.stringify(jobCriteria));
+      // Bắn event nếu trang JobSearchPage đã mount sẵn
+      window.dispatchEvent(new CustomEvent('careerfit_apply_job_filter', { detail: jobCriteria }));
+
+      // Tự động chuyển tab sang trang Tìm việc và thu nhỏ chatbot sau 800ms
+      setTimeout(() => {
+        setActivePage('job-search');
+        setIsOpen(false);
+      }, 800);
+
+      return;
+    }
+  }
+
+  // 2. Nhận diện ý định tạo CV (Ứng viên)
  const detectedMode = detectIntent(query, role);
 
  if (detectedMode === CHATBOT_MODES.CV_GUIDE) {

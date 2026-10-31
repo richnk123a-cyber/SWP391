@@ -304,22 +304,25 @@
 }
 
 
-/* Bảo đảm đường dẫn URL, tên tệp và chuỗi ký tự dài không bao giờ tràn khỏi bong bóng chat */
+/* Bảo đảm bong bóng chat co giãn tự nhiên theo nội dung, không tự ý ngắt dòng bừa bãi và không tràn khung */
 .cf-msg-bubble {
-  min-width: 0 !important;
-  max-width: 85% !important;
-  overflow-wrap: anywhere !important;
-  word-break: break-word !important;
-  word-wrap: break-word !important;
-  hyphens: auto;
+  width: fit-content;
+  max-width: 85%;
+  overflow-wrap: break-word !important;
+  word-break: normal !important;
+  hyphens: manual;
+}
+
+.cf-msg-bubble.w-full {
+  width: 100% !important;
+  max-width: 96% !important;
 }
 
 .cf-msg-content {
-  min-width: 0 !important;
-  overflow-wrap: anywhere !important;
-  word-break: break-word !important;
-  word-wrap: break-word !important;
-  white-space: pre-line;
+  width: 100%;
+  max-width: 100%;
+  overflow-wrap: break-word !important;
+  word-break: normal !important;
 }
 
 .cf-msg-content a {
@@ -341,4 +344,42 @@
   border-radius: 4px;
   display: inline-block;
   max-width: 100%;
+}
+
+/* Bảng biểu Markdown đẹp mắt trong Chatbot */
+.cf-table-wrapper {
+  scrollbar-width: thin;
+  scrollbar-color: #A3D1B4 #F0F7F3;
+}
+
+.cf-table-wrapper::-webkit-scrollbar {
+  height: 5px;
+}
+
+.cf-table-wrapper::-webkit-scrollbar-track {
+  background: #F0F7F3;
+  border-radius: 9999px;
+}
+
+.cf-table-wrapper::-webkit-scrollbar-thumb {
+  background: #A3D1B4;
+  border-radius: 9999px;
+}
+
+.cf-table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #28674E;
+}
+
+.cf-table-wrapper table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.cf-table-wrapper th,
+.cf-table-wrapper td {
+  border-bottom: 1px solid #E8F3EC;
+}
+
+.cf-table-wrapper tr:last-child td {
+  border-bottom: none;
 }
